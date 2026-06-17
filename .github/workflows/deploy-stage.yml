@@ -1,0 +1,72 @@
+name: Deploy stage (GitHub Pages)
+
+# Builds packages/web and publishes it to GitHub Pages as the stage site at
+# https://dovy.github.io/recordseek/ on every push to the modernization branch.
+on:
+  push:
+    branches: [modernization]
+  workflow_dispatch:
+
+# Grant the run permission to publish to Pages via OIDC.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One stage deploy at a time; let an in-progress publish finish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4 # version comes from package.json "packageManager"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Gate the deploy on a green build.
+      - name: Typecheck
+        run: pnpm -r --if-present typecheck
+
+      - name: Test
+        run: pnpm -r --if-present test
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      # `--mode pages` sets Vite base to /recordseek/ so assets resolve under the
+      # project-site subpath. VITE_FS_* are optional repo Variables; FS login is
+      # not expected to work on the github.io stage (its redirect URI can't be
+      # registered with FamilySearch).
+      - name: Build web app (Pages subpath)
+        run: pnpm --filter @recordseek/web build:pages
+        env:
+          VITE_FS_APP_KEY: ${{ vars.VITE_FS_APP_KEY }}
+          VITE_FS_ENV: ${{ vars.VITE_FS_ENV }}
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: packages/web/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

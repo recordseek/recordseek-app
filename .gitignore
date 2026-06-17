@@ -1,3 +1,23 @@
 # Created by .ignore support plugin (hsz.mobi)
 .idea/
 .DS_Store
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Local env files (never commit secrets like VITE_FS_APP_KEY)
+.env
+.env.local
+.env.*.local
+
+# Test / coverage
+coverage/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*

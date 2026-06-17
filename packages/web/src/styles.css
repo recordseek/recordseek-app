@@ -1,0 +1,919 @@
+/* RecordSeek — Bootswatch Flatly palette: Lato, dark slate #2C3E50,
+   turquoise #18BC9C, flat square corners. */
+
+:root {
+  --ink: #2c3e50; /* brand-primary: text, navbar */
+  --accent: #18bc9c; /* brand-success: links + primary actions */
+  --accent-hover: #15a589;
+  --info: #3498db;
+  --danger: #e74c3c;
+  --gray: #95a5a6;
+  --gray-light: #b4bcc2;
+  --light: #ecf0f1;
+  --input-border: #dce4ec;
+  --card: #ffffff;
+}
+
+* {
+  box-sizing: border-box;
+  border-radius: 0; /* Flatly is square */
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Lato', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.428;
+  color: var(--ink);
+  background: #fff;
+}
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--ink);
+  color: #fff;
+  padding: 12px 22px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+.app-header .brand-link {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #fff;
+  cursor: pointer;
+}
+
+.app-header .brand-link:hover:not(:disabled) {
+  background: none;
+  border: none;
+  color: #fff;
+}
+
+.app-header .brand-link:hover .brand-accent {
+  filter: brightness(1.15);
+}
+
+.app-header .brand-icon {
+  height: 30px;
+  width: auto;
+  display: block;
+}
+
+.app-header .brand {
+  font-weight: 700;
+  font-size: 1.25rem;
+  letter-spacing: 0.2px;
+}
+
+.app-header .brand-accent {
+  color: var(--accent);
+}
+
+.app-header .crumb-sep {
+  color: var(--gray-light);
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.app-header .crumb-logo {
+  height: 24px;
+  width: auto;
+  display: block;
+}
+
+.app-header .crumb-name {
+  font-weight: 700;
+}
+
+.header-user {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-hello {
+  color: #c8d0d8;
+  font-size: 0.95rem;
+}
+
+.header-logout {
+  margin: 0;
+  padding: 5px 12px;
+  font-size: 0.85rem;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: #fff;
+}
+
+.header-logout:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.7);
+  color: #fff;
+}
+
+main {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 16px 26px 32px;
+  background: #fff;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin-top: 0;
+  font-weight: 400;
+  line-height: 1.1;
+  color: var(--ink);
+}
+
+h1 {
+  font-size: 2.2rem;
+}
+h3 {
+  font-size: 1.5rem;
+  margin-bottom: 10px;
+}
+
+small {
+  color: var(--gray-light);
+  font-weight: 400;
+}
+
+p {
+  margin: 0.5rem 0;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+  cursor: pointer;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+hr {
+  border: 0;
+  border-top: 1px solid var(--light);
+  margin: 18px 0;
+}
+
+label {
+  display: block;
+  margin: 12px 0 4px;
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+label:has(> input[type='checkbox']),
+label:has(> input[type='radio']) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 16px;
+  font-weight: 400;
+}
+
+/* fs-source "Attach a Source" page */
+.attach-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.attach-title {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.tag-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+
+.tag-icon {
+  display: block;
+}
+
+.tag-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.3);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+/* "Tag this Source to Events" modal (legacy popover look). */
+.tag-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(33, 43, 54, 0.45);
+}
+
+.tag-modal {
+  width: 100%;
+  max-width: 360px;
+  background: #fff;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  padding: 22px 22px 0;
+}
+
+.tag-modal-title {
+  margin: 0 0 16px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 1.05rem;
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+.tag-modal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 18px;
+  margin-bottom: 18px;
+}
+
+.tag-option {
+  margin: 0;
+}
+
+.tag-modal-close {
+  display: block;
+  width: calc(100% + 44px);
+  margin: 0 -22px;
+  padding: 12px;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 700;
+}
+
+.tag-modal-close:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+/* Mobile: the native <dialog> popup, styled as a bottom sheet around .tag-modal. */
+.tag-dialog {
+  margin: auto auto 0;
+  width: 100%;
+  max-width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+.tag-dialog::backdrop {
+  background: rgba(33, 43, 54, 0.45);
+}
+.tag-dialog .tag-modal {
+  max-width: 100%;
+  box-shadow: none;
+}
+
+/* Uniform field labels: same size/weight for every item; muted parenthetical hint. */
+.field {
+  margin: 10px 0 0;
+}
+
+.field-label {
+  display: block;
+  margin: 0 0 4px;
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.field-hint {
+  font-weight: 400;
+  color: #7b8a8b;
+}
+
+.citation-label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.format-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.92rem;
+  white-space: nowrap;
+}
+
+.format-inline select {
+  width: auto;
+  padding: 3px 8px;
+}
+
+/* An input with a trailing action button (e.g. a Clear "×") on the same line. */
+.input-with-action {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.input-with-action input {
+  flex: 1;
+  width: auto;
+  min-width: 0;
+}
+
+.input-clear {
+  flex: 0 0 auto;
+  margin: 0;
+  width: 38px;
+  padding: 0;
+  font-size: 1.2rem;
+  line-height: 1;
+  background: #b4bcc2;
+  border-color: #b4bcc2;
+  color: #fff;
+}
+
+.input-clear:hover:not(:disabled) {
+  background: #98a3ab;
+  border-color: #98a3ab;
+}
+
+input[type='text'],
+input:not([type]),
+select,
+textarea {
+  width: 100%;
+  padding: 5px 12px;
+  border: 1px solid var(--input-border);
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+}
+
+textarea {
+  resize: vertical;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--ink);
+  box-shadow: 0 0 0 2px rgba(44, 62, 80, 0.12);
+}
+
+input:disabled,
+textarea:disabled {
+  background: var(--light);
+  color: var(--gray-light);
+}
+
+fieldset {
+  margin: 16px 0;
+  padding: 12px 16px;
+  border: 1px solid var(--input-border);
+}
+
+legend {
+  padding: 0 6px;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+button {
+  margin: 16px 8px 0 0;
+  padding: 10px 18px;
+  border: 1px solid var(--gray);
+  background: var(--gray);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  /* Align inline-flex (.btn-back) and inline-block buttons consistently so
+     they don't sit on mismatched baselines. */
+  vertical-align: middle;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+button:hover:not(:disabled) {
+  background: #7f9193;
+  border-color: #7f9193;
+}
+
+button[type='submit'],
+button.primary {
+  background: #1a242f;
+  border-color: #1a242f;
+}
+
+button[type='submit']:hover:not(:disabled),
+button.primary:hover:not(:disabled) {
+  background: #34495e;
+  border-color: #34495e;
+}
+
+.btn-next {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-success {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.btn-success:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  color: #fff;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 0.85rem;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-back .back-arrow {
+  display: block;
+}
+
+ul {
+  list-style: none;
+  margin: 16px 0;
+  padding: 0;
+}
+
+li {
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  border: 1px solid var(--light);
+  background: #fbfcfd;
+}
+
+[role='alert'] {
+  margin: 12px 0;
+  padding: 12px 15px;
+  background: var(--danger);
+  color: #fff;
+  font-weight: 700;
+}
+
+[role='status'] {
+  color: var(--gray);
+}
+
+blockquote {
+  margin: 16px 0;
+  padding-left: 14px;
+  border-left: 4px solid var(--light);
+  color: var(--gray);
+}
+
+pre {
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 12px;
+  overflow: auto;
+  font-size: 0.85rem;
+}
+
+/* Compact multi-column search form */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
+  gap: 10px 16px;
+  margin: 18px 0;
+}
+
+.form-grid label {
+  margin: 0 0 4px;
+}
+
+.year-range {
+  display: flex;
+  gap: 8px;
+}
+
+.form-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.form-footer .footer-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.form-footer button {
+  margin: 0;
+}
+
+/* Service picker (Main) */
+.service-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.service-tile {
+  flex: 1 1 160px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 14px;
+  background: #fff;
+  border: 1px solid var(--input-border);
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.service-tile:hover:not(:disabled) {
+  background: #f8fafb;
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+.service-tile {
+  min-height: 120px;
+  justify-content: center;
+}
+
+.service-tile img {
+  max-width: 100%;
+  max-height: 42px;
+  width: auto;
+  height: auto;
+}
+
+.service-tile .tile-icon {
+  font-size: 2.4rem;
+  line-height: 1;
+}
+
+/* Search results table */
+.results-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 0.9rem;
+}
+
+.results-table th {
+  text-align: left;
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  padding: 6px 10px 8px;
+  border-bottom: 2px solid var(--gray-light);
+}
+
+.results-table td {
+  padding: 10px;
+  vertical-align: top;
+  border-bottom: 1px solid var(--light);
+}
+
+/* Zebra striping (declared before :hover so hover wins at equal specificity). */
+.results-table tbody tr:nth-child(even) td {
+  background: #f4f7f7;
+}
+
+.results-table tbody tr:hover td {
+  background: #eaf1f1;
+}
+
+.results-table .btn-success {
+  margin: 0;
+  padding: 6px 14px;
+}
+
+.results-table .person a {
+  font-weight: 700;
+}
+
+.results-table .person .pid {
+  margin-top: 3px;
+  color: var(--gray-light);
+  font-size: 0.78rem;
+  letter-spacing: 0.03em;
+}
+
+.results-table .gender {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 8px;
+  vertical-align: 1px;
+}
+
+.gender-Male {
+  background: #448ef7;
+}
+.gender-Female {
+  background: #e2427c;
+}
+.gender-Unknown {
+  background: var(--gray);
+}
+
+.results-table .events div,
+.results-table .relatives div {
+  line-height: 1.55;
+}
+
+.results-table .relatives a {
+  text-decoration: none;
+}
+
+.results-table .relative {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  line-height: 1.5;
+}
+
+.role-icon {
+  flex: 0 0 auto;
+  font-weight: 700;
+  line-height: 1;
+}
+.role-father {
+  color: #448ef7;
+}
+.role-mother {
+  color: #e2427c;
+}
+.role-spouse {
+  color: var(--gray);
+}
+
+/* Birth/death: full detail shows inline on desktop; the compact popover trigger
+   is mobile-only (revealed in the mobile media query). */
+.events-summary {
+  display: none;
+}
+
+/* "X–Y of N results" bar, sitting flush on top of the results table. */
+.results-meta {
+  display: flex;
+  justify-content: flex-end;
+  margin: 16px 0 0;
+  padding: 7px 2px;
+  color: var(--gray);
+  font-size: 0.85rem;
+}
+
+.results-meta + .results-table {
+  margin-top: 0;
+}
+
+/* Numbered pagination (compact) */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin: 14px 0;
+}
+
+.pagination button {
+  margin: 0;
+  min-width: 28px;
+  padding: 3px 7px;
+  background: #b4bcc2;
+  border-color: #b4bcc2;
+  color: #fff;
+  font-size: 0.78rem;
+}
+
+.pagination button:hover:not(:disabled) {
+  background: #98a3ab;
+  border-color: #98a3ab;
+}
+
+.pagination button.is-current {
+  background: var(--ink);
+  border-color: var(--ink);
+  cursor: default;
+}
+
+.pagination button:disabled {
+  opacity: 1;
+  background: #e3e7ea;
+  border-color: #e3e7ea;
+  color: #aeb6bd;
+}
+
+.pagination .ellipsis {
+  padding: 0 4px;
+  color: var(--gray-light);
+}
+
+/* Link-styled button */
+.link-button {
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.link-button:hover:not(:disabled) {
+  background: none;
+  border: none;
+  color: var(--accent-hover);
+  text-decoration: underline;
+}
+
+/* ---------------------------------------------------------------------------
+   Mobile (≤768px): trim side gutters, turn the results table into full-bleed
+   cards (father/mother icons + a tap-to-open birth/death popover), and stack
+   the footer nav as full-width buttons instead of the cramped wrap.
+   --------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+  main {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  /* Full-bleed result cards: cancel main's gutter so they reach both edges. */
+  .results-table {
+    margin: 12px -12px;
+    width: calc(100% + 24px);
+    font-size: 0.95rem;
+  }
+  .results-table thead {
+    display: none;
+  }
+  .results-table tbody,
+  .results-table tr,
+  .results-table td {
+    display: block;
+    width: 100%;
+  }
+  .results-table tr {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    padding: 14px 16px;
+    border-top: 1px solid var(--input-border);
+  }
+  .results-table tbody tr:nth-child(even) td,
+  .results-table tbody tr:hover td {
+    background: transparent;
+  }
+  .results-table td {
+    border: none;
+    padding: 0;
+  }
+
+  /* Card order: name → events → parents → spouses → Select action. */
+  .results-table td.person {
+    order: 1;
+  }
+  .results-table td.events {
+    order: 2;
+  }
+  .results-table td.parents {
+    order: 3;
+  }
+  .results-table td.spouses {
+    order: 4;
+  }
+  .results-table td.select-cell {
+    order: 5;
+  }
+  .results-table td.select-cell .btn-success {
+    width: 100%;
+    padding: 11px;
+  }
+
+  /* A label above each detail cell; empty ones (no parents/spouses) vanish. */
+  .results-table td.events::before,
+  .results-table td.relatives::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 3px;
+    font-weight: 700;
+    font-size: 0.78rem;
+    color: var(--gray);
+  }
+  .results-table td.events:empty,
+  .results-table td.relatives:empty {
+    display: none;
+  }
+
+  /* Birth/death: compact trigger + tap-to-open popover with the full detail. */
+  .events-summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    padding: 5px 10px;
+    background: var(--light);
+    border: 1px solid var(--input-border);
+    color: var(--ink);
+    font-size: 0.9rem;
+    font-weight: 400;
+  }
+  .events-caret {
+    color: var(--gray);
+    font-size: 0.7rem;
+  }
+  .events-cell {
+    position: relative;
+  }
+  .events-detail {
+    display: none;
+    position: absolute;
+    z-index: 30;
+    top: calc(100% + 4px);
+    left: 0;
+    min-width: 230px;
+    padding: 10px 12px;
+    background: #fff;
+    border: 1px solid var(--input-border);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+  }
+  .events-detail.is-open {
+    display: block;
+  }
+
+  /* Footer nav: full-width stacked buttons. */
+  .form-footer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .footer-right {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    gap: 8px;
+  }
+  .form-footer button,
+  .form-footer .btn-back,
+  .form-footer .btn-next {
+    width: 100%;
+    justify-content: center;
+  }
+}
