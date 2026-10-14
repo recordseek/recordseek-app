@@ -21,7 +21,9 @@ export function initSentry(): void {
     dsn,
     environment: typeof env.VITE_FS_ENV === 'string' && env.VITE_FS_ENV ? env.VITE_FS_ENV : 'production',
     release: typeof env.VITE_RELEASE === 'string' ? env.VITE_RELEASE : undefined,
-    sendDefaultPii: false,
+    // v11 replaced sendDefaultPii with dataCollection: keep user info, cookies,
+    // headers and bodies out of events (the old sendDefaultPii:false behaviour).
+    dataCollection: { userInfo: false, cookies: false, httpHeaders: false, httpBodies: [] },
     beforeSend(event) {
       if (event.request?.url) {
         event.request.url = scrub(event.request.url);
