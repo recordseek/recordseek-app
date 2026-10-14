@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { useCapture } from '../capture/CaptureContext';
 import { getLastService, saveLastService, type Service } from '../prefs';
 

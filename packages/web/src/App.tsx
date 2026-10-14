@@ -1,4 +1,4 @@
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router';
 import { CaptureProvider } from './capture/CaptureContext';
 import { SessionProvider } from './session/SessionContext';
 import { Main } from './screens/Main';
@@ -23,7 +23,7 @@ export function App() {
   return (
     <CaptureProvider>
       <SessionProvider>
-        <HashRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <HashRouter>
           <Header />
           <OAuthGate>
             <Routes>

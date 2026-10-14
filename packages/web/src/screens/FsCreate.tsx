@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { buildGedcomxPerson, personDetailUrl } from '@recordseek/core';
 import { useSession, EVENT_TAGS, type EventTag } from '../session/SessionContext';
 import { createFsClient } from '../auth/fsClient';

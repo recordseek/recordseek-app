@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { useSession } from '../session/SessionContext';
 
 const SOURCE_BOX_URL = 'https://www.familysearch.org/search/sourcebox';

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { parseSearchResults, parseSearchTotal, parsePerson, type PersonResult } from '@recordseek/core';
 import { useSession, isSearchEmpty, type SearchCriteria } from '../session/SessionContext';
 import { createFsClient } from '../auth/fsClient';

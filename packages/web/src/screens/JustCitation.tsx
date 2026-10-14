@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { formatCitation, CITATION_STYLES, CITATION_STYLE_LABELS, type CitationStyle } from '@recordseek/core';
 import { useCapture } from '../capture/CaptureContext';
 import { usePersistedCitationStyle, clearLastService } from '../prefs';

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { Loading } from '../screens/Loading';
 import { completeFsLogin } from '../fsAuth';
 import { reportError } from '../sentry';
