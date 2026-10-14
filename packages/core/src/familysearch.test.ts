@@ -60,6 +60,12 @@ describe('resolveRedirectUri (local-dev parity)', () => {
     expect(resolveRedirectUri('http://localhost:9000')).toBe('http://localhost:9000');
     expect(resolveRedirectUri('http://localhost:9001')).toBe('http://localhost:9001');
   });
+
+  it('follows the deployed base path (GitHub Pages stage)', () => {
+    expect(resolveRedirectUri('https://recordseek.github.io', '/recordseek-app/')).toBe(
+      'https://recordseek.github.io/recordseek-app/',
+    );
+  });
 });
 
 describe('authorization URL + token exchange', () => {

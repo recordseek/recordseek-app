@@ -96,11 +96,11 @@ export class FsApiError extends Error {
  * production serves the app under `/share/`; localhost serves it from the root.
  * (Mirrors legacy familysearch.js:30-34.)
  */
-export function resolveRedirectUri(origin: string): string {
+export function resolveRedirectUri(origin: string, basePath = '/share/'): string {
   if (origin === 'http://localhost:9000' || origin === 'http://localhost:9001') {
     return origin;
   }
-  return `${origin}/share/`;
+  return `${origin}${basePath}`;
 }
 
 // ---------------------------------------------------------------------------

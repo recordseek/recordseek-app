@@ -37,7 +37,7 @@ export function createFsClient(): FamilySearchClient {
   return new FamilySearchClient({
     appKey,
     environment,
-    redirectUri: resolveRedirectUri(window.location.origin),
+    redirectUri: resolveRedirectUri(window.location.origin, import.meta.env.BASE_URL),
     tokenStore: sessionTokenStore(),
   });
 }

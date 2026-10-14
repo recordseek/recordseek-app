@@ -93,12 +93,11 @@ Variables) configure the FamilySearch client at build time; both are optional:
 | `VITE_FS_APP_KEY` | FamilySearch app key |
 | `VITE_FS_ENV` | `production` \| `beta` \| `integration` |
 
-> **Stage limitation:** live FamilySearch login does **not** work on the
-> `recordseek.github.io/recordseek-app/` stage — FamilySearch only honors a registered
-> `redirect_uri`, and a `github.io` URL can't be registered for the app key.
-> Everything else (UI, Ancestry hand-off, "Save to Somewhere Else"/citation,
-> capture parsing) works. A future prod / custom-domain deploy (e.g.
-> `recordseek.com`) restores the FS flow.
+> **Stage login:** the stage build sends FamilySearch back to
+> `https://recordseek.github.io/recordseek-app/` (the redirect follows Vite's
+> `base`). FamilySearch only accepts registered redirect URIs, so that URL must
+> be added to the app key's redirect list in the FamilySearch developer portal
+> before login works on stage.
 
 ## Status
 
