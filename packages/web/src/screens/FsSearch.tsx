@@ -1,6 +1,8 @@
-import { type FormEvent } from 'react';
+import { useEffect, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { useSession, isSearchEmpty } from '../session/SessionContext';
+import { useOptionalCapture } from '../capture/CaptureContext';
+import { personToSearch } from '../session/prefill';
 import { BackButton } from '../components/BackButton';
 import { ForwardButton } from '../components/ForwardButton';
 
@@ -20,6 +22,22 @@ export function FsSearch() {
   const { state, updateSearch, resetSearch } = useSession();
   const navigate = useNavigate();
   const s = state.search;
+  const person = useOptionalCapture()?.person;
+
+  // Pre-fill once from genscrape's person data, only while the search is still
+  // untouched (a restored or user-edited search wins). Reset stays blank.
+  useEffect(() => {
+    if (!person || !isSearchEmpty(state.search)) return;
+    const key = 'rs_search_prefilled';
+    try {
+      if (window.sessionStorage.getItem(key)) return;
+      window.sessionStorage.setItem(key, '1');
+    } catch {
+      /* ignore */
+    }
+    updateSearch(personToSearch(person));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [person]);
   const canSubmit = !isSearchEmpty(s);
   const eventChosen = s.eventType !== '';
 

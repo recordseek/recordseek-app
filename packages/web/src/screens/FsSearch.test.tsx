@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router';
-import { SessionProvider } from '../session/SessionContext';
+import { SessionProvider, emptySearch } from '../session/SessionContext';
+import { CaptureProvider } from '../capture/CaptureContext';
 import { FsSearch, normalizePid } from './FsSearch';
 
 function renderSearch() {
@@ -48,5 +49,42 @@ describe('FsSearch', () => {
     expect(screen.getByLabelText('Event Place')).toBeDisabled();
     await userEvent.selectOptions(screen.getByLabelText('Event Type'), 'birthLike');
     expect(screen.getByLabelText('Event Place')).toBeEnabled();
+  });
+});
+
+describe('FsSearch genscrape pre-fill', () => {
+  const href =
+    'https://recordseek.com/share/?url=https%3A%2F%2Fx.com%2Fr&givenName=John&surname=Smith&gender=Male&birthDate=12%20Mar%201850&birthPlace=Ohio&fatherGivenName=Bob';
+
+  function renderWith(initial?: Partial<import('../session/SessionContext').SessionState>) {
+    window.sessionStorage.clear();
+    return render(
+      <SessionProvider initial={initial}>
+        <CaptureProvider href={href}>
+          <MemoryRouter initialEntries={['/fs-search']}>
+            <Routes>
+              <Route path="/fs-search" element={<FsSearch />} />
+            </Routes>
+          </MemoryRouter>
+        </CaptureProvider>
+      </SessionProvider>,
+    );
+  }
+
+  it('pre-fills the search from person params', () => {
+    renderWith();
+    expect(screen.getByLabelText('Given Name(s)')).toHaveValue('John');
+    expect(screen.getByLabelText('Last Names (Surname)')).toHaveValue('Smith');
+    expect(screen.getByLabelText('Gender')).toHaveValue('male');
+    expect(screen.getByLabelText('Event Type')).toHaveValue('birthLike');
+    expect(screen.getByLabelText('Event year from')).toHaveValue('1850');
+    expect(screen.getByLabelText('Event Place')).toHaveValue('Ohio');
+    expect(screen.getByLabelText("Father's Given Name(s)")).toHaveValue('Bob');
+  });
+
+  it('does not overwrite an already-edited search', () => {
+    renderWith({ search: { ...emptySearch(), surname: 'Jones' } });
+    expect(screen.getByLabelText('Last Names (Surname)')).toHaveValue('Jones');
+    expect(screen.getByLabelText('Given Name(s)')).toHaveValue('');
   });
 });

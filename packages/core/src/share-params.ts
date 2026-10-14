@@ -28,7 +28,53 @@ export type ShareParams = Record<string, string | string[]>;
  * The keys the extension always sends. Anything else in the share URL is an
  * "extra" that gets appended to the captured source `url` (legacy app.js:64).
  */
-const DEFAULT_KEYS: readonly string[] = ['_', 'h1', 'citation', 'title', 'e', 'ev', 'tags', 'url', 'notes'];
+const BASE_KEYS: readonly string[] = ['_', 'h1', 'citation', 'title', 'e', 'ev', 'tags', 'url', 'notes'];
+
+/**
+ * Person params (from genscrape via the extension, or legacy search-field
+ * names). They describe the principal person, never the source URL, so they are
+ * known keys: never folded onto `url`, and exposed via {@link extractPersonParams}.
+ */
+export const PERSON_KEYS = [
+  'givenName',
+  'surname',
+  'gender',
+  'birthDate',
+  'birthPlace',
+  'deathDate',
+  'deathPlace',
+  'fatherGivenName',
+  'fatherSurname',
+  'motherGivenName',
+  'motherSurname',
+  'spouseGivenName',
+  'spouseSurname',
+  // legacy search-field names
+  'eventType',
+  'eventDateFrom',
+  'eventDateTo',
+  'eventPlace',
+] as const;
+
+export type PersonKey = (typeof PERSON_KEYS)[number];
+export type PersonParams = Partial<Record<PersonKey, string>>;
+
+const DEFAULT_KEYS: readonly string[] = [...BASE_KEYS, ...PERSON_KEYS];
+
+/** Pick the known person params (non-empty strings only); undefined if none. */
+export function extractPersonParams(params: ShareParams): PersonParams | undefined {
+  const person: PersonParams = {};
+  let any = false;
+  for (const key of PERSON_KEYS) {
+    const value = params[key];
+    const str = Array.isArray(value) ? value[0] : value;
+    if (typeof str === 'string' && str) {
+      person[key] = str;
+      any = true;
+    }
+  }
+  return any ? person : undefined;
+}
 
 function safeDecode(token: string): string {
   try {

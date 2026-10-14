@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
-import { parseShareParams, deriveSourceMetadata, normalizeUrl } from '@recordseek/core';
+import { parseShareParams, extractPersonParams, deriveSourceMetadata, normalizeUrl, type PersonParams } from '@recordseek/core';
 
 /** The normalized capture, derived once from the share URL via core. */
 export interface Capture {
@@ -10,6 +10,8 @@ export interface Capture {
   notes: string;
   /** Human "accessed" date, from the capture timestamp (`_`) — legacy parity. */
   accessedDate: string;
+  /** Principal-person params from genscrape, when the extension recognized the page. */
+  person?: PersonParams;
 }
 
 function str(value: string | string[] | undefined): string {
@@ -55,6 +57,7 @@ export function buildCapture(href: string): Capture {
     domain,
     notes: str(params.notes),
     accessedDate: formatAccessedDate(str(params._)),
+    person: extractPersonParams(params),
   };
 }
 
@@ -77,4 +80,9 @@ export function useCapture(): Capture {
     throw new Error('useCapture must be used within a CaptureProvider');
   }
   return ctx;
+}
+
+/** Like {@link useCapture} but returns null outside a provider. */
+export function useOptionalCapture(): Capture | null {
+  return useContext(CaptureContext);
 }

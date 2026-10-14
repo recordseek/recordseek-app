@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseShareParams, buildShareUrl } from './share-params';
+import { parseShareParams, buildShareUrl, extractPersonParams } from './share-params';
 
 describe('buildShareUrl', () => {
   it('builds a capture URL, skipping empty values', () => {
@@ -76,13 +76,13 @@ describe('parseShareParams', () => {
   });
 
   it('folds extra (non-default) params onto the captured url and keeps them as keys', () => {
-    const p = parseShareParams('https://x/?url=https%3A%2F%2Fsite.com%2Frecord&pid=LZ12-345&givenName=John');
+    const p = parseShareParams('https://x/?url=https%3A%2F%2Fsite.com%2Frecord&pid=LZ12-345&color=red');
     expect(p.pid).toBe('LZ12-345');
     expect(typeof p.url).toBe('string');
     const url = p.url as string;
     expect(url.startsWith('https://site.com/record?')).toBe(true);
     expect(url).toContain('pid=LZ12-345');
-    expect(url).toContain('givenName=John');
+    expect(url).toContain('color=red');
   });
 
   it('does not corrupt a value containing an encoded ampersand (fixes legacy double-decode/split bug)', () => {
@@ -95,5 +95,29 @@ describe('parseShareParams', () => {
     expect(() => parseShareParams('https://x/?bad=%E0%A4%A&ok=fine')).not.toThrow();
     const p = parseShareParams('https://x/?bad=%zz&ok=fine');
     expect(p.ok).toBe('fine');
+  });
+});
+
+describe('person params', () => {
+  const base = 'https://recordseek.com/share/?url=https%3A%2F%2Fx.com%2Fr%3Fid%3D1&title=T';
+
+  it('does not fold person params onto the source url', () => {
+    const p = parseShareParams(`${base}&givenName=John&surname=Smith&birthDate=12%20Mar%201850&fatherGivenName=Bob`);
+    expect(p.url).toBe('https://x.com/r?id=1');
+    expect(p.givenName).toBe('John');
+  });
+
+  it('extracts only non-empty person fields', () => {
+    const p = parseShareParams(`${base}&givenName=John&surname=&birthPlace=Ohio&gender=Male`);
+    expect(extractPersonParams(p)).toEqual({ givenName: 'John', birthPlace: 'Ohio', gender: 'Male' });
+  });
+
+  it('returns undefined when there are no person params', () => {
+    expect(extractPersonParams(parseShareParams(base))).toBeUndefined();
+  });
+
+  it('still appends unknown params to the url', () => {
+    const p = parseShareParams(`${base}&givenName=John&page=2`);
+    expect(p.url).toBe('https://x.com/r?id=1&page=2');
   });
 });
