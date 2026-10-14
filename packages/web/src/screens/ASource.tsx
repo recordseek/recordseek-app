@@ -7,7 +7,9 @@ import { BackButton } from '../components/BackButton';
 import { ForwardButton } from '../components/ForwardButton';
 
 const ANCESTRY_ACTION = 'https://www.ancestry.com/savetoancestry/';
-const DEFAULT_MEDIA = 'https://recordseek.com/assets/images/ancestry.jpg';
+// Absolute URL: Ancestry fetches this image itself. Bundled with the app so it
+// works wherever /share/ is deployed.
+const DEFAULT_MEDIA = `${window.location.origin}${import.meta.env.BASE_URL}images/ancestry.jpg`;
 
 function citationFor(capture: Capture, style: CitationStyle): string {
   return formatCitation(
