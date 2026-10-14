@@ -4,6 +4,7 @@ import { buildGedcomxPerson, personDetailUrl } from '@recordseek/core';
 import { useSession, EVENT_TAGS, type EventTag } from '../session/SessionContext';
 import { createFsClient } from '../auth/fsClient';
 import { reportError } from '../sentry';
+import { getSaveToSourceBox } from '../prefs';
 
 const ATTACH_MSG = 'Source created by RecordSeek.com';
 
@@ -104,11 +105,15 @@ export function FsCreate({ client: providedClient }: { client?: FsCreateClient }
           setCreatedSourceId(descriptionId);
         }
 
-        setStatus('Filing in your RecordSeek source box…');
-        await fileInRecordSeekFolder(client, descriptionId);
+        // Save-only always files: the source box is the only place to find it later.
+        const saveOnly = state.complete === 'noAttachment' || (!state.attach && !state.newPerson);
+        if (saveOnly || getSaveToSourceBox()) {
+          setStatus('Filing in your RecordSeek source box…');
+          await fileInRecordSeekFolder(client, descriptionId);
+        }
 
         // Save-only path: nothing to attach to.
-        if (state.complete === 'noAttachment' || (!state.attach && !state.newPerson)) {
+        if (saveOnly) {
           setComplete('noAttachment');
           navigate('/fs-complete', { replace: true });
           return;

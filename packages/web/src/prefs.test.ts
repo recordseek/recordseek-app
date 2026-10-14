@@ -1,8 +1,16 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { getSavedCitationStyle, getLastService, saveLastService, clearLastService } from './prefs';
+import { getSavedCitationStyle, getLastService, saveLastService, clearLastService, getSaveToSourceBox } from './prefs';
 
 describe('prefs', () => {
   beforeEach(() => localStorage.clear());
+
+  it('saves to the source box unless explicitly turned off', () => {
+    expect(getSaveToSourceBox()).toBe(true);
+    localStorage.setItem('recordseek-save-to-sourcebox', 'false');
+    expect(getSaveToSourceBox()).toBe(false);
+    localStorage.setItem('recordseek-save-to-sourcebox', 'true');
+    expect(getSaveToSourceBox()).toBe(true);
+  });
 
   it('round-trips and clears the last service', () => {
     expect(getLastService()).toBeNull();

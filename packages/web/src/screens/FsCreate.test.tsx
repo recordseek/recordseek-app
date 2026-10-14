@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router';
 import { SessionProvider, useSession, type SessionState } from '../session/SessionContext';
@@ -8,7 +8,8 @@ function makeClient(overrides: Partial<FsCreateClient> = {}) {
   const calls: {
     personSourceRef: Array<{ pid: string; ref: { descriptionUrl: string; tags?: string[]; changeMessage?: string } }>;
     createPerson: unknown[];
-  } = { personSourceRef: [], createPerson: [] };
+    filed: string[];
+  } = { personSourceRef: [], createPerson: [], filed: [] };
   const client: FsCreateClient = {
     apiHost: 'https://api.familysearch.org',
     descriptionUrl: (id) => `https://api.familysearch.org/platform/sources/descriptions/${id}`,
@@ -18,7 +19,10 @@ function makeClient(overrides: Partial<FsCreateClient> = {}) {
     createCollection: async () => ({
       headers: new Headers({ location: 'https://api.familysearch.org/platform/sources/collections/C1' }),
     }),
-    addDescriptionToCollection: async () => ({}),
+    addDescriptionToCollection: async (_url, descriptionId) => {
+      calls.filed.push(descriptionId);
+      return {};
+    },
     createPersonSourceRef: async (pid, ref) => {
       calls.personSourceRef.push({ pid, ref });
       return {};
@@ -57,6 +61,8 @@ const ATTACH = { pid: 'P1', name: 'John Smith', url: 'http://fs/P1', justificati
 const TAGS = { name: false, gender: false, birth: true, christening: false, death: false, burial: false };
 
 describe('FsCreate', () => {
+  afterEach(() => localStorage.clear());
+
   it('runs create -> file -> attach and lands on complete', async () => {
     const { client, calls } = makeClient();
     renderCreate(client, { draft: DRAFT, attach: ATTACH, tags: TAGS });
@@ -68,6 +74,30 @@ describe('FsCreate', () => {
     );
     expect(calls.personSourceRef[0]!.ref.tags).toEqual(['http://gedcomx.org/Birth']);
     expect(calls.personSourceRef[0]!.ref.changeMessage).toBe('census match');
+  });
+
+  it('files the source in the RecordSeek folder by default', async () => {
+    const { client, calls } = makeClient();
+    renderCreate(client, { draft: DRAFT, attach: ATTACH, tags: TAGS });
+    expect(await screen.findByText('DONE John Smith')).toBeInTheDocument();
+    expect(calls.filed).toEqual(['SD-1']);
+  });
+
+  it('skips the source box when the user opted out, but still attaches', async () => {
+    localStorage.setItem('recordseek-save-to-sourcebox', 'false');
+    const { client, calls } = makeClient();
+    renderCreate(client, { draft: DRAFT, attach: ATTACH, tags: TAGS });
+    expect(await screen.findByText('DONE John Smith')).toBeInTheDocument();
+    expect(calls.filed).toEqual([]);
+    expect(calls.personSourceRef).toHaveLength(1);
+  });
+
+  it('still files a save-only source even when opted out', async () => {
+    localStorage.setItem('recordseek-save-to-sourcebox', 'false');
+    const { client, calls } = makeClient();
+    renderCreate(client, { draft: DRAFT, attach: null, complete: 'noAttachment' });
+    expect(await screen.findByText('DONE noAttachment')).toBeInTheDocument();
+    expect(calls.filed).toEqual(['SD-1']);
   });
 
   it('saves without attaching when complete is noAttachment', async () => {
