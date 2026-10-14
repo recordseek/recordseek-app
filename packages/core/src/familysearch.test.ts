@@ -27,7 +27,10 @@ function mockFetch(handler: (url: string, init: RequestInit) => MockReply) {
 }
 
 function headerOf(init: RequestInit, key: string): string {
-  return (init.headers as Record<string, string>)[key] ?? '';
+  // fs-js-lite sends canonical-case header names; compare case-insensitively.
+  const headers = init.headers as Record<string, string>;
+  const name = Object.keys(headers).find((k) => k.toLowerCase() === key.toLowerCase());
+  return name ? headers[name]! : '';
 }
 
 const baseConfig = (overrides = {}) => ({
@@ -104,6 +107,34 @@ describe('Sentry-bug fixes', () => {
     const error = await client.getCurrentUser().catch((e) => e);
     expect(error).toBeInstanceOf(FsApiError);
     expect(error.status).toBe(401);
+  });
+});
+
+describe('fs-js-lite transport behavior', () => {
+  it('posts the token request to the ident host with redirect_uri and a form body', async () => {
+    const { fn, calls } = mockFetch(() => ({ body: '{"access_token":"t"}', headers: { 'content-type': 'application/json' } }));
+    const client = new FamilySearchClient(baseConfig({ tokenStore: memoryTokenStore(null), fetch: fn }));
+    await client.exchangeToken('c');
+    expect(calls[0]!.url).toBe(
+      'https://ident.familysearch.org/cis-web/oauth2/v3/token?redirect_uri=https://recordseek.com/share/',
+    );
+    expect(headerOf(calls[0]!.init, 'content-type')).toBe('application/x-www-form-urlencoded');
+    expect(calls[0]!.init.method).toBe('POST');
+  });
+
+  it('asks the API not to answer with automatic redirects', async () => {
+    const { fn, calls } = mockFetch(() => ({ body: '{}' }));
+    await new FamilySearchClient(baseConfig({ fetch: fn })).getCurrentUser();
+    expect(headerOf(calls[0]!.init, 'x-expect-override')).toBe('200-ok');
+  });
+
+  it('rejects network failures with a real non-FsApiError (so they are not treated as auth loss)', async () => {
+    const fn = (async () => {
+      throw new TypeError('Failed to fetch');
+    }) as unknown as typeof fetch;
+    const error = await new FamilySearchClient(baseConfig({ fetch: fn })).getCurrentUser().catch((e) => e);
+    expect(error).toBeInstanceOf(Error);
+    expect(error).not.toBeInstanceOf(FsApiError);
   });
 });
 

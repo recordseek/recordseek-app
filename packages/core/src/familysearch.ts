@@ -1,31 +1,26 @@
 /**
- * Framework-agnostic FamilySearch client — replaces the vendored fs-js-lite
- * (ES5 / XMLHttpRequest / callbacks / no PKCE, blocked in MV3 service workers).
+ * Framework-agnostic, typed FamilySearch client: a thin promise-based wrapper
+ * over the official fs-js-lite v3 SDK (https://github.com/FamilySearch/fs-js-lite).
  *
- * Design (per the FS API validation spec):
- *  - `fetch` + Web Crypto, so it runs identically in the Vite SPA, an MV3
- *    service worker, and Node 20+. Both are injectable for tests.
- *  - Authorization-code + PKCE (S256) by default.
- *  - Hosts derived from `environment` (no hardcoded api.familysearch.org).
- *  - Explicit lowercase headers + GEDCOM-X media types (the legacy capital
- *    `Header:` option was dead code).
- *  - Every failure throws a real {@link FsApiError} — never `reject(undefined)`
- *    (Sentry "UnhandledRejection value undefined") — and JSON parsing is
- *    guarded (Sentry "SyntaxError: Unexpected end of input").
+ * fs-js-lite owns the transport (XMLHttpRequest in the browser, axios in Node),
+ * environment hosts, default FS headers, throttling retries, the OAuth URL and
+ * the token request. This module adds what the app needs on top:
+ *  - promises, and a real {@link FsApiError} for every HTTP failure — never
+ *    `reject(undefined)` (Sentry "UnhandledRejection value undefined") — with
+ *    guarded JSON parsing (Sentry "SyntaxError: Unexpected end of input");
+ *  - authorization-code + PKCE (S256) via Web Crypto;
+ *  - an injectable {@link TokenStore} and an optional injectable `fetch`
+ *    transport (tests, MV3 service workers where XMLHttpRequest is missing);
+ *  - GEDCOM-X media types and the resource helpers used by the share flow.
  */
+/// <reference path="./fs-js-lite.d.ts" />
+import FamilySearch from 'fs-js-lite';
+import type { FsJsLiteClient, FsJsLiteRequest, FsJsLiteResponse } from 'fs-js-lite';
 
 export type FsEnvironment = 'production' | 'beta' | 'integration';
 
-const HOSTS: Record<FsEnvironment, { api: string; ident: string }> = {
-  production: { api: 'https://api.familysearch.org', ident: 'https://ident.familysearch.org' },
-  beta: { api: 'https://apibeta.familysearch.org', ident: 'https://identbeta.familysearch.org' },
-  integration: { api: 'https://api-integ.familysearch.org', ident: 'https://identint.familysearch.org' },
-};
-
 const GEDCOMX_MEDIA = 'application/x-gedcomx-v1+json';
 const FS_MEDIA = 'application/x-fs-v1+json';
-/** Default OAuth scopes — same as the official fs-js-lite SDK. */
-const DEFAULT_SCOPE = 'openid profile email qualifies_for_affiliate_account country';
 
 export interface TokenStore {
   get(): string | null;
@@ -50,6 +45,7 @@ export interface FsConfig {
   appKey: string;
   redirectUri: string;
   environment?: FsEnvironment;
+  /** Replace fs-js-lite's own transport (XHR / axios) with this `fetch`. */
   fetch?: typeof fetch;
   tokenStore?: TokenStore;
 }
@@ -165,71 +161,107 @@ interface RawResponse {
   data: any;
 }
 
+/** Route fs-js-lite requests through an injected `fetch` instead of XHR/axios. */
+function fetchTransport(doFetch: typeof fetch) {
+  return (_client: unknown, request: FsJsLiteRequest, next: (error?: unknown, response?: FsJsLiteResponse) => void) => {
+    doFetch(request.url, {
+      method: request.method,
+      headers: request.getHeaders(),
+      body: request.body as BodyInit | undefined,
+      redirect: 'manual',
+    }).then(
+      async (res) => {
+        const headers: Record<string, string> = {};
+        res.headers.forEach((value, key) => {
+          headers[key.toLowerCase()] = value;
+        });
+        next(undefined, {
+          statusCode: res.status,
+          statusText: res.statusText,
+          headers,
+          originalUrl: request.url,
+          effectiveUrl: request.url,
+          redirected: false,
+          requestMethod: request.method,
+          requestHeaders: request.headers,
+          body: await res.text(),
+          retries: 0,
+          throttled: false,
+        });
+      },
+      (error) => next(error ?? new Error('Network request failed')),
+    );
+  };
+}
+
+function toHeaders(map: Record<string, unknown>): Headers {
+  const headers = new Headers();
+  for (const [key, value] of Object.entries(map)) {
+    if (value !== undefined && value !== null) {
+      headers.set(key, String(value));
+    }
+  }
+  return headers;
+}
+
+/** Never reject with a non-Error (xhr.onerror hands us a ProgressEvent). */
+function toError(error: unknown): Error {
+  return error instanceof Error ? error : new Error('Network error contacting FamilySearch');
+}
+
 export class FamilySearchClient {
   readonly appKey: string;
   readonly redirectUri: string;
   readonly environment: FsEnvironment;
   readonly apiHost: string;
   readonly identHost: string;
-  private readonly doFetch: typeof fetch;
+  private readonly fs: FsJsLiteClient;
   private readonly tokens: TokenStore;
 
   constructor(config: FsConfig) {
     this.appKey = config.appKey;
     this.redirectUri = config.redirectUri;
     this.environment = config.environment ?? 'production';
-    const hosts = HOSTS[this.environment];
-    this.apiHost = hosts.api;
-    this.identHost = hosts.ident;
-    const injected = config.fetch ?? globalThis.fetch;
-    if (!injected) {
-      throw new Error('No fetch implementation available');
-    }
-    this.doFetch = injected.bind(globalThis);
     this.tokens = config.tokenStore ?? memoryTokenStore();
+    this.fs = new FamilySearch({
+      appKey: this.appKey,
+      redirectUri: this.redirectUri,
+      environment: this.environment,
+    });
+    this.apiHost = this.fs.platformHost();
+    this.identHost = this.fs.identHost();
+    if (config.fetch) {
+      this.fs.addRequestMiddleware(fetchTransport(config.fetch.bind(globalThis)));
+    }
   }
 
   // --- auth ---------------------------------------------------------------
 
   buildAuthorizationUrl(options: { codeChallenge?: string; state?: string; scope?: string } = {}): string {
-    const params = new URLSearchParams({
-      response_type: 'code',
-      scope: options.scope ?? DEFAULT_SCOPE,
-      client_id: this.appKey,
-      redirect_uri: this.redirectUri,
+    return this.fs.oauthRedirectURL({
+      state: options.state,
+      codeChallenge: options.codeChallenge,
+      scope: options.scope,
     });
-    if (options.codeChallenge) {
-      params.set('code_challenge', options.codeChallenge);
-      params.set('code_challenge_method', 'S256');
-    }
-    if (options.state) {
-      params.set('state', options.state);
-    }
-    return `${this.identHost}/cis-web/oauth2/v3/authorization?${params.toString()}`;
   }
 
   async exchangeToken(code: string, codeVerifier?: string): Promise<string> {
-    const body = new URLSearchParams({
-      grant_type: 'authorization_code',
-      code,
-      client_id: this.appKey,
-      redirect_uri: this.redirectUri,
+    const res = await new Promise<FsJsLiteResponse>((resolve, reject) => {
+      this.fs.oauthToken(code, codeVerifier, (error, response) => {
+        if (response) {
+          resolve(response);
+        } else {
+          reject(toError(error));
+        }
+      });
     });
-    if (codeVerifier) {
-      body.set('code_verifier', codeVerifier);
+    const text = res.body ?? '';
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw new FsApiError(res.statusCode, text, `Token exchange failed (HTTP ${res.statusCode})`);
     }
-    const res = await this.doFetch(`${this.identHost}/cis-web/oauth2/v3/token`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json' },
-      body: body.toString(),
-    });
-    const text = await res.text();
-    if (!res.ok) {
-      throw new FsApiError(res.status, text, `Token exchange failed (HTTP ${res.status})`);
-    }
-    const token = safeJsonParse(text)?.access_token;
+    const token = (res.data ?? safeJsonParse(text))?.access_token;
     if (typeof token !== 'string' || token.length === 0) {
-      throw new FsApiError(res.status, text, 'Token exchange returned no access_token');
+      throw new FsApiError(res.statusCode, text, 'Token exchange returned no access_token');
     }
     this.tokens.set(token);
     return token;
@@ -258,22 +290,29 @@ export class FamilySearchClient {
     if (!token || token === 'undefined') {
       throw new FsApiError(0, '', 'No authenticated FamilySearch user');
     }
-    const url = path.startsWith('http') ? path : `${this.apiHost}${path}`;
-    const headers: Record<string, string> = {
-      authorization: `Bearer ${token}`,
-      accept: options.accept ?? FS_MEDIA,
-    };
-    let payload: string | undefined;
+    // fs-js-lite adds the Authorization header from its own token; the
+    // TokenStore stays the source of truth (another client may have refreshed it).
+    this.fs.setAccessToken(token);
+    const headers: Record<string, string> = { Accept: options.accept ?? FS_MEDIA };
     if (options.body !== undefined) {
-      headers['content-type'] = options.contentType ?? GEDCOMX_MEDIA;
-      payload = JSON.stringify(options.body);
+      headers['Content-Type'] = options.contentType ?? GEDCOMX_MEDIA;
     }
-    const res = await this.doFetch(url, { method, headers, body: payload, redirect: 'manual' });
-    const text = await res.text();
-    if (!res.ok) {
-      throw new FsApiError(res.status, text, this.errorMessage(res.status, text));
+    const res = await new Promise<FsJsLiteResponse>((resolve, reject) => {
+      this.fs.request(path, { method, headers, body: options.body }, (error, response) => {
+        // fs-js-lite attaches the response to a JSON-parse error; surface its status instead.
+        const received = response ?? (error as { response?: FsJsLiteResponse } | undefined)?.response;
+        if (received) {
+          resolve(received);
+        } else {
+          reject(toError(error));
+        }
+      });
+    });
+    const text = res.body ?? '';
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw new FsApiError(res.statusCode, text, this.errorMessage(res.statusCode, text));
     }
-    return { status: res.status, headers: res.headers, data: safeJsonParse(text) };
+    return { status: res.statusCode, headers: toHeaders(res.headers), data: res.data ?? safeJsonParse(text) };
   }
 
   private errorMessage(status: number, text: string): string {

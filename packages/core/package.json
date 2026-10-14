@@ -16,5 +16,8 @@
   "devDependencies": {
     "typescript": "^7.0.2",
     "vitest": "^5.0.4"
+  },
+  "dependencies": {
+    "fs-js-lite": "github:FamilySearch/fs-js-lite#575dc7b2f623b8a1ddd65828bdd6ff1f62c0a601"
   }
 }
