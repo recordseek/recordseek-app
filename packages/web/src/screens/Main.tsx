@@ -49,9 +49,23 @@ export function Main() {
           <img src={`${import.meta.env.BASE_URL}images/ancestry-logo.svg`} alt="Ancestry" />
         </button>
         <button type="button" className="service-tile" onClick={() => choose('Citation')}>
-          <span className="tile-icon" aria-hidden="true">
-            📋
-          </span>
+          {/* Inline SVG, not an emoji: emoji glyphs are missing on some devices. */}
+          <svg
+            className="tile-icon"
+            viewBox="0 0 24 24"
+            width="40"
+            height="40"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <path d="M14 2v6h6" />
+            <path d="M8 13h8M8 17h8M8 9h2" />
+          </svg>
           <span>Save to Somewhere Else</span>
         </button>
       </div>
