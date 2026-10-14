@@ -51,6 +51,13 @@ describe('FsAttach', () => {
     expect(await screen.findByText(/CREATE just=census match tags=1/)).toBeInTheDocument();
   });
 
+  it('shows the remembered "Save to Source Box" choice next to Create & Attach', () => {
+    localStorage.setItem('recordseek-save-to-sourcebox', 'false');
+    renderAttach({ attach: { pid: 'P1', name: 'John Smith', url: 'http://fs/P1', justification: '' } });
+    expect((screen.getByLabelText('Save to Source Box') as HTMLInputElement).checked).toBe(false);
+    localStorage.clear();
+  });
+
   it('redirects away when there is no selected person (no crash)', async () => {
     renderAttach({});
     expect(await screen.findByText('RESULTS')).toBeInTheDocument();

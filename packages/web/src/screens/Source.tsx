@@ -3,12 +3,13 @@ import { useNavigate } from 'react-router';
 import { formatCitation, CITATION_STYLES, CITATION_STYLE_LABELS, type CitationStyle } from '@recordseek/core';
 import { useCapture, type Capture } from '../capture/CaptureContext';
 import { useSession } from '../session/SessionContext';
-import { usePersistedCitationStyle, usePersistedSaveToSourceBox, clearLastService } from '../prefs';
+import { usePersistedCitationStyle, clearLastService } from '../prefs';
 import { isFsAuthenticated, beginFsLogin } from '../fsAuth';
 import { Loading } from './Loading';
 import { BackButton } from '../components/BackButton';
 import { ForwardButton } from '../components/ForwardButton';
 import { TagEventsButton } from '../components/TagEventsButton';
+import { SourceBoxCheckbox } from '../components/SourceBoxCheckbox';
 
 function citationFor(capture: Capture, title: string, style: CitationStyle): string {
   return formatCitation(
@@ -23,7 +24,6 @@ export function Source() {
   const navigate = useNavigate();
   const { setDraft, clearAttach, setComplete } = useSession();
   const [style, setStyle] = usePersistedCitationStyle();
-  const [saveToSourceBox, setSaveToSourceBox] = usePersistedSaveToSourceBox();
   const [title, setTitle] = useState(capture.title);
   const [url, setUrl] = useState(capture.url);
   const [notes, setNotes] = useState(capture.notes);
@@ -119,14 +119,7 @@ export function Source() {
           }}
         />
         <div className="footer-right">
-          <label className="field-hint" title="Also file this source in the RecordSeek folder of your FamilySearch Source Box">
-            <input
-              type="checkbox"
-              checked={saveToSourceBox}
-              onChange={(e) => setSaveToSourceBox(e.target.checked)}
-            />
-            Save to Source Box
-          </label>
+          <SourceBoxCheckbox />
           <button type="button" className="btn-sm" onClick={saveWithoutAttaching}>
             Save Now, Attach Later
           </button>
