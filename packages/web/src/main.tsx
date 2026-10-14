@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import { initSentry, ErrorBoundary } from './sentry';
 import './styles.css';
 
 // Preserve the legacy hashbang contract: the extension appends "#!/fs-source",
@@ -9,11 +10,15 @@ if (window.location.hash.startsWith('#!/')) {
   window.location.hash = `#${window.location.hash.slice(2)}`;
 }
 
+initSentry();
+
 const container = document.getElementById('root');
 if (container) {
   createRoot(container).render(
     <StrictMode>
-      <App />
+      <ErrorBoundary fallback={<p role="alert">Something went wrong. Please reload the page.</p>}>
+        <App />
+      </ErrorBoundary>
     </StrictMode>,
   );
 }

@@ -18,12 +18,14 @@ export type FsEnvironment = 'production' | 'beta' | 'integration';
 
 const HOSTS: Record<FsEnvironment, { api: string; ident: string }> = {
   production: { api: 'https://api.familysearch.org', ident: 'https://ident.familysearch.org' },
-  beta: { api: 'https://beta.familysearch.org', ident: 'https://identbeta.familysearch.org' },
+  beta: { api: 'https://apibeta.familysearch.org', ident: 'https://identbeta.familysearch.org' },
   integration: { api: 'https://api-integ.familysearch.org', ident: 'https://identint.familysearch.org' },
 };
 
 const GEDCOMX_MEDIA = 'application/x-gedcomx-v1+json';
 const FS_MEDIA = 'application/x-fs-v1+json';
+/** Default OAuth scopes — same as the official fs-js-lite SDK. */
+const DEFAULT_SCOPE = 'openid profile email qualifies_for_affiliate_account country';
 
 export interface TokenStore {
   get(): string | null;
@@ -139,6 +141,15 @@ export async function deriveCodeChallenge(verifier: string): Promise<string> {
 
 // ---------------------------------------------------------------------------
 
+/** New entity id from X-ENTITY-ID, else the last path segment of Location. */
+function entityId(headers: Headers): string | null {
+  const id = headers.get('x-entity-id');
+  if (id) return id;
+  const location = headers.get('location');
+  const path = location?.split('?')[0] ?? '';
+  return path.split('/').filter(Boolean).pop() ?? null;
+}
+
 function safeJsonParse(text: string): any {
   if (!text) return null;
   try {
@@ -180,9 +191,10 @@ export class FamilySearchClient {
 
   // --- auth ---------------------------------------------------------------
 
-  buildAuthorizationUrl(options: { codeChallenge?: string; state?: string } = {}): string {
+  buildAuthorizationUrl(options: { codeChallenge?: string; state?: string; scope?: string } = {}): string {
     const params = new URLSearchParams({
       response_type: 'code',
+      scope: options.scope ?? DEFAULT_SCOPE,
       client_id: this.appKey,
       redirect_uri: this.redirectUri,
     });
@@ -305,7 +317,7 @@ export class FamilySearchClient {
     const res = await this.request('POST', '/platform/sources/descriptions', {
       body: { sourceDescriptions: [description] },
     });
-    return res.headers.get('x-entity-id') ?? res.headers.get('location') ?? null;
+    return entityId(res.headers);
   }
 
   /** Create a source-box folder (collection). */
@@ -318,7 +330,7 @@ export class FamilySearchClient {
   /** File an existing source description into a folder. */
   async addDescriptionToCollection(collectionUrl: string, descriptionId: string): Promise<RawResponse> {
     return this.request('POST', collectionUrl, {
-      body: { sourceDescriptions: [{ description: this.descriptionUrl(descriptionId) }] },
+      body: { sourceDescriptions: [{ id: descriptionId }] },
     });
   }
 
@@ -328,7 +340,7 @@ export class FamilySearchClient {
       description: ref.descriptionUrl,
     };
     if (ref.tags && ref.tags.length > 0) {
-      source.tags = ref.tags.map((value) => ({ value }));
+      source.tags = ref.tags.map((resource) => ({ resource }));
     }
     if (ref.changeMessage) {
       const attribution: Record<string, unknown> = { changeMessage: ref.changeMessage };
@@ -381,7 +393,7 @@ export class FamilySearchClient {
     const res = await this.request('POST', '/platform/tree/persons', {
       body: { persons: [person] },
     });
-    return res.headers.get('x-entity-id') ?? res.headers.get('location') ?? null;
+    return entityId(res.headers);
   }
 
   async logout(): Promise<void> {

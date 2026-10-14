@@ -36,9 +36,10 @@ function captureUrlFallback(): Plugin {
 // host: true binds both IPv4 (127.0.0.1) and IPv6 (::1) so http://localhost:9000
 // resolves regardless of the browser's preference — matches the legacy dev URL.
 export default defineConfig(({ mode }) => ({
-  // "/" for local dev (:9000), vitest, and normal builds; the GitHub Pages build
-  // runs `vite build --mode pages` so assets resolve under the /recordseek/ subpath.
-  base: mode === 'pages' ? '/recordseek/' : '/',
+  // "/" for local dev (:9000), vitest, and normal builds; the GitHub Pages stage
+  // build runs `vite build --mode pages` (/recordseek/), and the production
+  // build for recordseek.com runs `vite build --mode share` (/share/).
+  base: mode === 'pages' ? '/recordseek/' : mode === 'share' ? '/share/' : '/',
   plugins: [react(), captureUrlFallback()],
   server: { port: 9000, strictPort: true, host: true },
   preview: { port: 9000, strictPort: true, host: true },

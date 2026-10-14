@@ -137,6 +137,24 @@ describe('resources', () => {
     });
   });
 
+  it('falls back to the Location header for the new entity id', async () => {
+    const { fn } = mockFetch(() => ({
+      status: 201,
+      headers: { location: 'https://api.familysearch.org/platform/sources/descriptions/SD-77' },
+      body: '',
+    }));
+    const client = new FamilySearchClient(baseConfig({ fetch: fn }));
+    expect(await client.createSourceDescription({ about: 'https://example.com' })).toBe('SD-77');
+  });
+
+  it('files a description into a folder by id', async () => {
+    const { fn, calls } = mockFetch(() => ({ status: 204, body: '' }));
+    const client = new FamilySearchClient(baseConfig({ fetch: fn }));
+    await client.addDescriptionToCollection('https://api.familysearch.org/platform/sources/collections/C1/descriptions', 'SD-1');
+    expect(calls[0]!.url).toBe('https://api.familysearch.org/platform/sources/collections/C1/descriptions');
+    expect(JSON.parse(String(calls[0]!.init.body))).toEqual({ sourceDescriptions: [{ id: 'SD-1' }] });
+  });
+
   it('attaches a person source reference with the correct envelope', async () => {
     const { fn, calls } = mockFetch(() => ({ status: 201, body: '{}' }));
     const client = new FamilySearchClient(baseConfig({ fetch: fn }));
@@ -151,7 +169,7 @@ describe('resources', () => {
     expect(body.persons[0].sources[0].description).toBe(
       'https://api.familysearch.org/platform/sources/descriptions/SD-123',
     );
-    expect(body.persons[0].sources[0].tags).toEqual([{ value: 'http://gedcomx.org/Birth' }]);
+    expect(body.persons[0].sources[0].tags).toEqual([{ resource: 'http://gedcomx.org/Birth' }]);
     expect(body.persons[0].sources[0].attribution.changeMessage).toBe('Source created by RecordSeek.com');
   });
 
@@ -204,8 +222,8 @@ describe('tree read / search / create', () => {
 describe('environment-derived hosts (no hardcoded api host)', () => {
   it('uses beta hosts when configured', () => {
     const client = new FamilySearchClient(baseConfig({ environment: 'beta' }));
-    expect(client.apiHost).toBe('https://beta.familysearch.org');
+    expect(client.apiHost).toBe('https://apibeta.familysearch.org');
     expect(client.buildAuthorizationUrl()).toContain('https://identbeta.familysearch.org/');
-    expect(client.descriptionUrl('SD-9')).toBe('https://beta.familysearch.org/platform/sources/descriptions/SD-9');
+    expect(client.descriptionUrl('SD-9')).toBe('https://apibeta.familysearch.org/platform/sources/descriptions/SD-9');
   });
 });

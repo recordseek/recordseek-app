@@ -19,6 +19,8 @@ function sessionTokenStore(): TokenStore {
 export interface FsRuntimeConfig {
   appKey: string;
   environment: FsEnvironment;
+  /** Send a PKCE challenge on login. Set VITE_FS_PKCE=false to match the legacy (no-PKCE) web flow. */
+  pkce: boolean;
 }
 
 export function getFsConfig(): FsRuntimeConfig {
@@ -26,7 +28,8 @@ export function getFsConfig(): FsRuntimeConfig {
   const appKey = env.VITE_FS_APP_KEY ?? '';
   // `||` (not `??`) so an empty value also falls back to the safe sandbox env.
   const environment = (env.VITE_FS_ENV || 'beta') as FsEnvironment;
-  return { appKey, environment };
+  const pkce = env.VITE_FS_PKCE !== 'false';
+  return { appKey, environment, pkce };
 }
 
 export function createFsClient(): FamilySearchClient {

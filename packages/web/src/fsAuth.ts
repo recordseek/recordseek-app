@@ -1,5 +1,5 @@
 import { generateCodeVerifier, deriveCodeChallenge, FsApiError } from '@recordseek/core';
-import { createFsClient } from './auth/fsClient';
+import { createFsClient, getFsConfig } from './auth/fsClient';
 
 const VERIFIER_KEY = 'fs_pkce_verifier';
 const RETURN_ROUTE_KEY = 'fs_return_route';
@@ -29,11 +29,16 @@ export function isFsAuthenticated(): boolean {
  */
 export async function beginFsLogin(returnRoute: string): Promise<void> {
   const client = createFsClient();
-  const verifier = generateCodeVerifier();
-  session()?.setItem(VERIFIER_KEY, verifier);
   session()?.setItem(RETURN_ROUTE_KEY, returnRoute);
-  const challenge = await deriveCodeChallenge(verifier);
-  window.location.href = client.buildAuthorizationUrl({ codeChallenge: challenge, state: 'recordseek' });
+  let codeChallenge: string | undefined;
+  if (getFsConfig().pkce) {
+    const verifier = generateCodeVerifier();
+    session()?.setItem(VERIFIER_KEY, verifier);
+    codeChallenge = await deriveCodeChallenge(verifier);
+  } else {
+    session()?.removeItem(VERIFIER_KEY);
+  }
+  window.location.href = client.buildAuthorizationUrl({ codeChallenge, state: 'recordseek' });
 }
 
 export interface FsDisplayUser {

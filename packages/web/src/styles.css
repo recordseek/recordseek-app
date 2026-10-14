@@ -703,12 +703,6 @@ pre {
   color: var(--gray);
 }
 
-/* Birth/death: full detail shows inline on desktop; the compact popover trigger
-   is mobile-only (revealed in the mobile media query). */
-.events-summary {
-  display: none;
-}
-
 /* "X–Y of N results" bar, sitting flush on top of the results table. */
 .results-meta {
   display: flex;
@@ -785,8 +779,8 @@ pre {
 }
 
 /* ---------------------------------------------------------------------------
-   Mobile (≤768px): trim side gutters, turn the results table into full-bleed
-   cards (father/mother icons + a tap-to-open birth/death popover), and stack
+   Mobile (≤768px): trim side gutters, turn the results table into compact
+   full-bleed cards (Select beside the name, events inline), and stack
    the footer nav as full-width buttons instead of the cramped wrap.
    --------------------------------------------------------------------------- */
 @media (max-width: 768px) {
@@ -810,11 +804,14 @@ pre {
     display: block;
     width: 100%;
   }
+  /* Compact card: name + ID with Select beside it, then events and relatives
+     as small inline text — no labels, so each card stays a few lines tall. */
   .results-table tr {
-    display: flex;
-    flex-direction: column;
-    gap: 7px;
-    padding: 14px 16px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 12px;
+    row-gap: 3px;
+    padding: 10px 12px;
     border-top: 1px solid var(--input-border);
   }
   .results-table tbody tr:nth-child(even) td,
@@ -822,80 +819,43 @@ pre {
     background: transparent;
   }
   .results-table td {
+    grid-column: 1;
     border: none;
     padding: 0;
   }
-
-  /* Card order: name → events → parents → spouses → Select action. */
   .results-table td.person {
-    order: 1;
+    grid-row: 1;
   }
-  .results-table td.events {
-    order: 2;
-  }
-  .results-table td.parents {
-    order: 3;
-  }
-  .results-table td.spouses {
-    order: 4;
+  .results-table .person .pid {
+    display: inline;
+    margin-left: 6px;
   }
   .results-table td.select-cell {
-    order: 5;
+    grid-column: 2;
+    grid-row: 1 / span 4;
+    align-self: center;
+    width: auto;
   }
   .results-table td.select-cell .btn-success {
-    width: 100%;
-    padding: 11px;
+    padding: 7px 14px;
   }
-
-  /* A label above each detail cell; empty ones (no parents/spouses) vanish. */
-  .results-table td.events::before,
-  .results-table td.relatives::before {
-    content: attr(data-label);
-    display: block;
-    margin-bottom: 3px;
-    font-weight: 700;
-    font-size: 0.78rem;
+  .results-table td.events,
+  .results-table td.relatives {
+    font-size: 0.85rem;
     color: var(--gray);
+  }
+  .results-table .events div,
+  .results-table .relatives div {
+    line-height: 1.4;
+  }
+  .results-table td.relatives {
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: 12px;
   }
   .results-table td.events:empty,
   .results-table td.relatives:empty {
     display: none;
-  }
-
-  /* Birth/death: compact trigger + tap-to-open popover with the full detail. */
-  .events-summary {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    margin: 0;
-    padding: 5px 10px;
-    background: var(--light);
-    border: 1px solid var(--input-border);
-    color: var(--ink);
-    font-size: 0.9rem;
-    font-weight: 400;
-  }
-  .events-caret {
-    color: var(--gray);
-    font-size: 0.7rem;
-  }
-  .events-cell {
-    position: relative;
-  }
-  .events-detail {
-    display: none;
-    position: absolute;
-    z-index: 30;
-    top: calc(100% + 4px);
-    left: 0;
-    min-width: 230px;
-    padding: 10px 12px;
-    background: #fff;
-    border: 1px solid var(--input-border);
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
-  }
-  .events-detail.is-open {
-    display: block;
   }
 
   /* Footer nav: full-width stacked buttons. */

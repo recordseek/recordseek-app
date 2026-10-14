@@ -5,6 +5,7 @@ import { useSession, isSearchEmpty, type SearchCriteria } from '../session/Sessi
 import { createFsClient } from '../auth/fsClient';
 import { beginFsLogin, isFsAuthError } from '../fsAuth';
 import { BackButton } from '../components/BackButton';
+import { reportError } from '../sentry';
 
 const PAGE_SIZE = 20;
 // FamilySearch rejects very deep offsets and a 200-page pager helps no one, so we
@@ -24,11 +25,6 @@ export function pageWindow(current: number, pageCount: number, size = 5): number
   const out: number[] = [];
   for (let p = start; p <= end; p++) out.push(p);
   return out;
-}
-
-/** Pull the 4-digit year out of a FamilySearch date ("4 June 1942" → "1942"). */
-function yearOf(date: string): string {
-  return date.match(/\d{4}/)?.[0] ?? date;
 }
 
 export interface FsResultsClient {
@@ -65,8 +61,6 @@ export function FsResults({ client: providedClient }: { client?: FsResultsClient
   const [results, setResults] = useState<PersonResult[] | null>(null);
   const [total, setTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  // Which row's birth/death popover is open (mobile only; one at a time).
-  const [openInfo, setOpenInfo] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setResults(null);
@@ -98,6 +92,7 @@ export function FsResults({ client: providedClient }: { client?: FsResultsClient
         void beginFsLogin('/fs-results');
         return;
       }
+      reportError(err, { screen: 'fs-results' });
       setError(err instanceof Error ? err.message : String(err));
       setResults([]);
     }
@@ -159,7 +154,6 @@ export function FsResults({ client: providedClient }: { client?: FsResultsClient
           <tbody>
             {people.map((person) => {
               const hasEvents = Boolean(person.birthDate || person.deathDate);
-              const infoOpen = openInfo === person.pid;
               return (
                 <tr key={person.pid}>
                   <td className="select-cell">
@@ -176,42 +170,18 @@ export function FsResults({ client: providedClient }: { client?: FsResultsClient
                   </td>
                   <td className="events" data-label="Events">
                     {hasEvents ? (
-                      <div className="events-cell">
-                        {/* Compact trigger (mobile); the full detail shows inline on desktop. */}
-                        <button
-                          type="button"
-                          className="events-summary"
-                          aria-expanded={infoOpen}
-                          onClick={() => setOpenInfo((cur) => (cur === person.pid ? null : person.pid))}
-                        >
-                          {person.birthDate && (
-                            <span>
-                              <strong>b.</strong> {yearOf(person.birthDate)}
-                            </span>
-                          )}
-                          {person.birthDate && person.deathDate && <span aria-hidden="true"> · </span>}
-                          {person.deathDate && (
-                            <span>
-                              <strong>d.</strong> {yearOf(person.deathDate)}
-                            </span>
-                          )}
-                          <span className="events-caret" aria-hidden="true">
-                            ▾
-                          </span>
-                        </button>
-                        <div className={infoOpen ? 'events-detail is-open' : 'events-detail'}>
-                          {person.birthDate && (
-                            <div>
-                              <strong>b.</strong> {person.birthDate} {person.birthPlace}
-                            </div>
-                          )}
-                          {person.deathDate && (
-                            <div>
-                              <strong>d.</strong> {person.deathDate} {person.deathPlace}
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                      <>
+                        {person.birthDate && (
+                          <div>
+                            <strong>b.</strong> {person.birthDate} {person.birthPlace}
+                          </div>
+                        )}
+                        {person.deathDate && (
+                          <div>
+                            <strong>d.</strong> {person.deathDate} {person.deathPlace}
+                          </div>
+                        )}
+                      </>
                     ) : person.lifespan ? (
                       <div>{person.lifespan}</div>
                     ) : null}

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { buildGedcomxPerson, personDetailUrl } from '@recordseek/core';
 import { useSession, EVENT_TAGS, type EventTag } from '../session/SessionContext';
 import { createFsClient } from '../auth/fsClient';
+import { reportError } from '../sentry';
 
 const ATTACH_MSG = 'Source created by RecordSeek.com';
 
@@ -146,6 +147,7 @@ export function FsCreate({ client: providedClient }: { client?: FsCreateClient }
         setComplete({ ...attachTarget });
         navigate('/fs-complete', { replace: true });
       } catch (err) {
+        reportError(err, { screen: 'fs-create' });
         setError(err instanceof Error ? err.message : String(err));
       }
     }

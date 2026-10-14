@@ -51,11 +51,16 @@ export function AuthCheck() {
 
   async function login(): Promise<void> {
     if (!appKey) return;
-    const verifier = generateCodeVerifier();
-    sessionStorage.setItem(VERIFIER_KEY, verifier);
-    const challenge = await deriveCodeChallenge(verifier);
+    let codeChallenge: string | undefined;
+    if (getFsConfig().pkce) {
+      const verifier = generateCodeVerifier();
+      sessionStorage.setItem(VERIFIER_KEY, verifier);
+      codeChallenge = await deriveCodeChallenge(verifier);
+    } else {
+      sessionStorage.removeItem(VERIFIER_KEY);
+    }
     const client = createFsClient();
-    window.location.href = client.buildAuthorizationUrl({ codeChallenge: challenge, state: 'authcheck' });
+    window.location.href = client.buildAuthorizationUrl({ codeChallenge, state: 'authcheck' });
   }
 
   return (
