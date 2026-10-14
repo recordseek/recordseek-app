@@ -37,9 +37,9 @@ function captureUrlFallback(): Plugin {
 // resolves regardless of the browser's preference — matches the legacy dev URL.
 export default defineConfig(({ mode }) => ({
   // "/" for local dev (:9000), vitest, and normal builds; the GitHub Pages stage
-  // build runs `vite build --mode pages` (/recordseek/), and the production
+  // build runs `vite build --mode pages` (/recordseek-app/), and the production
   // build for recordseek.com runs `vite build --mode share` (/share/).
-  base: mode === 'pages' ? '/recordseek/' : mode === 'share' ? '/share/' : '/',
+  base: mode === 'pages' ? '/recordseek-app/' : mode === 'share' ? '/share/' : '/',
   plugins: [react(), captureUrlFallback()],
   server: { port: 9000, strictPort: true, host: true },
   preview: { port: 9000, strictPort: true, host: true },

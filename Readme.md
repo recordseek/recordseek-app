@@ -75,12 +75,12 @@ server fallback is required. In production the app is served under `/share/`.
 
 - **`.github/workflows/ci.yml`** — on every PR (and pushes to `master`): install,
   `typecheck`, `test`, and build the web app.
-- **`.github/workflows/deploy-stage.yml`** — on every push to **`modernization`**:
+- **`.github/workflows/deploy-stage.yml`** — on every push to **`master`**:
   runs the same checks, then builds with `pnpm --filter @recordseek/web build:pages`
-  (`vite build --mode pages`, which sets Vite `base` to `/recordseek/`) and
+  (`vite build --mode pages`, which sets Vite `base` to `/recordseek-app/`) and
   publishes `packages/web/dist` to **GitHub Pages**.
 
-**Stage URL:** https://dovy.github.io/recordseek/
+**Stage URL:** https://recordseek.github.io/recordseek-app/
 
 One-time setup in **Settings → Pages**: set **Source = "GitHub Actions"** (the
 workflow also attempts to enable this automatically via `configure-pages`).
@@ -94,7 +94,7 @@ Variables) configure the FamilySearch client at build time; both are optional:
 | `VITE_FS_ENV` | `production` \| `beta` \| `integration` |
 
 > **Stage limitation:** live FamilySearch login does **not** work on the
-> `dovy.github.io/recordseek/` stage — FamilySearch only honors a registered
+> `recordseek.github.io/recordseek-app/` stage — FamilySearch only honors a registered
 > `redirect_uri`, and a `github.io` URL can't be registered for the app key.
 > Everything else (UI, Ancestry hand-off, "Save to Somewhere Else"/citation,
 > capture parsing) works. A future prod / custom-domain deploy (e.g.

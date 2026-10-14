@@ -4,7 +4,7 @@ name: CI
 # pushes to the default branch. (Stage deploys run their own checks too.)
 on:
   pull_request:
-    branches: [master, modernization]
+    branches: [master]
   push:
     branches: [master]
 

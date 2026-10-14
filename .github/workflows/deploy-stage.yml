@@ -1,10 +1,10 @@
 name: Deploy stage (GitHub Pages)
 
 # Builds packages/web and publishes it to GitHub Pages as the stage site at
-# https://dovy.github.io/recordseek/ on every push to the modernization branch.
+# https://recordseek.github.io/recordseek-app/ on every push to master.
 on:
   push:
-    branches: [modernization]
+    branches: [master]
   workflow_dispatch:
 
 # Grant the run permission to publish to Pages via OIDC.
@@ -45,7 +45,7 @@ jobs:
         with:
           enablement: true
 
-      # `--mode pages` sets Vite base to /recordseek/ so assets resolve under the
+      # `--mode pages` sets Vite base to /recordseek-app/ so assets resolve under the
       # project-site subpath. VITE_FS_* are optional repo Variables; FS login is
       # not expected to work on the github.io stage (its redirect URI can't be
       # registered with FamilySearch).
