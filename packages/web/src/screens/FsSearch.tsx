@@ -28,10 +28,13 @@ export function FsSearch() {
   // untouched (a restored or user-edited search wins). Reset stays blank.
   useEffect(() => {
     if (!person || !isSearchEmpty(state.search)) return;
+    // Remember which person was applied, so Reset stays blank for this capture
+    // but a new capture in the same tab still pre-fills.
     const key = 'rs_search_prefilled';
+    const applied = JSON.stringify(person);
     try {
-      if (window.sessionStorage.getItem(key)) return;
-      window.sessionStorage.setItem(key, '1');
+      if (window.sessionStorage.getItem(key) === applied) return;
+      window.sessionStorage.setItem(key, applied);
     } catch {
       /* ignore */
     }

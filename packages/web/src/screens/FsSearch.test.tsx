@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router';
 import { SessionProvider, emptySearch } from '../session/SessionContext';
@@ -56,11 +56,11 @@ describe('FsSearch genscrape pre-fill', () => {
   const href =
     'https://recordseek.com/share/?url=https%3A%2F%2Fx.com%2Fr&givenName=John&surname=Smith&gender=Male&birthDate=12%20Mar%201850&birthPlace=Ohio&fatherGivenName=Bob';
 
-  function renderWith(initial?: Partial<import('../session/SessionContext').SessionState>) {
-    window.sessionStorage.clear();
+  function renderWith(initial?: Partial<import('../session/SessionContext').SessionState>, keepSession = false, captureHref = href) {
+    if (!keepSession) window.sessionStorage.clear();
     return render(
       <SessionProvider initial={initial}>
-        <CaptureProvider href={href}>
+        <CaptureProvider href={captureHref}>
           <MemoryRouter initialEntries={['/fs-search']}>
             <Routes>
               <Route path="/fs-search" element={<FsSearch />} />
@@ -80,6 +80,22 @@ describe('FsSearch genscrape pre-fill', () => {
     expect(screen.getByLabelText('Event year from')).toHaveValue('1850');
     expect(screen.getByLabelText('Event Place')).toHaveValue('Ohio');
     expect(screen.getByLabelText("Father's Given Name(s)")).toHaveValue('Bob');
+  });
+
+  it('pre-fills a new capture in the same tab, but not the same capture twice', () => {
+    renderWith().unmount();
+    const applied = window.sessionStorage.getItem('rs_search_prefilled');
+    // Same tab, search cleared (e.g. Reset), same capture: stays blank.
+    window.sessionStorage.clear();
+    window.sessionStorage.setItem('rs_search_prefilled', applied ?? '');
+    renderWith(undefined, true);
+    expect(screen.getByLabelText('Given Name(s)')).toHaveValue('');
+    cleanup();
+    // A different capture in the same tab pre-fills again.
+    window.sessionStorage.clear();
+    window.sessionStorage.setItem('rs_search_prefilled', applied ?? '');
+    renderWith(undefined, true, href.replace('givenName=John', 'givenName=Mary'));
+    expect(screen.getByLabelText('Given Name(s)')).toHaveValue('Mary');
   });
 
   it('does not overwrite an already-edited search', () => {
