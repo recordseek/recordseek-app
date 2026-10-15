@@ -28,7 +28,14 @@ export type ShareParams = Record<string, string | string[]>;
  * The keys the extension always sends. Anything else in the share URL is an
  * "extra" that gets appended to the captured source `url` (legacy app.js:64).
  */
-const BASE_KEYS: readonly string[] = ['_', 'h1', 'citation', 'title', 'e', 'ev', 'tags', 'url', 'notes'];
+export const BASE_KEYS = ['_', 'h1', 'citation', 'title', 'e', 'ev', 'tags', 'url', 'notes'] as const;
+
+/**
+ * Partner-attribution params added by the RecordSeek developer kit (SDK):
+ * source, SDK version, partner site hostname and optional partner id. Known
+ * keys, so they are never folded onto the captured `url`.
+ */
+export const ATTRIBUTION_KEYS = ['rs_src', 'rs_v', 'rs_host', 'rs_partner'] as const;
 
 /**
  * Person params (from genscrape via the extension, or legacy search-field
@@ -59,7 +66,7 @@ export const PERSON_KEYS = [
 export type PersonKey = (typeof PERSON_KEYS)[number];
 export type PersonParams = Partial<Record<PersonKey, string>>;
 
-const DEFAULT_KEYS: readonly string[] = [...BASE_KEYS, ...PERSON_KEYS];
+const DEFAULT_KEYS: readonly string[] = [...BASE_KEYS, ...PERSON_KEYS, ...ATTRIBUTION_KEYS];
 
 /** Pick the known person params (non-empty strings only); undefined if none. */
 export function extractPersonParams(params: ShareParams): PersonParams | undefined {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { CaptureProvider, useCapture, buildCapture } from './CaptureContext';
+import { CaptureProvider, useCapture, buildCapture, detectEntry } from './CaptureContext';
 
 function Probe() {
   const c = useCapture();
@@ -46,5 +46,19 @@ describe('CaptureContext', () => {
     const restored = buildCapture('http://localhost:9000/?code=abc123');
     expect(restored.url).toBe('https://dp.la/');
     expect(restored.title).toBe('DPLA');
+  });
+});
+
+describe('detectEntry', () => {
+  const u = 'url=https%3A%2F%2Fx.com%2Fa';
+  it('classifies sdk before extension/bookmarklet', () => {
+    expect(detectEntry(`https://recordseek.com/share/?${u}&rs_src=sdk&rs_v=1.0.0`)).toBe('sdk');
+    expect(detectEntry(`https://recordseek.com/share/?${u}&rs_src=sdk&e=chrome&ev=1`)).toBe('sdk');
+  });
+  it('keeps extension, bookmarklet and unknown', () => {
+    expect(detectEntry(`https://recordseek.com/share/?${u}&e=chrome&ev=1`)).toBe('extension');
+    expect(detectEntry(`https://recordseek.com/share/?${u}`)).toBe('bookmarklet');
+    expect(detectEntry(`https://recordseek.com/share/?rs_src=sdk`)).toBe('unknown');
+    expect(detectEntry(`https://recordseek.com/share/?${u}&rs_src=other`)).toBe('bookmarklet');
   });
 });

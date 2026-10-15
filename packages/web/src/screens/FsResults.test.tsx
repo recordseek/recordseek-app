@@ -47,10 +47,28 @@ function renderResults(client: FsResultsClient, initialSearch: Partial<SearchCri
 }
 
 describe('buildSearchQuery', () => {
-  it('maps criteria to q.<field> keys and the event prefix', () => {
+  it('maps criteria to fuzzy q.<field> keys and a from/to year range', () => {
     expect(
-      buildSearchQuery({ ...emptySearch(), surname: 'Smith', eventType: 'birthLike', eventDateFrom: '1850', eventPlace: 'Ohio' }),
-    ).toEqual({ surname: 'Smith', birthLikeDate: '1850', birthLikePlace: 'Ohio' });
+      buildSearchQuery({
+        ...emptySearch(),
+        surname: 'Smith',
+        eventType: 'birthLike',
+        eventDateFrom: '1850',
+        eventDateTo: '1855',
+        eventPlace: 'Ohio',
+      }),
+    ).toEqual({
+      surname: 'Smith~',
+      'birthLikeDate.from': '+1850',
+      'birthLikeDate.to': '+1855',
+      birthLikePlace: 'Ohio~',
+    });
+  });
+
+  it('supports residence (census) events', () => {
+    expect(
+      buildSearchQuery({ ...emptySearch(), surname: 'Hansen', eventType: 'residence', eventDateFrom: '1880', eventPlace: 'Denmark' }),
+    ).toEqual({ surname: 'Hansen~', 'residenceDate.from': '+1880', residencePlace: 'Denmark~' });
   });
 });
 

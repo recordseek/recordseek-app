@@ -134,6 +134,67 @@ main {
   background: #fff;
 }
 
+/* Spinner + status, centered in the window (below the sticky header). */
+main.loading-screen {
+  position: fixed;
+  inset: 0;
+  max-width: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+}
+
+main.loading-screen h3 {
+  margin: 0;
+}
+
+/* Square jelly box (the loaders.css spinner the markup names). */
+.la-square-jelly-box {
+  position: relative;
+  width: 64px;
+  height: 64px;
+}
+
+.la-square-jelly-box > div {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  background: var(--ink);
+}
+
+.la-square-jelly-box > div:first-child {
+  top: -25%;
+  height: 100%;
+  border-radius: 10%;
+  animation: la-jelly-jump 0.6s -0.1s linear infinite;
+}
+
+.la-square-jelly-box > div:last-child {
+  bottom: -9%;
+  height: 10%;
+  border-radius: 50%;
+  opacity: 0.2;
+  animation: la-jelly-shadow 0.6s -0.1s linear infinite;
+}
+
+@keyframes la-jelly-jump {
+  12.5% { border-bottom-right-radius: 10%; }
+  25% { transform: translateY(25%) rotate(22.5deg); }
+  50% { border-bottom-right-radius: 100%; transform: translateY(50%) scale(1, 0.9) rotate(45deg); }
+  75% { transform: translateY(25%) rotate(67.5deg); }
+  100% { transform: translateY(0) rotate(90deg); }
+}
+
+@keyframes la-jelly-shadow {
+  50% { transform: scale(1.25, 1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .la-square-jelly-box > div { animation: none; }
+}
+
 h1,
 h2,
 h3,
@@ -531,6 +592,34 @@ pre {
   grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
   gap: 10px 16px;
   margin: 18px 0;
+}
+
+fieldset.form-grid {
+  border: 0;
+  padding: 0;
+  min-width: 0;
+  margin-top: 6px;
+}
+
+fieldset.form-grid:disabled {
+  opacity: 0.5;
+}
+
+.search-or {
+  margin: 14px 0 0;
+}
+
+.btn-save-later {
+  border-color: var(--info);
+  background: var(--info);
+}
+
+button.btn-save-later:hover:not(:disabled) {
+  background: #2a8bcc;
+}
+
+.save-later-hint {
+  margin: 14px 0 0;
 }
 
 .form-grid label {

@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RecordSeek Developer Kit</title>
+<meta name="description" content="Add a RecordSeek button to any website with one script tag.">
+<style>
+:root{--bg:#fff;--fg:#1d2a24;--muted:#5b6b63;--card:#f4f8f5;--line:#d9e3dc;--brand:#1f6f43;--code:#eef3ef}
+@media (prefers-color-scheme:dark){:root{--bg:#121a16;--fg:#e6efe9;--muted:#9bb0a4;--card:#1a251f;--line:#2b3a32;--brand:#4bb87c;--code:#1d2922}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:56rem;margin:0 auto;padding:2rem 16px 4rem}
+h1{font-size:2rem;margin:.2rem 0}h2{margin-top:2.5rem;padding-top:1rem;border-top:1px solid var(--line)}
+a{color:var(--brand)}
+.lead{color:var(--muted);font-size:1.1rem}
+.badge{display:inline-block;background:var(--brand);color:#fff;border-radius:99px;padding:.1rem .7rem;font-size:.8rem;font-weight:600}
+pre{background:var(--code);border:1px solid var(--line);border-radius:8px;padding:.9rem 1rem;overflow-x:auto;font-size:.85rem;line-height:1.5}
+code{background:var(--code);border-radius:4px;padding:.05em .3em;font-size:.9em}pre code{background:none;padding:0}
+.table-wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{text-align:left;padding:.45rem .6rem;border-bottom:1px solid var(--line);vertical-align:top}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1rem 1.2rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(11rem,1fr));gap:.7rem;margin:1rem 0}
+label{display:block;font-size:.8rem;color:var(--muted)}
+input,select{width:100%;padding:.4rem .5rem;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);font:inherit}
+.preview{display:flex;gap:1rem;flex-wrap:wrap;align-items:center;padding:1.2rem;background:var(--bg);border:1px dashed var(--line);border-radius:10px;margin:1rem 0}
+.demo-row{display:flex;gap:.8rem;flex-wrap:wrap;align-items:center}
+.demo-navy .recordseek-button{background:navy;border-radius:2px;font-family:Georgia,serif}
+</style>
+</head>
+<body>
+<main>
+<span class="badge">v{{VERSION}}</span>
+<h1>RecordSeek Developer Kit</h1>
+<p class="lead">Add a RecordSeek button to any web page with one script tag. Visitors click it and the RecordSeek share app opens with the source (and optionally a person) ready to save to FamilySearch, Ancestry or as a citation.</p>
+
+<h2>Quick start</h2>
+<pre><code>&lt;script src="https://recordseek.com/sdk/v1/recordseek.js" defer&gt;&lt;/script&gt;
+
+&lt;div class="recordseek"&gt;&lt;/div&gt;</code></pre>
+<p>That is all: with no attributes the button captures the current page like the RecordSeek browser extension does. Pass what you know with <code>data-*</code> attributes:</p>
+<pre><code>&lt;div class="recordseek"
+     data-first-name="Dovy" data-last-name="Paukstys" data-birth-date="1980"
+     data-bg-color="#1f6f43" data-font-color="white" data-url="./"&gt;&lt;/div&gt;</code></pre>
+<div class="card demo-row">
+  <div class="recordseek" data-first-name="Dovy" data-last-name="Paukstys" data-birth-date="1980" data-scrape="false" data-partner="recordseek-docs"></div>
+  <div class="recordseek" data-label="Cite this page" data-icon-type="white" data-shape="pill" data-bg-color="#3a3a8c" data-scrape="false" data-partner="recordseek-docs"></div>
+</div>
+
+<h2>Versioned URLs</h2>
+<table><tbody>
+<tr><td><code>https://recordseek.com/sdk/v1/recordseek.js</code></td><td>Moving: always the latest 1.x release (bug fixes, no breaking changes).</td></tr>
+<tr><td><code>https://recordseek.com/sdk/{{VERSION}}/recordseek.js</code></td><td>Pinned: never changes, so you can add a Subresource Integrity hash.</td></tr>
+</tbody></table>
+<pre><code>&lt;script src="https://recordseek.com/sdk/{{VERSION}}/recordseek.js"
+        integrity="sha384-&hellip;" crossorigin="anonymous" defer&gt;&lt;/script&gt;</code></pre>
+<p><strong>Content-Security-Policy:</strong> allow <code>script-src https://recordseek.com</code>. The button is created with the DOM API (no inline scripts or styles from strings are executed), and the stylesheet is a plain <code>&lt;style&gt;</code> element; if your CSP forbids inline styles, set <code>data-style="none"</code> and style the button yourself.</p>
+
+<h2>Attributes</h2>
+<p>Attribute names are case- and dash-insensitive: <code>data-first-name</code>, <code>data-firstName</code> and <code>data-first_name</code> are the same. Unknown <code>data-*</code> attributes are ignored and never sent. Precedence for each field: explicit <code>data-*</code> &gt; genscrape result &gt; generic page scrape.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Attribute</th><th>Type</th><th>Aliases</th><th>Description</th></tr></thead>
+<tbody>
+{{ATTRIBUTES}}
+</tbody></table></div>
+
+<h2>Automatic scraping</h2>
+<p>By default the kit reads the current page the way the RecordSeek extension does: <code>url</code>, a title (the first <code>&lt;h1&gt;</code> when it is longer than the document title), a citation (first paragraph of an element with class <code>citation</code>), and notes (the visitor&rsquo;s selected text, else the meta/Open Graph description). On genealogy sites it recognizes, a separate <code>genscrape.js</code> (loaded lazily from the same folder as <code>recordseek.js</code>) also extracts the person, relatives and facts:</p>
+<ul>{{SITES}}</ul>
+<p>On other sites only the generic scrape applies, so for best results pass person data with <code>data-*</code> attributes. Set <code>data-scrape="false"</code> to turn all scraping off for a button. If the scrape is slower than 2.5 seconds the popup opens anyway with what is available.</p>
+
+<h2>Styling</h2>
+<p>The button is a normal <code>&lt;button type="button"&gt;</code> inside your element, with these classes:</p>
+<ul>
+<li><code>recordseek-button</code> plus <code>recordseek-button--sm|md|lg</code> and <code>recordseek-button--rounded|pill|square</code></li>
+<li><code>recordseek-button__icon</code> (the inline SVG mark) and <code>recordseek-button__label</code> (the text)</li>
+</ul>
+<p>The default stylesheet (<code>&lt;style id="recordseek-sdk-style"&gt;</code>, injected once) wraps every selector in <code>:where()</code>, so it has zero specificity: any rule of yours wins, no <code>!important</code> needed. It reads two CSS variables, <code>--recordseek-bg</code> and <code>--recordseek-fg</code>, which <code>data-bg-color</code> and <code>data-font-color</code> set on the button.</p>
+<div class="card demo-navy">
+<pre><code>.recordseek-button { background: navy; border-radius: 2px; font-family: Georgia, serif; }</code></pre>
+<div class="recordseek" data-scrape="false" data-partner="recordseek-docs"></div>
+</div>
+<p>Other options: <code>data-class="my-btn other"</code> replaces the default classes entirely (the default styles then do not apply); <code>data-style="none"</code> or <code>window.RecordSeekConfig = { injectStyles: false }</code> skips injecting the stylesheet. Icons: <code>data-icon-type</code> <code>color</code> (default), <code>white</code> or <code>none</code>; <code>data-icon-position</code> <code>start</code> or <code>end</code>. All icons are inline SVG, with no network requests; the logo files are also published as <a href="./recordseek-mark.svg">recordseek-mark.svg</a> and <a href="./recordseek-mark-white.svg">recordseek-mark-white.svg</a>.</p>
+<div class="card demo-row">
+  <div class="recordseek" data-icon-type="color" data-label="Color icon" data-scrape="false" data-partner="recordseek-docs"></div>
+  <div class="recordseek" data-icon-type="white" data-label="White icon" data-scrape="false" data-partner="recordseek-docs"></div>
+  <div class="recordseek" data-icon-type="none" data-label="No icon" data-scrape="false" data-partner="recordseek-docs"></div>
+  <div class="recordseek" data-icon-position="end" data-label="Icon at end" data-scrape="false" data-partner="recordseek-docs"></div>
+</div>
+
+<h2>JavaScript API</h2>
+<pre><code>RecordSeek.version            // "{{VERSION}}"
+RecordSeek.scan(root?)        // render buttons under root (idempotent); runs automatically on load and for added elements
+RecordSeek.button(el, data?)  // render a button in one element
+RecordSeek.open({ givenName: 'Jane', surname: 'Doe', url: location.href })  // open RecordSeek programmatically
+
+// optional, before the script loads:
+window.RecordSeekConfig = { base: 'http://localhost:9000/', partner: 'my-site', injectStyles: true };</code></pre>
+<p>The script never throws into your page.</p>
+
+<h2>Playground</h2>
+<div class="card">
+<div class="grid" id="pg-fields"></div>
+<div class="preview" id="pg-preview"></div>
+<pre><code id="pg-code"></code></pre>
+</div>
+
+<h2>Privacy</h2>
+<p>The script sets no cookies, uses no storage and loads no trackers on your page. Nothing is sent to RecordSeek until a visitor clicks the button; then the share app opens with the captured source, any person details you provided, and a small attribution (the SDK version, your site&rsquo;s hostname and optional partner id) so we can see which integrations are used.</p>
+
+<h2>Third-party licenses</h2>
+<p><code>genscrape.js</code> is <a href="https://github.com/rootsdev/genscrape">genscrape</a> v1.5.2, &copy; Justin York, MIT license (notice kept in the file).</p>
+</main>
+<script src="./recordseek.js" defer></script>
+<script>
+(function () {
+  var fields = [
+    ['firstName', 'First name', 'Dovy'], ['lastName', 'Last name', 'Paukstys'], ['birthDate', 'Birth date', '1980'],
+    ['label', 'Label', 'RecordSeek'], ['bgColor', 'Background', '#1f6f43'], ['fontColor', 'Text color', '#ffffff'],
+    ['size', 'Size', 'md', ['sm', 'md', 'lg']], ['shape', 'Shape', 'rounded', ['rounded', 'pill', 'square']],
+    ['iconType', 'Icon', 'color', ['color', 'white', 'none']], ['iconPosition', 'Icon position', 'start', ['start', 'end']]
+  ];
+  var box = document.getElementById('pg-fields'), preview = document.getElementById('pg-preview'), code = document.getElementById('pg-code');
+  var inputs = {};
+  fields.forEach(function (f) {
+    var l = document.createElement('label'); l.textContent = f[1];
+    var i = f[3] ? document.createElement('select') : document.createElement('input');
+    if (f[3]) f[3].forEach(function (o) { var op = document.createElement('option'); op.value = op.textContent = o; i.appendChild(op); });
+    i.value = f[2]; inputs[f[0]] = i; l.appendChild(i); box.appendChild(l); i.addEventListener('input', render);
+  });
+  function kebab(k) { return k.replace(/[A-Z]/g, function (c) { return '-' + c.toLowerCase(); }); }
+  function render() {
+    var el = document.createElement('div'); el.className = 'recordseek'; el.setAttribute('data-scrape', 'false'); el.setAttribute('data-partner', 'recordseek-docs');
+    var lines = [];
+    fields.forEach(function (f) { var v = inputs[f[0]].value; if (v) { el.setAttribute('data-' + kebab(f[0]), v); lines.push('data-' + kebab(f[0]) + '="' + v.replace(/"/g, '&quot;') + '"'); } });
+    preview.textContent = ''; preview.appendChild(el);
+    if (window.RecordSeek) window.RecordSeek.scan(preview);
+    code.textContent = '<div class="recordseek"\n     ' + lines.join('\n     ') + '></div>';
+  }
+  window.addEventListener('DOMContentLoaded', render);
+})();
+</script>
+</body>
+</html>

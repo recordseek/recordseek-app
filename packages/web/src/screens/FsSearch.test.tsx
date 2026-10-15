@@ -44,6 +44,19 @@ describe('FsSearch', () => {
     expect(screen.getByLabelText("Father's Surname")).toBeInTheDocument();
   });
 
+  it('disables the search fields once a Person ID is entered', async () => {
+    renderSearch();
+    await userEvent.type(screen.getByLabelText(/Person ID/), 'lz12345');
+    expect(screen.getByLabelText(/Person ID/)).toHaveValue('LZ12-345');
+    expect(screen.getByLabelText('Last Names (Surname)')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled();
+  });
+
+  it('offers a residence (census) event type', () => {
+    renderSearch();
+    expect(screen.getByRole('option', { name: 'Residence / Census' })).toBeInTheDocument();
+  });
+
   it('disables event year/place until an event type is chosen', async () => {
     renderSearch();
     expect(screen.getByLabelText('Event Place')).toBeDisabled();

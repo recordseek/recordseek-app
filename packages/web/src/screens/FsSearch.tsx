@@ -43,6 +43,8 @@ export function FsSearch() {
   }, [person]);
   const canSubmit = !isSearchEmpty(s);
   const eventChosen = s.eventType !== '';
+  // A Person ID goes straight to that person, so the search fields don't apply.
+  const byPid = s.pid.trim() !== '';
 
   function submit(event: FormEvent): void {
     event.preventDefault();
@@ -55,7 +57,20 @@ export function FsSearch() {
     <main>
       <h1>Search for an existing person</h1>
       <form onSubmit={submit}>
-        <div className="form-grid">
+        <div className="field">
+          <label className="field-label" htmlFor="pid-input">
+            Already know their Person ID? <span className="field-hint">(e.g. LZ12-345)</span>
+          </label>
+          <input
+            id="pid-input"
+            placeholder="Person ID"
+            value={s.pid}
+            onChange={(e) => updateSearch({ pid: normalizePid(e.target.value) })}
+          />
+        </div>
+
+        <p className="field-hint search-or">Or search the Family Tree:</p>
+        <fieldset className="form-grid" disabled={byPid}>
           <label>
             Given Name(s)
             <input value={s.givenName} onChange={(e) => updateSearch({ givenName: e.target.value })} />
@@ -79,6 +94,7 @@ export function FsSearch() {
               <option value="birthLike">Birth</option>
               <option value="marriageLike">Marriage</option>
               <option value="deathLike">Death</option>
+              <option value="residence">Residence / Census</option>
             </select>
           </label>
 
@@ -134,12 +150,7 @@ export function FsSearch() {
             Father&apos;s Surname
             <input value={s.fatherSurname} onChange={(e) => updateSearch({ fatherSurname: e.target.value })} />
           </label>
-        </div>
-
-        <hr />
-
-        <label htmlFor="pid-input">Search by Person ID Number</label>
-        <input id="pid-input" value={s.pid} onChange={(e) => updateSearch({ pid: normalizePid(e.target.value) })} />
+        </fieldset>
 
         <div className="form-footer">
           <BackButton onClick={() => navigate('/fs-source')}>Modify Source</BackButton>

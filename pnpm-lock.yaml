@@ -25,6 +25,25 @@ importers:
         specifier: ^5.0.4
         version: 5.0.4(jsdom@30.1.2)(vite@8.3.4)
 
+  packages/sdk:
+    dependencies:
+      '@recordseek/core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      jsdom:
+        specifier: ^30.1.2
+        version: 30.1.2
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vite:
+        specifier: ^8.3.4
+        version: 8.3.4
+      vitest:
+        specifier: ^5.0.4
+        version: 5.0.4(jsdom@30.1.2)(vite@8.3.4)
+
   packages/web:
     dependencies:
       '@recordseek/core':

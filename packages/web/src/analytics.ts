@@ -188,3 +188,69 @@ export function resetAnalytics(): void {
     // ignore
   }
 }
+
+/** Super properties that attribute a capture to a partner site (RecordSeek SDK). */
+const ATTRIBUTION_PROPS = ['capture_entry', 'referrer_host', 'referrer_partner', 'sdk_version'] as const;
+
+export interface CaptureAttribution {
+  entry?: string;
+  host?: string;
+  partner?: string;
+  sdkVersion?: string;
+}
+
+const HOST_RE = /^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$/;
+const PARTNER_RE = /^[A-Za-z0-9._-]{1,64}$/;
+const VERSION_RE = /^\d{1,4}\.\d{1,4}\.\d{1,4}(?:-[0-9A-Za-z.-]{1,32})?$/;
+
+/** A bare hostname (no scheme, port, path or credentials), lowercased; else ''. */
+export function sanitizeHost(raw: unknown): string {
+  const host = typeof raw === 'string' ? raw.trim().toLowerCase().replace(/^www\./, '') : '';
+  return HOST_RE.test(host) ? host : '';
+}
+
+/** A partner id limited to [A-Za-z0-9._-]{1,64}; else ''. */
+export function sanitizePartner(raw: unknown): string {
+  return typeof raw === 'string' && PARTNER_RE.test(raw) ? raw : '';
+}
+
+/** A semver-ish SDK version; else ''. */
+export function sanitizeSdkVersion(raw: unknown): string {
+  return typeof raw === 'string' && VERSION_RE.test(raw) ? raw : '';
+}
+
+/**
+ * Which attribution super properties to set and which to clear. Without an
+ * entry there is nothing to attribute, so every key is cleared (a later
+ * non-SDK capture must not inherit a previous partner).
+ */
+export function planAttribution(attr: CaptureAttribution | null): { register: Props; unregister: string[] } {
+  const register: Props = {};
+  if (attr?.entry === 'sdk') {
+    register.capture_entry = 'sdk';
+    const host = sanitizeHost(attr.host);
+    const partner = sanitizePartner(attr.partner);
+    const version = sanitizeSdkVersion(attr.sdkVersion);
+    if (host) register.referrer_host = host;
+    if (partner) register.referrer_partner = partner;
+    if (version) register.sdk_version = version;
+  }
+  return { register, unregister: ATTRIBUTION_PROPS.filter((k) => !(k in register)) };
+}
+
+/**
+ * Attribute this browser's events to a partner capture. Super properties live
+ * in localStorage, so they survive the FamilySearch OAuth round-trip; call this
+ * only for a load that carries a capture (`url`), with `null`/non-SDK entry to
+ * clear a previous attribution. No-op until initAnalytics() has run.
+ */
+export function setCaptureAttribution(attr: CaptureAttribution | null): void {
+  if (!initialized) return;
+  try {
+    const { register, unregister } = planAttribution(attr);
+    for (const key of unregister) posthog.unregister(key);
+    if (Object.keys(register).length > 0) posthog.register(register);
+  } catch {
+    // ignore
+  }
+}

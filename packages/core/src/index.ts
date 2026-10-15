@@ -4,3 +4,4 @@ export * from './url-normalize';
 export * from './citation';
 export * from './familysearch';
 export * from './gedcomx';
+export * from './genscrape-map';

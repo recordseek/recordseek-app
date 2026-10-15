@@ -33,21 +33,29 @@ export interface FsResultsClient {
   getPerson(personId: string): Promise<unknown>;
 }
 
-/** Map the session search criteria to FamilySearch `q.<field>` query keys. */
+/**
+ * Map the session search criteria to FamilySearch `q.<field>` query keys (legacy
+ * parity): names and the place get a `~` suffix for a fuzzy match, and the year
+ * range goes out as `<event>Date.from` / `.to` with a `+` year prefix.
+ */
 export function buildSearchQuery(s: SearchCriteria): Record<string, string> {
   const q: Record<string, string> = {};
-  if (s.givenName) q.givenName = s.givenName;
-  if (s.surname) q.surname = s.surname;
+  const fuzzy = (key: string, value: string): void => {
+    if (value.trim()) q[key] = `${value.trim()}~`;
+  };
+  fuzzy('givenName', s.givenName);
+  fuzzy('surname', s.surname);
   if (s.gender) q.gender = s.gender;
-  if (s.spouseGivenName) q.spouseGivenName = s.spouseGivenName;
-  if (s.spouseSurname) q.spouseSurname = s.spouseSurname;
-  if (s.motherGivenName) q.motherGivenName = s.motherGivenName;
-  if (s.motherSurname) q.motherSurname = s.motherSurname;
-  if (s.fatherGivenName) q.fatherGivenName = s.fatherGivenName;
-  if (s.fatherSurname) q.fatherSurname = s.fatherSurname;
-  if (s.eventType && (s.eventDateFrom || s.eventPlace)) {
-    if (s.eventDateFrom) q[`${s.eventType}Date`] = s.eventDateFrom;
-    if (s.eventPlace) q[`${s.eventType}Place`] = s.eventPlace;
+  fuzzy('spouseGivenName', s.spouseGivenName);
+  fuzzy('spouseSurname', s.spouseSurname);
+  fuzzy('motherGivenName', s.motherGivenName);
+  fuzzy('motherSurname', s.motherSurname);
+  fuzzy('fatherGivenName', s.fatherGivenName);
+  fuzzy('fatherSurname', s.fatherSurname);
+  if (s.eventType) {
+    if (s.eventDateFrom.trim()) q[`${s.eventType}Date.from`] = `+${s.eventDateFrom.trim()}`;
+    if (s.eventDateTo.trim()) q[`${s.eventType}Date.to`] = `+${s.eventDateTo.trim()}`;
+    fuzzy(`${s.eventType}Place`, s.eventPlace);
   }
   return q;
 }

@@ -6,7 +6,9 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./share-params": "./src/share-params.ts",
+    "./genscrape-map": "./src/genscrape-map.ts"
   },
   "scripts": {
     "test": "vitest run",

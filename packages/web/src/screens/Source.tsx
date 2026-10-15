@@ -111,6 +111,11 @@ export function Source() {
         <textarea id="source-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} />
       </div>
 
+      <p className="field-hint save-later-hint">
+        Not sure who it belongs to yet? <strong>Save Now, Attach Later</strong> files it in your FamilySearch
+        Source Box. Attach it any time from a person&apos;s Sources section on FamilySearch.
+      </p>
+
       <div className="form-footer">
         <BackButton
           onClick={() => {
@@ -120,7 +125,7 @@ export function Source() {
         />
         <div className="footer-right">
           <SourceBoxCheckbox />
-          <button type="button" className="btn-sm" onClick={saveWithoutAttaching}>
+          <button type="button" className="btn-sm btn-save-later" onClick={saveWithoutAttaching}>
             Save Now, Attach Later
           </button>
           <ForwardButton onClick={goNext}>Next</ForwardButton>

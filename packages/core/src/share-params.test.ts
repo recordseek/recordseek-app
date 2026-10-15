@@ -98,6 +98,18 @@ describe('parseShareParams', () => {
   });
 });
 
+describe('attribution params', () => {
+  it('does not fold rs_* params onto the source url', () => {
+    const p = parseShareParams(
+      'https://recordseek.com/share/?url=https%3A%2F%2Fx.com%2Fr&rs_src=sdk&rs_v=1.0.0&rs_host=example.com&rs_partner=acme',
+    );
+    expect(p.url).toBe('https://x.com/r');
+    expect(p.rs_src).toBe('sdk');
+    expect(p.rs_host).toBe('example.com');
+    expect(p.rs_partner).toBe('acme');
+  });
+});
+
 describe('person params', () => {
   const base = 'https://recordseek.com/share/?url=https%3A%2F%2Fx.com%2Fr%3Fid%3D1&title=T';
 

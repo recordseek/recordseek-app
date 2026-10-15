@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react';
-import { track } from '../analytics';
+import { track, setCaptureAttribution, sanitizeHost, sanitizePartner, sanitizeSdkVersion } from '../analytics';
 import { parseShareParams, extractPersonParams, deriveSourceMetadata, normalizeUrl, type PersonParams } from '@recordseek/core';
 
 /** The normalized capture, derived once from the share URL via core. */
@@ -62,17 +62,21 @@ export function buildCapture(href: string): Capture {
   };
 }
 
-export type CaptureEntry = 'extension' | 'bookmarklet' | 'unknown';
+export type CaptureEntry = 'sdk' | 'extension' | 'bookmarklet' | 'unknown';
 
 /**
  * How the capture reached us. The extension always adds its browser name (`e`)
  * and version (`ev`); the bookmarklet (and the mobile share sheet, which copies
- * its query) never does. No `url` means there is no capture to classify.
+ * its query) never does. The partner SDK marks itself with `rs_src=sdk`, which
+ * wins over the extension/bookmarklet rule. No `url` means there is no capture to classify.
  */
 export function detectEntry(href: string): CaptureEntry {
   const params = parseShareParams(href);
   if (typeof params.url !== 'string' || !params.url) {
     return 'unknown';
+  }
+  if (str(params.rs_src) === 'sdk') {
+    return 'sdk';
   }
   return params.e || params.ev ? 'extension' : 'bookmarklet';
 }
@@ -105,9 +109,17 @@ export function CaptureProvider({
     reported.current = href;
     const params = parseShareParams(href);
     if (typeof params.url !== 'string' || !params.url) return;
+    const entry = detectEntry(href);
+    const host = sanitizeHost(str(params.rs_host));
+    const partner = sanitizePartner(str(params.rs_partner));
+    // Only a load that carries a capture (`url`) updates attribution, so the
+    // OAuth return (no capture params) keeps the stored super properties.
+    setCaptureAttribution({ entry, host, partner, sdkVersion: sanitizeSdkVersion(str(params.rs_v)) });
     track('capture_opened', {
       source_domain: sourceDomain(capture.url),
-      entry: detectEntry(href),
+      entry,
+      ...(entry === 'sdk' && host ? { referrer_host: host } : {}),
+      ...(entry === 'sdk' && partner ? { referrer_partner: partner } : {}),
       has_citation: Boolean(params.citation),
       has_notes: Boolean(params.notes),
       has_person_hint: Boolean(capture.person),
