@@ -4,6 +4,7 @@ import { buildGedcomxPerson, personDetailUrl } from '@recordseek/core';
 import { useSession, EVENT_TAGS, type EventTag } from '../session/SessionContext';
 import { createFsClient } from '../auth/fsClient';
 import { reportError } from '../sentry';
+import { track } from '../analytics';
 import { getSaveToSourceBox } from '../prefs';
 
 const ATTACH_MSG = 'Source created by RecordSeek.com';
@@ -82,6 +83,7 @@ export function FsCreate({ client: providedClient }: { client?: FsCreateClient }
     ran.current = true;
 
     async function run(): Promise<void> {
+      let step = 'create_source';
       try {
         const draft = state.draft;
         if (!draft || !draft.url) {
@@ -91,6 +93,7 @@ export function FsCreate({ client: providedClient }: { client?: FsCreateClient }
 
         setStatus('Generating source…');
         let descriptionId = state.createdSourceId;
+        let created = false;
         if (!descriptionId) {
           descriptionId = await client.createSourceDescription({
             about: draft.url.trim(),
@@ -103,11 +106,17 @@ export function FsCreate({ client: providedClient }: { client?: FsCreateClient }
             throw new Error('FamilySearch did not return a source id.');
           }
           setCreatedSourceId(descriptionId);
+          created = true;
         }
 
         // Save-only always files: the source box is the only place to find it later.
         const saveOnly = state.complete === 'noAttachment' || (!state.attach && !state.newPerson);
-        if (saveOnly || getSaveToSourceBox()) {
+        const filing = saveOnly || getSaveToSourceBox();
+        if (created) {
+          track('fs_source_created', { source_box: filing });
+        }
+        step = 'file_source_box';
+        if (filing) {
           setStatus('Filing in your RecordSeek source box…');
           await fileInRecordSeekFolder(client, descriptionId);
         }
@@ -123,11 +132,13 @@ export function FsCreate({ client: providedClient }: { client?: FsCreateClient }
         // user went down the new-person branch.
         let attachTarget = state.attach;
         if (state.newPerson) {
+          step = 'create_person';
           setStatus('Creating the new person…');
           const newPid = await client.createPerson(buildGedcomxPerson(state.newPerson));
           if (!newPid) {
             throw new Error('FamilySearch did not return a new person id.');
           }
+          track('fs_person_added');
           const name = [state.newPerson.givenName, state.newPerson.surname].filter(Boolean).join(' ').trim();
           attachTarget = {
             pid: newPid,
@@ -142,6 +153,7 @@ export function FsCreate({ client: providedClient }: { client?: FsCreateClient }
           return;
         }
 
+        step = 'attach_source';
         setStatus(`Attaching source to ${attachTarget.name}…`);
         const tags = EVENT_TAGS.filter((tag) => state.tags[tag]).map((tag) => `http://gedcomx.org/${TAG_LABEL[tag]}`);
         await client.createPersonSourceRef(attachTarget.pid, {
@@ -149,10 +161,12 @@ export function FsCreate({ client: providedClient }: { client?: FsCreateClient }
           tags,
           changeMessage: attachTarget.justification || 'Attached by RecordSeek',
         });
+        track('fs_source_attached');
         setComplete({ ...attachTarget });
         navigate('/fs-complete', { replace: true });
       } catch (err) {
         reportError(err, { screen: 'fs-create' });
+        track('fs_action_failed', { step });
         setError(err instanceof Error ? err.message : String(err));
       }
     }

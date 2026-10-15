@@ -1,5 +1,7 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { useSession } from '../session/SessionContext';
+import { track } from '../analytics';
 
 const SOURCE_BOX_URL = 'https://www.familysearch.org/search/sourcebox';
 
@@ -15,6 +17,13 @@ export function FsComplete() {
   const navigate = useNavigate();
   const complete = state.complete;
   const title = state.draft?.title ?? '';
+
+  // Only the success states count; the error state has no completion to report.
+  useEffect(() => {
+    if (complete) {
+      track('fs_completed');
+    }
+  }, [complete]);
 
   function attachAnother(): void {
     // Keep draft + createdSourceId so the source is reused; clear the person

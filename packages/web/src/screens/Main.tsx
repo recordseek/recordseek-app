@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { useCapture } from '../capture/CaptureContext';
+import { track } from '../analytics';
 import { getLastService, saveLastService, type Service } from '../prefs';
 
 const ROUTES: Record<Service, string> = {
@@ -19,12 +20,14 @@ export function Main() {
   useEffect(() => {
     const last = getLastService();
     if (last) {
+      track('service_selected', { service: last, remembered: true });
       navigate(ROUTES[last], { replace: true });
     }
   }, [navigate]);
 
   function choose(service: Service): void {
     saveLastService(service);
+    track('service_selected', { service, remembered: false });
     navigate(ROUTES[service]);
   }
 

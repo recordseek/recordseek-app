@@ -1,4 +1,5 @@
 import { generateCodeVerifier, deriveCodeChallenge, FsApiError } from '@recordseek/core';
+import { identifyFsUser, resetAnalytics, track } from './analytics';
 import { createFsClient, getFsConfig } from './auth/fsClient';
 
 const VERIFIER_KEY = 'fs_pkce_verifier';
@@ -38,6 +39,8 @@ export async function beginFsLogin(returnRoute: string): Promise<void> {
   } else {
     session()?.removeItem(VERIFIER_KEY);
   }
+  // The page is about to navigate away to FamilySearch, so send immediately.
+  track('fs_login_started', undefined, { beacon: true });
   window.location.href = client.buildAuthorizationUrl({ codeChallenge, state: 'recordseek' });
 }
 
@@ -52,6 +55,9 @@ export async function fetchFsUser(): Promise<FsDisplayUser | null> {
     const user = await createFsClient().getCurrentUser();
     if (!user) {
       return null;
+    }
+    if (typeof user.id === 'string') {
+      void identifyFsUser(user.id);
     }
     const givenName = typeof user.givenName === 'string' ? user.givenName : undefined;
     return { displayName: user.displayName, givenName };
@@ -76,6 +82,7 @@ export async function logoutFs(): Promise<void> {
   } catch {
     // logout() clears the local token even if the network call fails.
   }
+  resetAnalytics();
 }
 
 /**

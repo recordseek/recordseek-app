@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { formatCitation, CITATION_STYLES, CITATION_STYLE_LABELS, type CitationStyle } from '@recordseek/core';
+import { track } from '../analytics';
 import { useCapture, type Capture } from '../capture/CaptureContext';
 import { usePersistedCitationStyle, clearLastService } from '../prefs';
 import { BackButton } from '../components/BackButton';
@@ -40,6 +41,10 @@ export function ASource() {
   const [citation, setCitation] = useState(() => citationFor(capture, style));
   const [notes, setNotes] = useState(capture.notes);
 
+  useEffect(() => {
+    track('ancestry_form_viewed');
+  }, []);
+
   function changeStyle(next: CitationStyle): void {
     setStyle(next);
     setCitation(citationFor(capture, next));
@@ -50,7 +55,12 @@ export function ASource() {
       <h3>
         Attach a Source <small>to Ancestry.com</small>
       </h3>
-      <form action={ANCESTRY_ACTION} method="POST">
+      <form
+        action={ANCESTRY_ACTION}
+        method="POST"
+        // The native POST leaves the page, so send this one immediately.
+        onSubmit={() => track('ancestry_submitted', undefined, { beacon: true })}
+      >
         <div className="field">
           <label className="field-label" htmlFor="a-title">
             Source Title

@@ -6,6 +6,7 @@ import { createFsClient } from '../auth/fsClient';
 import { beginFsLogin, isFsAuthError } from '../fsAuth';
 import { BackButton } from '../components/BackButton';
 import { reportError } from '../sentry';
+import { track } from '../analytics';
 
 const PAGE_SIZE = 20;
 // FamilySearch rejects very deep offsets and a 200-page pager helps no one, so we
@@ -76,14 +77,19 @@ export function FsResults({ client: providedClient }: { client?: FsResultsClient
         const doc = await client.getPerson(pid);
         const person = parsePerson(doc, pid);
         setResults(person ? [person] : []);
+        track('fs_search_run', { result_count: person ? 1 : 0 });
         setTotal(person ? 1 : 0);
       } else {
         const feed = await client.searchPersons(buildSearchQuery(state.search), {
           count: PAGE_SIZE,
           offset: page * PAGE_SIZE,
         });
-        setResults(parseSearchResults(feed));
+        const found = parseSearchResults(feed);
+        setResults(found);
         setTotal(parseSearchTotal(feed));
+        if (page === 0) {
+          track('fs_search_run', { result_count: found.length });
+        }
       }
     } catch (err) {
       // A dead FamilySearch session re-authenticates transparently and returns
@@ -93,6 +99,7 @@ export function FsResults({ client: providedClient }: { client?: FsResultsClient
         return;
       }
       reportError(err, { screen: 'fs-results' });
+      track('fs_action_failed', { step: 'search' });
       setError(err instanceof Error ? err.message : String(err));
       setResults([]);
     }

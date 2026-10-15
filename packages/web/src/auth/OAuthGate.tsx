@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router';
 import { Loading } from '../screens/Loading';
 import { completeFsLogin } from '../fsAuth';
 import { reportError } from '../sentry';
+import { track } from '../analytics';
+import { FsApiError } from '@recordseek/core';
 
 /**
  * Handles the FamilySearch OAuth return. The redirect lands at the app root
@@ -22,11 +24,15 @@ export function OAuthGate({ children }: { children: ReactNode }) {
     ran.current = true;
     completeFsLogin()
       .then((route) => {
+        track('fs_login_succeeded');
         window.history.replaceState({}, '', window.location.pathname + window.location.hash);
         navigate(route ?? '/fs-source', { replace: true });
       })
       .catch((err: unknown) => {
         reportError(err, { step: 'oauth-token-exchange' });
+        track('fs_login_failed', {
+          reason: err instanceof FsApiError ? `token_exchange_${err.status}` : 'token_exchange_error',
+        });
         navigate('/', { replace: true });
       })
       .finally(() => setResolving(false));

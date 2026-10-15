@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { formatCitation, CITATION_STYLES, CITATION_STYLE_LABELS, type CitationStyle } from '@recordseek/core';
+import { track } from '../analytics';
 import { useCapture } from '../capture/CaptureContext';
 import { usePersistedCitationStyle, clearLastService } from '../prefs';
 import { BackButton } from '../components/BackButton';
@@ -16,6 +17,10 @@ export function JustCitation() {
   const [style, setStyle] = usePersistedCitationStyle();
   const [copied, setCopied] = useState(false);
 
+  useEffect(() => {
+    track('citation_viewed');
+  }, []);
+
   const citation = formatCitation(
     {
       sourceType: 'website',
@@ -30,6 +35,7 @@ export function JustCitation() {
   async function copy(): Promise<void> {
     try {
       await navigator.clipboard.writeText(citation);
+      track('citation_copied');
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     } catch {

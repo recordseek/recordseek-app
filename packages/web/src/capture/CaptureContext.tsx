@@ -1,4 +1,5 @@
-import { createContext, useContext, useMemo, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { track } from '../analytics';
 import { parseShareParams, extractPersonParams, deriveSourceMetadata, normalizeUrl, type PersonParams } from '@recordseek/core';
 
 /** The normalized capture, derived once from the share URL via core. */
@@ -61,6 +62,30 @@ export function buildCapture(href: string): Capture {
   };
 }
 
+export type CaptureEntry = 'extension' | 'bookmarklet' | 'unknown';
+
+/**
+ * How the capture reached us. The extension always adds its browser name (`e`)
+ * and version (`ev`); the bookmarklet (and the mobile share sheet, which copies
+ * its query) never does. No `url` means there is no capture to classify.
+ */
+export function detectEntry(href: string): CaptureEntry {
+  const params = parseShareParams(href);
+  if (typeof params.url !== 'string' || !params.url) {
+    return 'unknown';
+  }
+  return params.e || params.ev ? 'extension' : 'bookmarklet';
+}
+
+/** Bare hostname (no `www.`) of the captured page; the only part of it analytics may see. */
+export function sourceDomain(url: string): string {
+  try {
+    return new URL(url).hostname.toLowerCase().replace(/^www\./, '');
+  } catch {
+    return '';
+  }
+}
+
 const CaptureContext = createContext<Capture | null>(null);
 
 export function CaptureProvider({
@@ -71,6 +96,23 @@ export function CaptureProvider({
   href?: string;
 }) {
   const capture = useMemo(() => buildCapture(href), [href]);
+  const reported = useRef<string | null>(null);
+
+  // Once per capture load. An OAuth return carries no `url` (the capture is
+  // restored from sessionStorage), so it is not counted again.
+  useEffect(() => {
+    if (reported.current === href) return;
+    reported.current = href;
+    const params = parseShareParams(href);
+    if (typeof params.url !== 'string' || !params.url) return;
+    track('capture_opened', {
+      source_domain: sourceDomain(capture.url),
+      entry: detectEntry(href),
+      has_citation: Boolean(params.citation),
+      has_notes: Boolean(params.notes),
+      has_person_hint: Boolean(capture.person),
+    });
+  }, [href, capture]);
   return <CaptureContext.Provider value={capture}>{children}</CaptureContext.Provider>;
 }
 

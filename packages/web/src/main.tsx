@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { initSentry, ErrorBoundary } from './sentry';
+import { initAnalytics } from './analytics';
 import './styles.css';
 
 // Preserve the legacy hashbang contract: the extension appends "#!/fs-source",
@@ -11,6 +12,7 @@ if (window.location.hash.startsWith('#!/')) {
 }
 
 initSentry();
+initAnalytics();
 
 const container = document.getElementById('root');
 if (container) {
