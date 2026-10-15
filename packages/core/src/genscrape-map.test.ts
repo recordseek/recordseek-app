@@ -64,16 +64,77 @@ describe('genscrape mapping', () => {
     expect(genscrapePersonParams(data)).toMatchObject({ givenName: 'Ada', surname: 'Lovelace' });
   });
 
-  it('builds source fields, tags from persons[0], and drops empties', () => {
+  it('builds source fields, tags from the main person, and drops empties', () => {
     const out = genscrapeToShareParams(fixture);
     expect(out).toMatchObject({
       title: 'Census 1900',
       citation: 'Census, 1900, p. 4',
       url: 'https://example.org/record/1',
-      tags: 'Residence',
+      tags: 'Birth,Death',
       givenName: 'John',
     });
     expect('fatherGivenName' in out).toBe(true);
+  });
+
+  it('uses the primary fact as the search event (census -> residence)', () => {
+    const census = {
+      persons: [
+        {
+          id: 'p1',
+          principal: true,
+          facts: [
+            { type: 'http://gedcomx.org/Census', primary: true, date: { original: '1870' }, place: { original: 'Utah, United States' } },
+            { type: 'http://gedcomx.org/Birth', date: { original: '1830-1831' }, place: { original: 'England' } },
+          ],
+        },
+      ],
+    };
+    expect(genscrapePersonParams(census)).toMatchObject({
+      eventType: 'residence',
+      eventDateFrom: '1870',
+      eventDateTo: '1870',
+      eventPlace: 'Utah, United States',
+      birthDate: '1830-1831',
+    });
+  });
+
+  it('maps a FamilySearch census record that has no citation', () => {
+    const record = {
+      persons: [
+        { id: 'p2', names: [name('Mary', 'Turner')] },
+        {
+          id: 'p1',
+          principal: true,
+          names: [name('Thomas', 'Turner')],
+          sources: [{ description: '#sd2' }],
+          facts: [{ type: 'http://gedcomx.org/Census', primary: true, date: { original: '1870' }, place: { original: 'Utah, United States' } }],
+        },
+      ],
+      sourceDescriptions: [
+        { id: 'sd1', titles: [{ value: 'United States Census, 1870' }] },
+        {
+          id: 'sd2',
+          about: 'https://familysearch.org/ark:/61903/1:1:MNCT-SDC',
+          titles: [{ value: 'Household of Thomas Turner, "United States Census, 1870"' }],
+        },
+      ],
+    };
+    expect(genscrapeToShareParams(record)).toEqual({
+      title: 'Household of Thomas Turner, "United States Census, 1870"',
+      url: 'https://familysearch.org/ark:/61903/1:1:MNCT-SDC',
+      tags: 'Census',
+      givenName: 'Thomas',
+      surname: 'Turner',
+      eventType: 'residence',
+      eventDateFrom: '1870',
+      eventDateTo: '1870',
+      eventPlace: 'Utah, United States',
+    });
+  });
+
+  it('leaves the event unset without a primary fact', () => {
+    const p = { persons: [{ id: 'p1', facts: [{ type: 'http://gedcomx.org/Census', date: { original: '1870' } }] }] };
+    expect(genscrapePersonParams(p).eventType).toBeUndefined();
   });
 
   it('tolerates bad data', () => {

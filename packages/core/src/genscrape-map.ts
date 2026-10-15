@@ -55,6 +55,39 @@ function fact(person: Gx, factType: string, field: 'date' | 'place'): string {
   return '';
 }
 
+/** The record's own event (FamilySearch marks it primary) -> search event type. */
+const EVENT_TYPES: Record<string, string> = {
+  Birth: 'birthLike',
+  Christening: 'birthLike',
+  Baptism: 'birthLike',
+  Death: 'deathLike',
+  Burial: 'deathLike',
+  Cremation: 'deathLike',
+  Marriage: 'marriageLike',
+  MarriageBanns: 'marriageLike',
+  MarriageLicense: 'marriageLike',
+  MarriageContract: 'marriageLike',
+  Census: 'residence',
+  Residence: 'residence',
+};
+
+/** First and last 4-digit years in a date ("1830-1831" -> 1830, 1831). */
+function yearRange(date: string): [string, string] {
+  const years = date.match(/\b\d{4}\b/g) || [];
+  return [years[0] || '', years[years.length - 1] || ''];
+}
+
+/** Event type, year range and place from the main person's primary fact. */
+function primaryEvent(out: Record<string, string>, person: Gx): void {
+  const facts: Gx[] = (person && person.facts) || [];
+  const primary = facts.find((f) => f.primary === true && EVENT_TYPES[gxShort(f.type)]);
+  const type = primary && EVENT_TYPES[gxShort(primary.type)];
+  if (!type) return;
+  out.eventType = type;
+  [out.eventDateFrom, out.eventDateTo] = yearRange((primary.date && primary.date.original) || '');
+  out.eventPlace = (primary.place && primary.place.original) || '';
+}
+
 function setRelative(out: Record<string, string>, prefix: string, person: Gx): void {
   if (!person) return;
   out[`${prefix}GivenName`] = namePart(person, 'Given');
@@ -64,8 +97,7 @@ function setRelative(out: Record<string, string>, prefix: string, person: Gx): v
 /** Map the principal person (principal=true, else persons[0]) and close relatives. */
 export function genscrapePersonParams(data: Gx): PersonParams {
   const out: Record<string, string> = {};
-  const persons: Gx[] = (data && data.persons) || [];
-  const main: Gx = persons.find((p) => p.principal === true) || persons[0];
+  const main: Gx = mainPerson(data);
   if (!main) return out;
   out.givenName = namePart(main, 'Given');
   out.surname = namePart(main, 'Surname');
@@ -74,6 +106,7 @@ export function genscrapePersonParams(data: Gx): PersonParams {
   out.birthPlace = fact(main, 'Birth', 'place');
   out.deathDate = fact(main, 'Death', 'date');
   out.deathPlace = fact(main, 'Death', 'place');
+  primaryEvent(out, main);
   const rels: Gx[] = data.relationships || [];
   const mainRef = `#${main.id}`;
   for (const r of rels) {
@@ -94,19 +127,51 @@ export function genscrapePersonParams(data: Gx): PersonParams {
   return out;
 }
 
+/** The main person: principal=true, else persons[0]. */
+function mainPerson(data: Gx): Gx {
+  const persons: Gx[] = (data && data.persons) || [];
+  return persons.find((p) => p.principal === true) || persons[0];
+}
+
+/**
+ * The record's own source: the document's `description`, else the first titled
+ * source the main person cites, else the first source description.
+ */
+function mainSource(data: Gx, main: Gx): Gx {
+  const sources: Gx[] = (data && data.sourceDescriptions) || [];
+  const refs: unknown[] = [data && data.description, ...((main && main.sources) || []).map((s: Gx) => s && s.description)];
+  for (const ref of refs) {
+    if (typeof ref !== 'string') continue;
+    const sd = sources.find((x) => x.id === ref.replace(/^#/, ''));
+    if (sd && sd.titles && sd.titles.length) return sd;
+  }
+  return sources[0];
+}
+
 /**
  * Full genscrape result -> share params: source title/citation/url, comma-joined
- * fact-type tags (from persons[0], as the extension does) and person params.
- * Empty values are omitted. Returns {} when the data is unusable.
+ * fact-type tags and person params, all from the main person. Each field is read
+ * on its own, so a missing citation (FamilySearch records have none) doesn't drop
+ * the person. Empty values are omitted. Returns {} when the data is unusable.
  */
 export function genscrapeToShareParams(data: Gx): GenscrapeShareParams {
   const out: Record<string, string> = {};
+  const read = (key: string, get: () => unknown): void => {
+    try {
+      const value = get();
+      if (typeof value === 'string' && value) out[key] = value;
+    } catch {
+      // field not present
+    }
+  };
   try {
-    out.title = data.sourceDescriptions[0].titles[0].value;
-    out.citation = data.sourceDescriptions[0].citations[0].value;
-    out.url = data.sourceDescriptions[0].about;
+    const main = mainPerson(data);
+    const source = mainSource(data, main);
+    read('title', () => source.titles[0].value);
+    read('citation', () => source.citations[0].value);
+    read('url', () => source.about);
     const tags: string[] = [];
-    for (const f of (data.persons[0].facts || []) as Gx[]) {
+    for (const f of ((main && main.facts) || []) as Gx[]) {
       const t = gxShort(f.type);
       if (t && !tags.includes(t)) tags.push(t);
     }
@@ -116,7 +181,7 @@ export function genscrapeToShareParams(data: Gx): GenscrapeShareParams {
       if (person[key]) out[key] = person[key];
     }
   } catch {
-    // keep whatever was mapped before the failure, like the extension
+    // keep whatever was mapped before the failure
   }
   for (const key of Object.keys(out)) {
     if (!out[key]) delete out[key];
