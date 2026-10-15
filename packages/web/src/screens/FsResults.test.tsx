@@ -162,6 +162,25 @@ describe('FsResults', () => {
     expect(screen.getByTitle('Mother')).toBeInTheDocument();
   });
 
+  it('does not search when only an event type is set', async () => {
+    const searchPersons = vi.fn(async () => FEED);
+    const client: FsResultsClient = { searchPersons, getPerson: async () => ({ persons: [] }) };
+    renderResults(client, { eventType: 'residence' });
+    expect(await screen.findByText('SEARCH')).toBeInTheDocument();
+    expect(searchPersons).not.toHaveBeenCalled();
+  });
+
+  it('explains an unknown Person ID instead of showing the raw 404', async () => {
+    const client: FsResultsClient = {
+      searchPersons: async () => ({ entries: [] }),
+      getPerson: async () => {
+        throw apiError(404, 'FamilySearch API 404: Failure in upstream call: Unable to read Person (upstream 404)');
+      },
+    };
+    renderResults(client, { pid: 'ZZZZ-999' });
+    expect(await screen.findByRole('alert')).toHaveTextContent('No Family Tree person found with ID ZZZZ-999');
+  });
+
   it('uses getPerson in direct-PID mode', async () => {
     const client: FsResultsClient = {
       searchPersons: async () => ({ entries: [] }),

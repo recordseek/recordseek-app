@@ -5,7 +5,7 @@ import { MemoryRouter, Routes, Route } from 'react-router';
 import { CITATION_STYLES } from '@recordseek/core';
 import { CaptureProvider } from '../capture/CaptureContext';
 import { SessionProvider, useSession } from '../session/SessionContext';
-import { Source } from './Source';
+import { Source, toSourceUrl } from './Source';
 
 const HREF =
   'http://localhost:9000/?url=https%3A%2F%2Fwww.ancestry.com%2Fdiscoveryui-content%2Fview%2F123' +
@@ -93,5 +93,28 @@ describe('Source', () => {
     await userEvent.click(screen.getByRole('button', { name: /Tag this Source to Events/ }));
     await userEvent.click(screen.getByLabelText('Birth'));
     expect(screen.getByRole('button', { name: /Tag this Source to Events/ })).toHaveTextContent('1');
+  });
+
+  it('blocks Next and Save until there is a title and a valid URL', async () => {
+    renderSource();
+    const next = screen.getByRole('button', { name: 'Next' });
+    const save = screen.getByRole('button', { name: 'Save Now, Attach Later' });
+    await userEvent.clear(screen.getByLabelText('Source Title'));
+    expect(next).toBeDisabled();
+    expect(save).toBeDisabled();
+    await userEvent.type(screen.getByLabelText('Source Title'), 'Census');
+    expect(next).toBeEnabled();
+    await userEvent.clear(screen.getByLabelText(/Source\s*\(URL\)/));
+    await userEvent.type(screen.getByLabelText(/Source\s*\(URL\)/), 'not a url');
+    expect(next).toBeDisabled();
+  });
+});
+
+describe('toSourceUrl', () => {
+  it('accepts http(s) URLs, encoding them, and rejects anything else', () => {
+    expect(toSourceUrl(' https://example.org/a b ')).toBe('https://example.org/a%20b');
+    expect(toSourceUrl('javascript:alert(1)')).toBeNull();
+    expect(toSourceUrl('example.org/page')).toBeNull();
+    expect(toSourceUrl('')).toBeNull();
   });
 });

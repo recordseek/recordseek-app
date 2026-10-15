@@ -4,6 +4,7 @@ import { useSession, isSearchEmpty } from '../session/SessionContext';
 import { useOptionalCapture } from '../capture/CaptureContext';
 import { personToSearch } from '../session/prefill';
 import { BackButton } from '../components/BackButton';
+import { hasSearchCriteria } from './FsResults';
 import { ForwardButton } from '../components/ForwardButton';
 
 /** Uppercase, strip to alphanumerics, and dash into groups of four (LZ12-345). */
@@ -41,7 +42,8 @@ export function FsSearch() {
     updateSearch(personToSearch(person));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [person]);
-  const canSubmit = !isSearchEmpty(s);
+  // An event type with no date or place adds no query term, so it can't search alone.
+  const canSubmit = s.pid.trim() !== '' || hasSearchCriteria(s);
   const eventChosen = s.eventType !== '';
   // A Person ID goes straight to that person, so the search fields don't apply.
   const byPid = s.pid.trim() !== '';

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { parseSearchResults, parseSearchTotal, parsePerson, type PersonResult } from '@recordseek/core';
-import { useSession, isSearchEmpty, type SearchCriteria } from '../session/SessionContext';
+import { useSession, type SearchCriteria } from '../session/SessionContext';
 import { createFsClient } from '../auth/fsClient';
 import { beginFsLogin, isFsAuthError } from '../fsAuth';
 import { BackButton } from '../components/BackButton';
@@ -60,6 +60,11 @@ export function buildSearchQuery(s: SearchCriteria): Record<string, string> {
   return q;
 }
 
+/** True when the criteria produce at least one FamilySearch query term (an event type alone does not). */
+export function hasSearchCriteria(s: SearchCriteria): boolean {
+  return Object.keys(buildSearchQuery(s)).length > 0;
+}
+
 export function FsResults({ client: providedClient }: { client?: FsResultsClient }) {
   const { state, selectPerson, clearAttach, setComplete } = useSession();
   const navigate = useNavigate();
@@ -76,13 +81,25 @@ export function FsResults({ client: providedClient }: { client?: FsResultsClient
     setError(null);
     // Nothing to search (e.g. a reload that lost the criteria, or a direct hit on
     // this URL): bounce to the form instead of firing an empty query that 400s.
-    if (!pid && isSearchEmpty(state.search)) {
+    if (!pid && !hasSearchCriteria(state.search)) {
       navigate('/fs-search', { replace: true });
       return;
     }
     try {
       if (pid) {
-        const doc = await client.getPerson(pid);
+        let doc: unknown;
+        try {
+          doc = await client.getPerson(pid);
+        } catch (err) {
+          // A mistyped, merged or deleted ID is the user's to fix, not a bug.
+          const status = (err as { status?: unknown } | null)?.status;
+          if (status === 404 || status === 410) {
+            setError(`No Family Tree person found with ID ${pid}. Check the ID and try again.`);
+            setResults([]);
+            return;
+          }
+          throw err;
+        }
         const person = parsePerson(doc, pid);
         setResults(person ? [person] : []);
         track('fs_search_run', { result_count: person ? 1 : 0 });

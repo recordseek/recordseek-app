@@ -116,4 +116,12 @@ describe('FsSearch genscrape pre-fill', () => {
     expect(screen.getByLabelText('Last Names (Surname)')).toHaveValue('Jones');
     expect(screen.getByLabelText('Given Name(s)')).toHaveValue('');
   });
+
+  it('keeps Next disabled for an event type with no year or place', async () => {
+    renderSearch();
+    await userEvent.selectOptions(screen.getByLabelText('Event Type'), 'residence');
+    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
+    await userEvent.type(screen.getByLabelText('Event Place'), 'Pittsburgh');
+    expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled();
+  });
 });

@@ -165,7 +165,21 @@ export function FsCreate({ client: providedClient }: { client?: FsCreateClient }
         setComplete({ ...attachTarget });
         navigate('/fs-complete', { replace: true });
       } catch (err) {
-        reportError(err, { screen: 'fs-create' });
+        // The shape of what we sent (no content) so FamilySearch 400s can be diagnosed.
+        const d = state.draft;
+        reportError(err, {
+          screen: 'fs-create',
+          step,
+          ...(step === 'create_source' && d
+            ? {
+                urlScheme: (d.url.trim().split(':')[0] ?? '').slice(0, 10),
+                urlLength: d.url.trim().length,
+                titleLength: d.title.trim().length,
+                citationLength: d.citation.trim().length,
+                notesLength: d.notes.trim().length,
+              }
+            : {}),
+        });
         track('fs_action_failed', { step });
         setError(err instanceof Error ? err.message : String(err));
       }

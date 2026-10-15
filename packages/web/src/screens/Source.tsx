@@ -11,6 +11,16 @@ import { ForwardButton } from '../components/ForwardButton';
 import { TagEventsButton } from '../components/TagEventsButton';
 import { SourceBoxCheckbox } from '../components/SourceBoxCheckbox';
 
+/** The URL as FamilySearch will accept it (encoded, absolute http/https), or null. */
+export function toSourceUrl(value: string): string | null {
+  try {
+    const parsed = new URL(value.trim());
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? parsed.href : null;
+  } catch {
+    return null;
+  }
+}
+
 function citationFor(capture: Capture, title: string, style: CitationStyle): string {
   return formatCitation(
     { sourceType: 'website', title, publisher: capture.publisher, url: capture.url, accessedDate: capture.accessedDate },
@@ -42,13 +52,19 @@ export function Source() {
     setCitation(citationFor(capture, title, next));
   }
 
+  // FamilySearch rejects a source without a title or with an about that isn't a URL.
+  const sourceUrl = toSourceUrl(url);
+  const ready = title.trim() !== '' && sourceUrl !== null;
+
   function goNext(): void {
-    setDraft({ url, title, citation, notes });
+    if (!ready || !sourceUrl) return;
+    setDraft({ url: sourceUrl, title, citation, notes });
     navigate('/fs-search');
   }
 
   function saveWithoutAttaching(): void {
-    setDraft({ url, title, citation, notes });
+    if (!ready || !sourceUrl) return;
+    setDraft({ url: sourceUrl, title, citation, notes });
     clearAttach();
     setComplete('noAttachment');
     navigate('/fs-create');
@@ -125,10 +141,12 @@ export function Source() {
         />
         <div className="footer-right">
           <SourceBoxCheckbox />
-          <button type="button" className="btn-sm btn-save-later" onClick={saveWithoutAttaching}>
+          <button type="button" className="btn-sm btn-save-later" onClick={saveWithoutAttaching} disabled={!ready}>
             Save Now, Attach Later
           </button>
-          <ForwardButton onClick={goNext}>Next</ForwardButton>
+          <ForwardButton onClick={goNext} disabled={!ready}>
+            Next
+          </ForwardButton>
         </div>
       </div>
     </main>
