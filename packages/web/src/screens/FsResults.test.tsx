@@ -65,6 +65,13 @@ describe('buildSearchQuery', () => {
     });
   });
 
+  it('sends gender as q.sex (FamilySearch rejects q.gender)', () => {
+    expect(buildSearchQuery({ ...emptySearch(), surname: 'Smith', gender: 'Female' })).toEqual({
+      surname: 'Smith~',
+      sex: 'Female',
+    });
+  });
+
   it('supports residence (census) events', () => {
     expect(
       buildSearchQuery({ ...emptySearch(), surname: 'Hansen', eventType: 'residence', eventDateFrom: '1880', eventPlace: 'Denmark' }),

@@ -45,7 +45,8 @@ export function buildSearchQuery(s: SearchCriteria): Record<string, string> {
   };
   fuzzy('givenName', s.givenName);
   fuzzy('surname', s.surname);
-  if (s.gender) q.gender = s.gender;
+  // FamilySearch's term is sex; q.gender is rejected with a 400.
+  if (s.gender) q.sex = s.gender;
   fuzzy('spouseGivenName', s.spouseGivenName);
   fuzzy('spouseSurname', s.spouseSurname);
   fuzzy('motherGivenName', s.motherGivenName);
@@ -123,7 +124,11 @@ export function FsResults({ client: providedClient }: { client?: FsResultsClient
         void beginFsLogin('/fs-results');
         return;
       }
-      reportError(err, { screen: 'fs-results' });
+      // The query string is scrubbed from breadcrumbs, so send the term names (not values).
+      reportError(err, {
+        screen: 'fs-results',
+        terms: pid ? 'pid' : Object.keys(buildSearchQuery(state.search)).join(','),
+      });
       track('fs_action_failed', { step: 'search' });
       setError(err instanceof Error ? err.message : String(err));
       setResults([]);
