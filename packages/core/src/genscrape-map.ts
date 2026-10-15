@@ -127,10 +127,30 @@ export function genscrapePersonParams(data: Gx): PersonParams {
   return out;
 }
 
-/** The main person: principal=true, else persons[0]. */
+/** An ark/URL without protocol, www or query, for comparing identifiers. */
+function normalizeUrl(url: unknown): string {
+  return typeof url === 'string' ? url.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/[?#].*$/, '') : '';
+}
+
+/**
+ * The main person: principal=true, else the person whose persistent id is the
+ * record the document describes (FamilySearch), else persons[0].
+ */
 function mainPerson(data: Gx): Gx {
   const persons: Gx[] = (data && data.persons) || [];
-  return persons.find((p) => p.principal === true) || persons[0];
+  const principal = persons.find((p) => p.principal === true);
+  if (principal) return principal;
+  const desc = typeof data?.description === 'string' ? data.description.replace(/^#/, '') : '';
+  const sources: Gx[] = (data && data.sourceDescriptions) || [];
+  const about = normalizeUrl(desc && sources.find((sd) => sd.id === desc)?.about);
+  if (about) {
+    const match = persons.find((p) => {
+      const ids: unknown[] = (p.identifiers && p.identifiers['http://gedcomx.org/Persistent']) || [];
+      return ids.some((id) => normalizeUrl(id) === about);
+    });
+    if (match) return match;
+  }
+  return persons[0];
 }
 
 /**

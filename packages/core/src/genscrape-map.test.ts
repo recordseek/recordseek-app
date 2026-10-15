@@ -132,6 +132,18 @@ describe('genscrape mapping', () => {
     });
   });
 
+  it('finds the record person by persistent id when none is principal', () => {
+    const record = {
+      description: '#sd_p2',
+      persons: [
+        { id: 'p1', names: [name('Harry', 'Paukstys')], identifiers: { 'http://gedcomx.org/Persistent': ['https://www.familysearch.org/ark:/61903/1:1:FXBP'] } },
+        { id: 'p2', names: [name('Albert', 'Paukstys')], identifiers: { 'http://gedcomx.org/Persistent': ['https://www.familysearch.org/ark:/61903/1:1:FXBL'] } },
+      ],
+      sourceDescriptions: [{ id: 'sd_p2', about: 'https://familysearch.org/ark:/61903/1:1:FXBL', titles: [{ value: 'Albert Paukstys' }] }],
+    };
+    expect(genscrapePersonParams(record)).toMatchObject({ givenName: 'Albert' });
+  });
+
   it('leaves the event unset without a primary fact', () => {
     const p = { persons: [{ id: 'p1', facts: [{ type: 'http://gedcomx.org/Census', date: { original: '1870' } }] }] };
     expect(genscrapePersonParams(p).eventType).toBeUndefined();
