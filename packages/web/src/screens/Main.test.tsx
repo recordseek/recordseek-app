@@ -42,9 +42,10 @@ describe('Main', () => {
     expect(screen.getByText('CITATION SCREEN')).toBeInTheDocument();
   });
 
-  it('auto-advances to the remembered service so no extra click is needed', async () => {
+  it('shows the picker even when a service was used before', () => {
     saveLastService('FamilySearch');
     renderMain();
-    expect(await screen.findByText('SOURCE SCREEN')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'FamilySearch' })).toBeInTheDocument();
+    expect(screen.queryByText('SOURCE SCREEN')).not.toBeInTheDocument();
   });
 });

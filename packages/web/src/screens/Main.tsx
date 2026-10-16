@@ -1,8 +1,7 @@
-import { useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { useCapture } from '../capture/CaptureContext';
 import { track } from '../analytics';
-import { getLastService, saveLastService, type Service } from '../prefs';
+import { saveLastService, type Service } from '../prefs';
 
 const ROUTES: Record<Service, string> = {
   FamilySearch: '/fs-source',
@@ -15,19 +14,11 @@ export function Main() {
   const capture = useCapture();
   const captured = capture.title || capture.url;
 
-  // Legacy parity: jump straight to the remembered service so a returning user
-  // needs no extra click. (Going Back to Main clears the memory.)
-  useEffect(() => {
-    const last = getLastService();
-    if (last) {
-      track('service_selected', { service: last, remembered: true });
-      navigate(ROUTES[last], { replace: true });
-    }
-  }, [navigate]);
-
+  // Always show the picker: auto-advancing to the remembered service hid the
+  // choice and could drop a user into a sign-in they never asked for.
   function choose(service: Service): void {
     saveLastService(service);
-    track('service_selected', { service, remembered: false });
+    track('service_selected', { service });
     navigate(ROUTES[service]);
   }
 
