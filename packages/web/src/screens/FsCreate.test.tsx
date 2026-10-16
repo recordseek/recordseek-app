@@ -129,6 +129,28 @@ describe('FsCreate', () => {
     expect(calls.personSourceRef[0]!.pid).toBe('NEW-PID');
   });
 
+  it('attaches to the picked person even when a new-person draft is left over', async () => {
+    const { client, calls } = makeClient();
+    renderCreate(client, {
+      draft: DRAFT,
+      attach: ATTACH,
+      newPerson: {
+        givenName: '',
+        surname: '',
+        gender: 'Unknown',
+        living: false,
+        birthDate: '',
+        birthPlace: '',
+        deathDate: '',
+        deathPlace: '',
+      },
+      tags: TAGS,
+    });
+    expect(await screen.findByText('DONE John Smith')).toBeInTheDocument();
+    expect(calls.createPerson).toHaveLength(0);
+    expect(calls.personSourceRef[0]!.pid).toBe('P1');
+  });
+
   it('surfaces the real error when source creation fails', async () => {
     const { client } = makeClient({
       createSourceDescription: async () => {

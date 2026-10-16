@@ -67,7 +67,7 @@ export function hasSearchCriteria(s: SearchCriteria): boolean {
 }
 
 export function FsResults({ client: providedClient }: { client?: FsResultsClient }) {
-  const { state, selectPerson, clearAttach, setComplete } = useSession();
+  const { state, selectPerson, clearAttach, clearNewPerson, setComplete } = useSession();
   const navigate = useNavigate();
   const client = useMemo<FsResultsClient>(() => providedClient ?? createFsClient(), [providedClient]);
 
@@ -140,6 +140,7 @@ export function FsResults({ client: providedClient }: { client?: FsResultsClient
   }, [load]);
 
   function select(person: PersonResult): void {
+    clearNewPerson();
     selectPerson({ pid: person.pid, name: person.name, url: person.url, justification: '' });
     navigate('/fs-attach');
   }

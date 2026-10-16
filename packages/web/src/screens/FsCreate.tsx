@@ -129,9 +129,11 @@ export function FsCreate({ client: providedClient }: { client?: FsCreateClient }
         }
 
         // Determine the attach target, creating a brand-new person first if the
-        // user went down the new-person branch.
+        // user went down the new-person branch. A real pid means they picked an
+        // existing person; a newPerson draft left from visiting fs-addperson must
+        // not override that (it created an empty person and FamilySearch 400'd).
         let attachTarget = state.attach;
-        if (state.newPerson) {
+        if (state.newPerson && !state.attach?.pid) {
           step = 'create_person';
           setStatus('Creating the new person…');
           const newPid = await client.createPerson(buildGedcomxPerson(state.newPerson));
