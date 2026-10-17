@@ -1,4 +1,4 @@
-import { generateCodeVerifier, deriveCodeChallenge, FsApiError } from '@recordseek/core';
+import { generateCodeVerifier, deriveCodeChallenge, FsApiError, FsNetworkError } from '@recordseek/core';
 import { identifyFsUser, resetAnalytics, track } from './analytics';
 import { createFsClient, getFsConfig } from './auth/fsClient';
 
@@ -85,11 +85,16 @@ export async function logoutFs(): Promise<void> {
   resetAnalytics();
 }
 
+/** The route a pending sign-in should resume, for a retry after it failed. */
+export function pendingReturnRoute(): string {
+  return session()?.getItem(RETURN_ROUTE_KEY) ?? '/fs-source';
+}
+
 /**
  * If the current URL carries an OAuth `?code`, exchange it for a token and
  * return the route to resume. Returns null when there is no code.
  */
-export async function completeFsLogin(): Promise<string | null> {
+export async function completeFsLogin(retryDelayMs = 1000): Promise<string | null> {
   const code = new URLSearchParams(window.location.search).get('code');
   if (!code) {
     return null;
@@ -97,7 +102,16 @@ export async function completeFsLogin(): Promise<string | null> {
   const store = session();
   const verifier = store?.getItem(VERIFIER_KEY) ?? undefined;
   const route = store?.getItem(RETURN_ROUTE_KEY) ?? '/fs-source';
-  await createFsClient().exchangeToken(code, verifier);
+  const client = createFsClient();
+  try {
+    await client.exchangeToken(code, verifier);
+  } catch (err) {
+    // A dropped connection usually means the request never reached FamilySearch,
+    // so the single-use code is still good: try once more (RECORDSEEK-F2).
+    if (!(err instanceof FsNetworkError)) throw err;
+    await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+    await client.exchangeToken(code, verifier);
+  }
   store?.removeItem(VERIFIER_KEY);
   store?.removeItem(RETURN_ROUTE_KEY);
   return route;

@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { Loading } from '../screens/Loading';
-import { beginFsLogin, completeFsLogin } from '../fsAuth';
+import { beginFsLogin, completeFsLogin, pendingReturnRoute } from '../fsAuth';
 import { describeFsError } from '../fsErrors';
 import { reportError } from '../sentry';
 import { track } from '../analytics';
-import { FsApiError } from '@recordseek/core';
+import { FsApiError, FsNetworkError } from '@recordseek/core';
 
 /**
  * Handles the FamilySearch OAuth return. The redirect lands at the app root
@@ -31,9 +31,17 @@ export function OAuthGate({ children }: { children: ReactNode }) {
         navigate(route ?? '/fs-source', { replace: true });
       })
       .catch((err: unknown) => {
-        reportError(err, { step: 'oauth-token-exchange' });
+        // A connection that dropped twice is the user's network, not a bug.
+        if (!(err instanceof FsNetworkError)) {
+          reportError(err, { step: 'oauth-code-exchange' });
+        }
         track('fs_login_failed', {
-          reason: err instanceof FsApiError ? `token_exchange_${err.status}` : 'token_exchange_error',
+          reason:
+            err instanceof FsApiError
+              ? `token_exchange_${err.status}`
+              : err instanceof FsNetworkError
+                ? 'token_exchange_network'
+                : 'token_exchange_error',
         });
         // The code is single-use; never leave it in the URL (a reload would replay it).
         window.history.replaceState({}, '', window.location.pathname + window.location.hash);
@@ -61,7 +69,7 @@ export function OAuthGate({ children }: { children: ReactNode }) {
               type="button"
               className="primary"
               onClick={() => {
-                beginFsLogin('/fs-source').catch((err: unknown) => {
+                beginFsLogin(pendingReturnRoute()).catch((err: unknown) => {
                   reportError(err, { step: 'oauth-retry' });
                   setFailed('Signing in still isn’t working. Reload the page and try again.');
                 });
