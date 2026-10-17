@@ -49,12 +49,12 @@ describe('Source', () => {
     localStorage.clear();
     const { unmount } = renderSource();
     const box = screen.getByLabelText('Save to Source Box') as HTMLInputElement;
-    expect(box.checked).toBe(true);
-    await userEvent.click(box);
     expect(box.checked).toBe(false);
+    await userEvent.click(box);
+    expect(box.checked).toBe(true);
     unmount();
     renderSource();
-    expect((screen.getByLabelText('Save to Source Box') as HTMLInputElement).checked).toBe(false);
+    expect((screen.getByLabelText('Save to Source Box') as HTMLInputElement).checked).toBe(true);
     localStorage.clear();
   });
 

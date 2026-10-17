@@ -77,7 +77,16 @@ describe('FsCreate', () => {
     expect(calls.personSourceRef[0]!.ref.changeMessage).toBe('census match');
   });
 
-  it('files the source in the RecordSeek folder by default', async () => {
+  it('does not file an attached source in the RecordSeek folder by default', async () => {
+    const { client, calls } = makeClient();
+    renderCreate(client, { draft: DRAFT, attach: ATTACH, tags: TAGS });
+    expect(await screen.findByText('DONE John Smith')).toBeInTheDocument();
+    expect(calls.filed).toEqual([]);
+    expect(calls.personSourceRef).toHaveLength(1);
+  });
+
+  it('files the source in the RecordSeek folder when the user opted in', async () => {
+    localStorage.setItem('recordseek-save-to-sourcebox', 'true');
     const { client, calls } = makeClient();
     renderCreate(client, { draft: DRAFT, attach: ATTACH, tags: TAGS });
     expect(await screen.findByText('DONE John Smith')).toBeInTheDocument();
@@ -193,6 +202,7 @@ describe('FsCreate', () => {
   });
 
   it('after a failed retry, says what was saved and offers Go Back', async () => {
+    localStorage.setItem('recordseek-save-to-sourcebox', 'true');
     let attachCalls = 0;
     const { client } = makeClient({
       createPersonSourceRef: async () => {

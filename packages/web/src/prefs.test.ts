@@ -4,8 +4,8 @@ import { getSavedCitationStyle, getLastService, saveLastService, clearLastServic
 describe('prefs', () => {
   beforeEach(() => localStorage.clear());
 
-  it('saves to the source box unless explicitly turned off', () => {
-    expect(getSaveToSourceBox()).toBe(true);
+  it('saves to the source box only when turned on', () => {
+    expect(getSaveToSourceBox()).toBe(false);
     localStorage.setItem('recordseek-save-to-sourcebox', 'false');
     expect(getSaveToSourceBox()).toBe(false);
     localStorage.setItem('recordseek-save-to-sourcebox', 'true');

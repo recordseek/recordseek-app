@@ -1,6 +1,6 @@
 import { usePersistedSaveToSourceBox } from '../prefs';
 
-/** Remembered opt-out for filing new sources in the RecordSeek source-box folder. */
+/** Remembered opt-in for filing new sources in the RecordSeek source-box folder. */
 export function SourceBoxCheckbox() {
   const [save, setSave] = usePersistedSaveToSourceBox();
   return (

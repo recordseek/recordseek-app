@@ -56,9 +56,13 @@ export function clearLastService(): void {
   remove(LAST_SERVICE_KEY);
 }
 
-/** Whether to file new FamilySearch sources in the RecordSeek source-box folder. Defaults to on. */
+/**
+ * Whether to file new FamilySearch sources in the RecordSeek source-box folder
+ * when attaching. Off unless the user ticks it (customers were surprised to find
+ * sources filed automatically). Save-only sources are always filed.
+ */
 export function getSaveToSourceBox(): boolean {
-  return read(SOURCE_BOX_KEY) !== 'false';
+  return read(SOURCE_BOX_KEY) === 'true';
 }
 
 export function usePersistedSaveToSourceBox(): [boolean, (save: boolean) => void] {
