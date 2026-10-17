@@ -174,6 +174,15 @@ describe('resources', () => {
     });
   });
 
+  it('caps an over-long title so FamilySearch accepts the source', async () => {
+    const { fn, calls } = mockFetch(() => ({ status: 201, headers: { 'x-entity-id': 'SD-1' }, body: '{}' }));
+    const client = new FamilySearchClient(baseConfig({ fetch: fn }));
+    await client.createSourceDescription({ about: 'https://example.com', title: 'word '.repeat(60).trim() });
+    const sent: string = JSON.parse(String(calls[0]!.init.body)).sourceDescriptions[0].titles[0].value;
+    expect(sent.length).toBeLessThanOrEqual(255);
+    expect(sent.endsWith('word…')).toBe(true);
+  });
+
   it('falls back to the Location header for the new entity id', async () => {
     const { fn } = mockFetch(() => ({
       status: 201,

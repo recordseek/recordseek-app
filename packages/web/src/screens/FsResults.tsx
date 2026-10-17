@@ -99,6 +99,13 @@ export function FsResults({ client: providedClient }: { client?: FsResultsClient
             setResults([]);
             return;
           }
+          // A private or restricted record (e.g. a living person outside the
+          // user's own tree) is FamilySearch withholding it, not a bug.
+          if (status === 403) {
+            setError(`FamilySearch won't show person ${pid} to your account. It may be private or restricted.`);
+            setResults([]);
+            return;
+          }
           throw err;
         }
         const person = parsePerson(doc, pid);

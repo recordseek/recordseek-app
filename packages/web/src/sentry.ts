@@ -24,6 +24,9 @@ export function initSentry(): void {
     // v11 replaced sendDefaultPii with dataCollection: keep user info, cookies,
     // headers and bodies out of events (the old sendDefaultPii:false behaviour).
     dataCollection: { userInfo: false, cookies: false, httpHeaders: false, httpBodies: [] },
+    // Only errors thrown by our own scripts. Extensions and automation inject
+    // code that runs as <anonymous> (RECORDSEEK-EY "n0_ is not defined" in injFunc).
+    allowUrls: [window.location.origin],
     beforeSend(event) {
       if (event.request?.url) {
         event.request.url = scrub(event.request.url);

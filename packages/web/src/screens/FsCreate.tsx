@@ -167,6 +167,17 @@ export function FsCreate({ client: providedClient }: { client?: FsCreateClient }
         setComplete({ ...attachTarget });
         navigate('/fs-complete', { replace: true });
       } catch (err) {
+        // The person was merged or deleted after the user picked them (FS 410).
+        // The source exists and is in the source box; say so instead of reporting.
+        const status = (err as { status?: unknown } | null)?.status;
+        if (step === 'attach_source' && status === 410) {
+          track('fs_action_failed', { step, status: 410 });
+          setError(
+            'That person was merged or deleted in FamilySearch, so the source could not be attached. ' +
+              'It was saved to your source box. Search for the person again to attach it.',
+          );
+          return;
+        }
         // The shape of what we sent (no content) so FamilySearch 400s can be diagnosed.
         const d = state.draft;
         reportError(err, {

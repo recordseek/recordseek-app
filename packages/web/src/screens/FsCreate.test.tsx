@@ -161,6 +161,16 @@ describe('FsCreate', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('forbidden');
   });
 
+  it('explains a merged or deleted person instead of the raw 410', async () => {
+    const { client } = makeClient({
+      createPersonSourceRef: async () => {
+        throw Object.assign(new Error('FamilySearch API 410: Failure in upstream call'), { status: 410 });
+      },
+    });
+    renderCreate(client, { draft: DRAFT, attach: ATTACH, tags: TAGS });
+    expect(await screen.findByRole('alert')).toHaveTextContent('merged or deleted');
+  });
+
   it('redirects to fs-source when there is no draft', async () => {
     const { client } = makeClient();
     renderCreate(client, { draft: null, attach: ATTACH });

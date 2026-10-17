@@ -188,6 +188,17 @@ describe('FsResults', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('No Family Tree person found with ID ZZZZ-999');
   });
 
+  it('explains a Person ID the account may not read instead of showing the raw 403', async () => {
+    const client: FsResultsClient = {
+      searchPersons: async () => ({ entries: [] }),
+      getPerson: async () => {
+        throw apiError(403, 'FamilySearch API 403: Failure in upstream call: Unable to read Person (upstream 403)');
+      },
+    };
+    renderResults(client, { pid: 'P7LK-5KQ' });
+    expect(await screen.findByRole('alert')).toHaveTextContent("FamilySearch won't show person P7LK-5KQ");
+  });
+
   it('uses getPerson in direct-PID mode', async () => {
     const client: FsResultsClient = {
       searchPersons: async () => ({ entries: [] }),

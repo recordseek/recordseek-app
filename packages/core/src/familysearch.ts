@@ -80,6 +80,19 @@ export interface PersonSourceRef {
   tags?: string[];
 }
 
+/**
+ * FamilySearch rejects long source titles with a bare 400 "Unable to create
+ * source" (RECORDSEEK-EV: 282-char page titles). Cap them, on a word boundary.
+ */
+export const MAX_SOURCE_TITLE = 255;
+
+export function clampSourceTitle(title: string): string {
+  if (title.length <= MAX_SOURCE_TITLE) return title;
+  const cut = title.slice(0, MAX_SOURCE_TITLE - 1);
+  const space = cut.lastIndexOf(' ');
+  return `${(space > MAX_SOURCE_TITLE * 0.6 ? cut.slice(0, space) : cut).trimEnd()}…`;
+}
+
 export class FsApiError extends Error {
   readonly status: number;
   readonly body: string;
@@ -341,7 +354,7 @@ export class FamilySearchClient {
     const description: Record<string, unknown> = {};
     if (draft.about) description.about = draft.about;
     if (draft.citation) description.citations = [{ value: draft.citation }];
-    if (draft.title) description.titles = [{ value: draft.title }];
+    if (draft.title) description.titles = [{ value: clampSourceTitle(draft.title) }];
     if (draft.text) description.notes = [{ text: draft.text }];
     if (draft.changeMessage) {
       const attribution: Record<string, unknown> = { changeMessage: draft.changeMessage };
