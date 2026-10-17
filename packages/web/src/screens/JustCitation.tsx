@@ -16,6 +16,7 @@ export function JustCitation() {
   const navigate = useNavigate();
   const [style, setStyle] = usePersistedCitationStyle();
   const [copied, setCopied] = useState(false);
+  const [copyHint, setCopyHint] = useState(false);
 
   useEffect(() => {
     track('citation_viewed');
@@ -39,7 +40,11 @@ export function JustCitation() {
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     } catch {
-      /* clipboard unavailable */
+      // Clipboard blocked (permissions, insecure context): select it for a manual copy.
+      const box = document.getElementById('jc-citation') as HTMLTextAreaElement | null;
+      box?.focus();
+      box?.select();
+      setCopyHint(true);
     }
   }
 
@@ -67,6 +72,7 @@ export function JustCitation() {
       <button type="button" className="primary" onClick={() => void copy()}>
         {copied ? 'Copied!' : 'Copy citation'}
       </button>
+      {copyHint && <p role="status">Couldn’t copy automatically. The citation is selected; press Ctrl+C (⌘C on a Mac).</p>}
 
       <hr />
 

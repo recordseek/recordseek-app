@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { Loading } from '../screens/Loading';
-import { completeFsLogin } from '../fsAuth';
+import { beginFsLogin, completeFsLogin } from '../fsAuth';
+import { describeFsError } from '../fsErrors';
 import { reportError } from '../sentry';
 import { track } from '../analytics';
 import { FsApiError } from '@recordseek/core';
@@ -15,6 +16,7 @@ export function OAuthGate({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const hasCode = new URLSearchParams(window.location.search).has('code');
   const [resolving, setResolving] = useState(hasCode);
+  const [failed, setFailed] = useState<string | null>(null);
   const ran = useRef(false);
 
   useEffect(() => {
@@ -33,13 +35,44 @@ export function OAuthGate({ children }: { children: ReactNode }) {
         track('fs_login_failed', {
           reason: err instanceof FsApiError ? `token_exchange_${err.status}` : 'token_exchange_error',
         });
-        navigate('/', { replace: true });
+        // The code is single-use; never leave it in the URL (a reload would replay it).
+        window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+        setFailed(err instanceof FsApiError && err.status >= 400 && err.status < 500
+          ? 'FamilySearch didn’t accept the sign-in. Please try signing in again.'
+          : describeFsError(err));
       })
       .finally(() => setResolving(false));
   }, [hasCode, navigate]);
 
   if (resolving) {
     return <Loading status="Signing in to FamilySearch…" />;
+  }
+  if (failed) {
+    return (
+      <main>
+        <h3>Sign-in didn’t finish</h3>
+        <p role="alert">{failed}</p>
+        <div className="form-footer">
+          <button type="button" onClick={() => { setFailed(null); navigate('/', { replace: true }); }}>
+            Back to start
+          </button>
+          <div className="footer-right">
+            <button
+              type="button"
+              className="primary"
+              onClick={() => {
+                beginFsLogin('/fs-source').catch((err: unknown) => {
+                  reportError(err, { step: 'oauth-retry' });
+                  setFailed('Signing in still isn’t working. Reload the page and try again.');
+                });
+              }}
+            >
+              Sign in again
+            </button>
+          </div>
+        </div>
+      </main>
+    );
   }
   return <>{children}</>;
 }

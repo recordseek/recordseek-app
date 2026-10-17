@@ -18,7 +18,17 @@ const container = document.getElementById('root');
 if (container) {
   createRoot(container).render(
     <StrictMode>
-      <ErrorBoundary fallback={<p role="alert">Something went wrong. Please reload the page.</p>}>
+      <ErrorBoundary
+        fallback={
+          <main>
+            <h3>Something went wrong</h3>
+            <p role="alert">RecordSeek hit an unexpected problem. We’ve been notified.</p>
+            <button type="button" className="primary" onClick={() => window.location.reload()}>
+              Reload
+            </button>
+          </main>
+        }
+      >
         <App />
       </ErrorBoundary>
     </StrictMode>,

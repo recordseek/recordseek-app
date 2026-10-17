@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router';
 import { SessionProvider, useSession, emptySearch, type SearchCriteria } from '../session/SessionContext';
@@ -106,15 +106,20 @@ describe('FsResults', () => {
     expect(await screen.findByText('ATTACH:John Smith')).toBeInTheDocument();
   });
 
-  it('shows the real error message on a non-auth failure (not a generic one)', async () => {
+  it('explains a FamilySearch outage in plain words and offers Try again', async () => {
+    let calls = 0;
     const client: FsResultsClient = {
       searchPersons: async () => {
-        throw apiError(500, 'FamilySearch API 500: upstream blew up');
+        calls += 1;
+        if (calls === 1) throw apiError(500, 'FamilySearch API 500: upstream blew up');
+        return FEED;
       },
       getPerson: async () => ({ persons: [] }),
     };
     renderResults(client, { surname: 'Smith' });
-    expect(await screen.findByRole('alert')).toHaveTextContent('upstream blew up');
+    expect(await screen.findByRole('alert')).toHaveTextContent('FamilySearch is having trouble right now');
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByText(/John Smith/)).toBeInTheDocument();
   });
 
   it('redirects to the search form when there is nothing to search (e.g. a reload that lost state)', async () => {

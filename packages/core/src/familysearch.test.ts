@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   FamilySearchClient,
   FsApiError,
+  FsNetworkError,
   memoryTokenStore,
   resolveRedirectUri,
   generateCodeVerifier,
@@ -113,6 +114,32 @@ describe('Sentry-bug fixes', () => {
     const error = await client.getCurrentUser().catch((e) => e);
     expect(error).toBeInstanceOf(FsApiError);
     expect(error.status).toBe(401);
+  });
+
+  it('drops the stored token on a 401 so the app re-authenticates', async () => {
+    const { fn } = mockFetch(() => ({ status: 401, body: '' }));
+    const tokenStore = memoryTokenStore('stale-token');
+    const client = new FamilySearchClient(baseConfig({ fetch: fn, tokenStore }));
+    await client.getCurrentUser().catch(() => undefined);
+    expect(tokenStore.get()).toBeNull();
+  });
+
+  it('rejects with FsNetworkError when FamilySearch cannot be reached', async () => {
+    const fn = (async () => {
+      throw new TypeError('Failed to fetch');
+    }) as unknown as typeof fetch;
+    const client = new FamilySearchClient(baseConfig({ fetch: fn }));
+    const error = await client.getCurrentUser().catch((e) => e);
+    expect(error).toBeInstanceOf(FsNetworkError);
+    expect(error.timedOut).toBe(false);
+  });
+
+  it('times out a request that never answers', async () => {
+    const fn = (() => new Promise(() => {})) as unknown as typeof fetch;
+    const client = new FamilySearchClient(baseConfig({ fetch: fn, timeoutMs: 20 }));
+    const error = await client.getCurrentUser().catch((e) => e);
+    expect(error).toBeInstanceOf(FsNetworkError);
+    expect(error.timedOut).toBe(true);
   });
 });
 

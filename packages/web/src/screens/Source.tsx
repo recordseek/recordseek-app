@@ -6,6 +6,7 @@ import { useSession } from '../session/SessionContext';
 import { usePersistedCitationStyle, clearLastService } from '../prefs';
 import { isFsAuthenticated, beginFsLogin } from '../fsAuth';
 import { Loading } from './Loading';
+import { reportError } from '../sentry';
 import { BackButton } from '../components/BackButton';
 import { ForwardButton } from '../components/ForwardButton';
 import { TagEventsButton } from '../components/TagEventsButton';
@@ -39,11 +40,15 @@ export function Source() {
   const [notes, setNotes] = useState(capture.notes);
   const [citation, setCitation] = useState(() => citationFor(capture, capture.title, style));
   const [authed] = useState(() => isFsAuthenticated());
+  const [loginError, setLoginError] = useState(false);
 
   // The FamilySearch flow requires a signed-in user — kick off OAuth on entry.
   useEffect(() => {
     if (!authed) {
-      void beginFsLogin('/fs-source');
+      beginFsLogin('/fs-source').catch((err: unknown) => {
+        reportError(err, { screen: 'fs-source', step: 'begin_login' });
+        setLoginError(true);
+      });
     }
   }, [authed]);
 
@@ -70,6 +75,17 @@ export function Source() {
     navigate('/fs-create');
   }
 
+  if (!authed && loginError) {
+    return (
+      <main>
+        <h3>Couldn’t connect to FamilySearch</h3>
+        <p role="alert">Signing in to FamilySearch didn’t start. Reload the page and try again.</p>
+        <div className="form-footer">
+          <BackButton onClick={() => navigate('/')} />
+        </div>
+      </main>
+    );
+  }
   if (!authed) {
     return <Loading status="Connecting to FamilySearch…" />;
   }

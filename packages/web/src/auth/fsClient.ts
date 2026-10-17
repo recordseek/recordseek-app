@@ -7,12 +7,35 @@ import {
 
 const TOKEN_KEY = 'fs_access_token';
 
+// Fallback when sessionStorage is blocked: the token lasts for this page only.
+let memoryToken: string | null = null;
+
 /** Browser token store. Session-scoped so the token never persists to disk. */
 function sessionTokenStore(): TokenStore {
   return {
-    get: () => sessionStorage.getItem(TOKEN_KEY),
-    set: (token: string) => sessionStorage.setItem(TOKEN_KEY, token),
-    clear: () => sessionStorage.removeItem(TOKEN_KEY),
+    get: () => {
+      try {
+        return sessionStorage.getItem(TOKEN_KEY) ?? memoryToken;
+      } catch {
+        return memoryToken;
+      }
+    },
+    set: (token: string) => {
+      memoryToken = token;
+      try {
+        sessionStorage.setItem(TOKEN_KEY, token);
+      } catch {
+        /* blocked storage: keep the in-memory copy */
+      }
+    },
+    clear: () => {
+      memoryToken = null;
+      try {
+        sessionStorage.removeItem(TOKEN_KEY);
+      } catch {
+        /* nothing stored */
+      }
+    },
   };
 }
 

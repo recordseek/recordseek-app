@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router';
 import { SessionProvider, useSession, type SessionState } from '../session/SessionContext';
 import { FsCreate, type FsCreateClient } from './FsCreate';
@@ -47,9 +47,10 @@ function renderCreate(client: FsCreateClient, initial: Partial<SessionState>) {
     <SessionProvider initial={initial}>
       <MemoryRouter initialEntries={['/fs-create']}>
         <Routes>
-          <Route path="/fs-create" element={<FsCreate client={client} />} />
+          <Route path="/fs-create" element={<FsCreate client={client} retryDelayMs={0} />} />
           <Route path="/fs-complete" element={<CompleteProbe />} />
           <Route path="/fs-source" element={<div>SOURCE</div>} />
+          <Route path="/fs-attach" element={<div>ATTACH SCREEN</div>} />
         </Routes>
       </MemoryRouter>
     </SessionProvider>,
@@ -169,6 +170,70 @@ describe('FsCreate', () => {
     });
     renderCreate(client, { draft: DRAFT, attach: ATTACH, tags: TAGS });
     expect(await screen.findByRole('alert')).toHaveTextContent('merged or deleted');
+  });
+
+  it('retries a failed step once without re-creating the source', async () => {
+    let createCalls = 0;
+    let attachCalls = 0;
+    const { client } = makeClient({
+      createSourceDescription: async () => {
+        createCalls += 1;
+        return 'SD-1';
+      },
+      createPersonSourceRef: async () => {
+        attachCalls += 1;
+        if (attachCalls === 1) throw Object.assign(new Error('FamilySearch API 503'), { status: 503 });
+        return {};
+      },
+    });
+    renderCreate(client, { draft: DRAFT, attach: ATTACH, tags: TAGS });
+    expect(await screen.findByText('DONE John Smith')).toBeInTheDocument();
+    expect(createCalls).toBe(1);
+    expect(attachCalls).toBe(2);
+  });
+
+  it('after a failed retry, says what was saved and offers Go Back', async () => {
+    let attachCalls = 0;
+    const { client } = makeClient({
+      createPersonSourceRef: async () => {
+        attachCalls += 1;
+        throw Object.assign(new Error('FamilySearch API 503'), { status: 503 });
+      },
+    });
+    renderCreate(client, { draft: DRAFT, attach: ATTACH, tags: TAGS });
+    expect(await screen.findByRole('alert')).toHaveTextContent('FamilySearch is having trouble');
+    expect(attachCalls).toBe(2);
+    expect(screen.getByText(/Your source was saved to FamilySearch and filed/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Go Back/ }));
+    expect(await screen.findByText('ATTACH SCREEN')).toBeInTheDocument();
+  });
+
+  it('does not create the new person twice when the attach is retried', async () => {
+    let attachCalls = 0;
+    const { client, calls } = makeClient({
+      createPersonSourceRef: async () => {
+        attachCalls += 1;
+        if (attachCalls === 1) throw new Error('flaky');
+        return {};
+      },
+    });
+    renderCreate(client, {
+      draft: DRAFT,
+      attach: null,
+      newPerson: {
+        givenName: 'Jane',
+        surname: 'Doe',
+        gender: 'Female',
+        living: false,
+        birthDate: '',
+        birthPlace: '',
+        deathDate: '',
+        deathPlace: '',
+      },
+      tags: TAGS,
+    });
+    expect(await screen.findByText('DONE Jane Doe')).toBeInTheDocument();
+    expect(calls.createPerson).toHaveLength(1);
   });
 
   it('redirects to fs-source when there is no draft', async () => {

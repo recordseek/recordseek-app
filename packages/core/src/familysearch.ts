@@ -48,6 +48,8 @@ export interface FsConfig {
   /** Replace fs-js-lite's own transport (XHR / axios) with this `fetch`. */
   fetch?: typeof fetch;
   tokenStore?: TokenStore;
+  /** Give up on an API call after this long (default 30s) instead of hanging. */
+  timeoutMs?: number;
 }
 
 export interface FsUser {
@@ -217,10 +219,25 @@ function toHeaders(map: Record<string, unknown>): Headers {
   return headers;
 }
 
+/** FamilySearch could not be reached at all: offline, DNS, CORS, or a timeout. */
+export class FsNetworkError extends Error {
+  readonly timedOut: boolean;
+  constructor(message: string, timedOut = false) {
+    super(message);
+    this.name = 'FsNetworkError';
+    this.timedOut = timedOut;
+  }
+}
+
 /** Never reject with a non-Error (xhr.onerror hands us a ProgressEvent). */
 function toError(error: unknown): Error {
-  return error instanceof Error ? error : new Error('Network error contacting FamilySearch');
+  if (error instanceof FsApiError || error instanceof FsNetworkError) return error;
+  return new FsNetworkError(
+    error instanceof Error && error.message ? error.message : 'Network error contacting FamilySearch',
+  );
 }
+
+const DEFAULT_TIMEOUT_MS = 30_000;
 
 export class FamilySearchClient {
   readonly appKey: string;
@@ -230,12 +247,14 @@ export class FamilySearchClient {
   readonly identHost: string;
   private readonly fs: FsJsLiteClient;
   private readonly tokens: TokenStore;
+  private readonly timeoutMs: number;
 
   constructor(config: FsConfig) {
     this.appKey = config.appKey;
     this.redirectUri = config.redirectUri;
     this.environment = config.environment ?? 'production';
     this.tokens = config.tokenStore ?? memoryTokenStore();
+    this.timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.fs = new FamilySearch({
       appKey: this.appKey,
       redirectUri: this.redirectUri,
@@ -311,7 +330,13 @@ export class FamilySearchClient {
       headers['Content-Type'] = options.contentType ?? GEDCOMX_MEDIA;
     }
     const res = await new Promise<FsJsLiteResponse>((resolve, reject) => {
+      // A hung request would leave the UI on a spinner forever; fail it instead.
+      const timer = setTimeout(
+        () => reject(new FsNetworkError('FamilySearch took too long to respond', true)),
+        this.timeoutMs,
+      );
       this.fs.request(path, { method, headers, body: options.body }, (error, response) => {
+        clearTimeout(timer);
         // fs-js-lite attaches the response to a JSON-parse error; surface its status instead.
         const received = response ?? (error as { response?: FsJsLiteResponse } | undefined)?.response;
         if (received) {
@@ -322,6 +347,10 @@ export class FamilySearchClient {
       });
     });
     const text = res.body ?? '';
+    if (res.statusCode === 401) {
+      // The token is dead; drop it so the app sees a signed-out user and re-authenticates.
+      this.tokens.clear();
+    }
     if (res.statusCode < 200 || res.statusCode >= 300) {
       throw new FsApiError(res.statusCode, text, this.errorMessage(res.statusCode, text));
     }

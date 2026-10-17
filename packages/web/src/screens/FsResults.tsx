@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { parseSearchResults, parseSearchTotal, parsePerson, type PersonResult } from '@recordseek/core';
 import { useSession, type SearchCriteria } from '../session/SessionContext';
@@ -6,6 +6,7 @@ import { createFsClient } from '../auth/fsClient';
 import { beginFsLogin, isFsAuthError } from '../fsAuth';
 import { BackButton } from '../components/BackButton';
 import { reportError } from '../sentry';
+import { describeFsError, reportFsError } from '../fsErrors';
 import { track } from '../analytics';
 
 const PAGE_SIZE = 20;
@@ -76,10 +77,16 @@ export function FsResults({ client: providedClient }: { client?: FsResultsClient
   const [results, setResults] = useState<PersonResult[] | null>(null);
   const [total, setTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [canRetry, setCanRetry] = useState(false);
+  // Paging quickly can overlap requests; only the latest may update the screen.
+  const latest = useRef(0);
 
   const load = useCallback(async () => {
+    const seq = ++latest.current;
+    const stale = () => seq !== latest.current;
     setResults(null);
     setError(null);
+    setCanRetry(false);
     // Nothing to search (e.g. a reload that lost the criteria, or a direct hit on
     // this URL): bounce to the form instead of firing an empty query that 400s.
     if (!pid && !hasSearchCriteria(state.search)) {
@@ -92,6 +99,7 @@ export function FsResults({ client: providedClient }: { client?: FsResultsClient
         try {
           doc = await client.getPerson(pid);
         } catch (err) {
+          if (stale()) return;
           // A mistyped, merged or deleted ID is the user's to fix, not a bug.
           const status = (err as { status?: unknown } | null)?.status;
           if (status === 404 || status === 410) {
@@ -108,6 +116,7 @@ export function FsResults({ client: providedClient }: { client?: FsResultsClient
           }
           throw err;
         }
+        if (stale()) return;
         const person = parsePerson(doc, pid);
         setResults(person ? [person] : []);
         track('fs_search_run', { result_count: person ? 1 : 0 });
@@ -117,6 +126,7 @@ export function FsResults({ client: providedClient }: { client?: FsResultsClient
           count: PAGE_SIZE,
           offset: page * PAGE_SIZE,
         });
+        if (stale()) return;
         const found = parseSearchResults(feed);
         setResults(found);
         setTotal(parseSearchTotal(feed));
@@ -125,19 +135,25 @@ export function FsResults({ client: providedClient }: { client?: FsResultsClient
         }
       }
     } catch (err) {
+      if (stale()) return;
       // A dead FamilySearch session re-authenticates transparently and returns
       // here (the persisted search re-runs). Real API errors surface as before.
       if (isFsAuthError(err)) {
-        void beginFsLogin('/fs-results');
+        beginFsLogin('/fs-results').catch((loginErr: unknown) => {
+          reportError(loginErr, { screen: 'fs-results', step: 'begin_login' });
+          setError("Your FamilySearch sign-in has expired, and signing in again failed. Reload the page and try again.");
+          setResults([]);
+        });
         return;
       }
       // The query string is scrubbed from breadcrumbs, so send the term names (not values).
-      reportError(err, {
+      reportFsError(err, {
         screen: 'fs-results',
         terms: pid ? 'pid' : Object.keys(buildSearchQuery(state.search)).join(','),
       });
       track('fs_action_failed', { step: 'search' });
-      setError(err instanceof Error ? err.message : String(err));
+      setError(describeFsError(err));
+      setCanRetry(true);
       setResults([]);
     }
   }, [client, pid, page, state.search, navigate]);
@@ -176,6 +192,11 @@ export function FsResults({ client: providedClient }: { client?: FsResultsClient
         Are any of these people the <strong>{searchTerm}</strong> you&apos;re looking for?
       </h3>
       {error && <p role="alert">{error}</p>}
+      {error && canRetry && (
+        <button type="button" onClick={() => void load()}>
+          Try again
+        </button>
+      )}
       {results === null && <p role="status">Searching FamilySearch…</p>}
       {results !== null && people.length === 0 && !error && <p>No results found.</p>}
 
