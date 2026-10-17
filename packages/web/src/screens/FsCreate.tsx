@@ -43,6 +43,17 @@ export interface FsCreateClient {
   createPerson(person: unknown): Promise<string | null>;
 }
 
+/**
+ * The folder's descriptions endpoint. FamilySearch's self link carries a query
+ * (`…/collections/MMCC-W11?flag=fsh`), so appending to the raw href produced
+ * `?flag=fsh/descriptions`: a POST to the folder itself, which 400s with
+ * "A single user-defined collection must be provided" (RECORDSEEK-F0/F1).
+ */
+export function collectionDescriptionsUrl(collectionUrl: string): string {
+  const base = collectionUrl.split(/[?#]/)[0]!.replace(/\/+$/, '');
+  return `${base}/descriptions`;
+}
+
 /** File the source description into the user's "RecordSeek" folder. */
 async function fileInRecordSeekFolder(client: FsCreateClient, descriptionId: string): Promise<void> {
   const user = await client.getCurrentUser();
@@ -63,7 +74,7 @@ async function fileInRecordSeekFolder(client: FsCreateClient, descriptionId: str
   if (!collectionUrl) {
     throw new Error('FamilySearch did not return the RecordSeek folder.');
   }
-  await client.addDescriptionToCollection(`${collectionUrl}/descriptions`, descriptionId);
+  await client.addDescriptionToCollection(collectionDescriptionsUrl(collectionUrl), descriptionId);
 }
 
 function statusOf(err: unknown): unknown {

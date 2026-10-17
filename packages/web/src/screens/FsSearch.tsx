@@ -4,7 +4,7 @@ import { useSession, isSearchEmpty } from '../session/SessionContext';
 import { useOptionalCapture } from '../capture/CaptureContext';
 import { personToSearch } from '../session/prefill';
 import { BackButton } from '../components/BackButton';
-import { hasSearchCriteria } from './FsResults';
+import { hasSearchCriteria, hasOnlySecondaryCriteria } from './FsResults';
 import { ForwardButton } from '../components/ForwardButton';
 
 /** Uppercase, strip to alphanumerics, and dash into groups of four (LZ12-345). */
@@ -157,6 +157,11 @@ export function FsSearch() {
         <div className="form-footer">
           <BackButton onClick={() => navigate('/fs-source')}>Modify Source</BackButton>
           <div className="footer-right">
+            {!byPid && hasOnlySecondaryCriteria(s) && (
+              <span className="field-hint" role="status">
+                Add a name, year or place for the person to search.
+              </span>
+            )}
             <button type="button" className="btn-sm" onClick={() => resetSearch()}>
               Reset
             </button>

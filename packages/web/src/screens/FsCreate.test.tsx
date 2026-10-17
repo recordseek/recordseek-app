@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router';
 import { SessionProvider, useSession, type SessionState } from '../session/SessionContext';
-import { FsCreate, type FsCreateClient } from './FsCreate';
+import { FsCreate, collectionDescriptionsUrl, type FsCreateClient } from './FsCreate';
 
 function makeClient(overrides: Partial<FsCreateClient> = {}) {
   const calls: {
@@ -234,6 +234,31 @@ describe('FsCreate', () => {
     });
     expect(await screen.findByText('DONE Jane Doe')).toBeInTheDocument();
     expect(calls.createPerson).toHaveLength(1);
+  });
+
+  it('files into an existing folder whose link carries a query string', async () => {
+    const posted: string[] = [];
+    const { client } = makeClient({
+      getUserCollections: async () => [
+        {
+          id: 'MMCC-W11',
+          title: 'RecordSeek',
+          links: { self: { href: 'https://api.familysearch.org/platform/sources/collections/MMCC-W11?flag=fsh' } },
+        },
+      ],
+      addDescriptionToCollection: async (url) => {
+        posted.push(url);
+        return {};
+      },
+    });
+    renderCreate(client, { draft: DRAFT, attach: null, complete: 'noAttachment' });
+    expect(await screen.findByText('DONE noAttachment')).toBeInTheDocument();
+    expect(posted).toEqual(['https://api.familysearch.org/platform/sources/collections/MMCC-W11/descriptions']);
+  });
+
+  it('builds the descriptions URL from a plain or trailing-slash folder URL', () => {
+    expect(collectionDescriptionsUrl('https://x/collections/C1')).toBe('https://x/collections/C1/descriptions');
+    expect(collectionDescriptionsUrl('https://x/collections/C1/')).toBe('https://x/collections/C1/descriptions');
   });
 
   it('redirects to fs-source when there is no draft', async () => {

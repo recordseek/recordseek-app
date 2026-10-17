@@ -62,9 +62,29 @@ export function buildSearchQuery(s: SearchCriteria): Record<string, string> {
   return q;
 }
 
-/** True when the criteria produce at least one FamilySearch query term (an event type alone does not). */
+/** Query terms that describe the relatives or sex rather than the person themself. */
+const SECONDARY_TERMS = new Set([
+  'sex',
+  'spouseGivenName',
+  'spouseSurname',
+  'motherGivenName',
+  'motherSurname',
+  'fatherGivenName',
+  'fatherSurname',
+]);
+
+/**
+ * True when the criteria include a term about the person themself: a name or an
+ * event year/place. An event type alone adds no term, and FamilySearch 400s a
+ * search on relatives or sex alone (RECORDSEEK-ET: fatherGivenName only).
+ */
 export function hasSearchCriteria(s: SearchCriteria): boolean {
-  return Object.keys(buildSearchQuery(s)).length > 0;
+  return Object.keys(buildSearchQuery(s)).some((term) => !SECONDARY_TERMS.has(term));
+}
+
+/** True when something was entered, but only terms that can't search alone. */
+export function hasOnlySecondaryCriteria(s: SearchCriteria): boolean {
+  return Object.keys(buildSearchQuery(s)).length > 0 && !hasSearchCriteria(s);
 }
 
 export function FsResults({ client: providedClient }: { client?: FsResultsClient }) {

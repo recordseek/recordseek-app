@@ -117,6 +117,15 @@ describe('FsSearch genscrape pre-fill', () => {
     expect(screen.getByLabelText('Given Name(s)')).toHaveValue('');
   });
 
+  it("keeps Next disabled when only a relative's name is entered", async () => {
+    renderSearch();
+    await userEvent.type(screen.getByLabelText(/Father's Given Name/), 'Bertram');
+    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
+    expect(screen.getByText('Add a name, year or place for the person to search.')).toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText('Last Names (Surname)'), 'Smith');
+    expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled();
+  });
+
   it('keeps Next disabled for an event type with no year or place', async () => {
     renderSearch();
     await userEvent.selectOptions(screen.getByLabelText('Event Type'), 'residence');
