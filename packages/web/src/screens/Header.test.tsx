@@ -50,3 +50,24 @@ describe('Header breadcrumb', () => {
     expect(getLastService()).toBeNull();
   });
 });
+
+describe('Header menu', () => {
+  it('opens the idea/bug form from Support', async () => {
+    renderAt('/');
+    await userEvent.click(screen.getByRole('button', { name: 'Support' }));
+    expect(screen.getByRole('dialog', { name: 'Send us an idea or bug' })).toBeInTheDocument();
+  });
+
+  it('links About to the website in a new tab', () => {
+    renderAt('/');
+    const about = screen.getByRole('link', { name: 'About' });
+    expect(about).toHaveAttribute('href', 'https://recordseek.com/');
+    expect(about).toHaveAttribute('target', '_blank');
+  });
+
+  it('goes to the donation page from Donate', async () => {
+    renderAt('/');
+    await userEvent.click(screen.getByRole('button', { name: 'Donate' }));
+    expect(screen.getByText('PATH:/donate')).toBeInTheDocument();
+  });
+});

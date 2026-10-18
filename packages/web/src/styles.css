@@ -100,6 +100,45 @@ body {
   font-weight: 700;
 }
 
+.app-header {
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
+
+/* Support / About / Donate (screens/Header). */
+.header-menu {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.header-menu button,
+.header-menu a {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #c8d0d8;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+.header-menu button:hover:not(:disabled),
+.header-menu a:hover {
+  background: none;
+  color: #fff;
+  text-decoration: underline;
+}
+.header-menu + .header-user {
+  margin-left: 16px;
+}
+
+/* The idea/bug modal sits inside the dark header when opened from Support. */
+.app-header .modal-panel {
+  color: var(--ink);
+}
+
 .header-user {
   margin-left: auto;
   display: flex;
@@ -1093,4 +1132,38 @@ button.btn-save-later:hover:not(:disabled) {
   left: -9999px;
   width: 1px;
   height: 1px;
+}
+
+/* Donation page (screens/Donate). */
+.donate {
+  max-width: 560px;
+  text-align: center;
+}
+.donate-photo {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+.donate p {
+  text-align: left;
+}
+a.donate-button {
+  display: inline-block;
+  margin: 12px 0 4px;
+  padding: 12px 28px;
+  background: #107a64;
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
+}
+a.donate-button:hover {
+  background: #0c5e4d;
+  color: #fff;
+}
+.donate .donate-thanks {
+  text-align: center;
+  color: var(--gray);
+  font-size: 0.9rem;
 }

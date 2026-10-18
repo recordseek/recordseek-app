@@ -17,6 +17,7 @@ import { FsComplete } from './screens/FsComplete';
 import { FsAddPerson } from './screens/FsAddPerson';
 import { FsAddAttach } from './screens/FsAddAttach';
 import { JustCitation } from './screens/JustCitation';
+import { Donate } from './screens/Donate';
 import { Zotero } from './screens/Zotero';
 import { Geni } from './screens/Geni';
 import { WikiTree } from './screens/WikiTree';
@@ -44,6 +45,7 @@ export function App() {
             <Route path="/auth" element={<AuthCheck />} />
             <Route path="/about" element={<About />} />
             <Route path="/support" element={<Support />} />
+            <Route path="/donate" element={<Donate />} />
             <Route path="/loading" element={<Loading />} />
             <Route path="/a-source" element={<ASource />} />
             <Route path="/citation" element={<JustCitation />} />

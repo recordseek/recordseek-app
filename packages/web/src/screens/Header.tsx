@@ -2,6 +2,10 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { clearLastService } from '../prefs';
 import { isFsAuthenticated, fetchFsUser, logoutFs } from '../fsAuth';
+import { FeedbackDialog } from '../components/FeedbackBox';
+import { track } from '../analytics';
+
+const WEBSITE_URL = 'https://recordseek.com/';
 
 interface ServiceCrumb {
   name: string;
@@ -16,13 +20,16 @@ function serviceForPath(pathname: string): ServiceCrumb | null {
   if (pathname.startsWith('/a-source')) {
     return { name: 'Ancestry', icon: `${import.meta.env.BASE_URL}images/ancestry-icon.svg` };
   }
+  if (pathname.startsWith('/donate')) {
+    return { name: 'Donate' };
+  }
   if (pathname.startsWith('/citation')) {
     return { name: 'Save to Somewhere Else' };
   }
   return null;
 }
 
-/** RecordSeek navbar: clickable brand (back to the picker) + a service breadcrumb. */
+/** RecordSeek navbar: clickable brand (back to the picker), a service breadcrumb, and Support/About/Donate. */
 export function Header() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
@@ -32,6 +39,7 @@ export function Header() {
   const inFsFlow = pathname.startsWith('/fs-');
   const fsAuthed = inFsFlow && isFsAuthenticated();
   const [userName, setUserName] = useState<string | null>(null);
+  const [supportOpen, setSupportOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -83,6 +91,23 @@ export function Header() {
           )}
         </>
       )}
+      <nav className="header-menu" aria-label="RecordSeek">
+        <button
+          type="button"
+          onClick={() => {
+            track('menu_support');
+            setSupportOpen(true);
+          }}
+        >
+          Support
+        </button>
+        <a href={WEBSITE_URL} target="_blank" rel="noopener noreferrer" onClick={() => track('menu_about')}>
+          About
+        </a>
+        <button type="button" onClick={() => navigate('/donate')}>
+          Donate
+        </button>
+      </nav>
       {fsAuthed && (
         <div className="header-user">
           {userName && <span className="header-hello">Hello {userName}!</span>}
@@ -91,6 +116,7 @@ export function Header() {
           </button>
         </div>
       )}
+      {supportOpen && <FeedbackDialog source="share" onClose={() => setSupportOpen(false)} />}
     </header>
   );
 }
