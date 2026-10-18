@@ -1206,8 +1206,14 @@ a.donate-button:hover {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 0;
+  /* Same inset on both sides, so the logo sits as far from the left edge as Log out from the right. */
+  padding: 10px 14px;
   border-bottom: 1px solid var(--input-border);
+}
+/* Drop the global button margin so Log out centres vertically in its row. */
+.logout-list li button,
+.modal-actions button {
+  margin: 0;
 }
 .logout-list img {
   height: 24px;
