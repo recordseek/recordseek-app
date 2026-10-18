@@ -972,3 +972,36 @@ button.btn-save-later:hover:not(:disabled) {
     justify-content: center;
   }
 }
+
+/* One-line news strip above the header (components/Announcement). */
+.announcement {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 36px;
+  position: relative;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.35;
+  text-align: center;
+}
+.announcement-close {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: 0;
+  color: #fff;
+  font-size: 18px;
+  line-height: 1;
+  padding: 4px 8px;
+  cursor: pointer;
+  opacity: 0.85;
+}
+.announcement-close:hover,
+.announcement-close:focus-visible {
+  opacity: 1;
+}

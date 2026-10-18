@@ -17,6 +17,7 @@ import { FsAddPerson } from './screens/FsAddPerson';
 import { FsAddAttach } from './screens/FsAddAttach';
 import { JustCitation } from './screens/JustCitation';
 import { Header } from './screens/Header';
+import { Announcement } from './components/Announcement';
 import { OAuthGate } from './auth/OAuthGate';
 
 export function App() {
@@ -24,6 +25,7 @@ export function App() {
     <CaptureProvider>
       <SessionProvider>
         <HashRouter>
+          <Announcement />
           <Header />
           <OAuthGate>
             <Routes>
