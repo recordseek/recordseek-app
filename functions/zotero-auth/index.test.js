@@ -100,7 +100,7 @@ test('start redirects to zotero.org with write access and sets the state cookie'
   assert.equal(loc.searchParams.get('oauth_token'), 'RT');
   assert.equal(loc.searchParams.get('write_access'), '1');
   assert.match(res.headers['Set-Cookie'], /HttpOnly; Secure; SameSite=Lax/);
-  assert.match(calls[0].init.headers.Authorization, /oauth_callback="https%3A%2F%2Ffn\.test%3Faction%3Dcallback"/);
+  assert.match(calls[0].init.headers.Authorization, /oauth_callback="https%3A%2F%2Fus-central1-recordseek\.cloudfunctions\.net%2Fzotero-auth%3Faction%3Dcallback"/);
   assert.ok(!JSON.stringify(res).includes('csecret'));
 });
 

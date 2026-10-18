@@ -113,11 +113,12 @@ async function oauthPost(url, creds, extra, tokenSecret, fetchImpl) {
   return new URLSearchParams(await res.text());
 }
 
-/** The URL of this function, for the OAuth callback. */
-function selfUrl(req) {
-  const host = req.get('x-forwarded-host') ?? req.get('host');
-  return `https://${host}${req.path === '/' ? '' : req.path}`;
-}
+/**
+ * The URL of this function, for the OAuth callback. Not derived from the
+ * request: the cloudfunctions.net front end strips the `/zotero-auth` path,
+ * so a host+path guess sends Zotero back to the bare domain.
+ */
+const SELF_URL = process.env.SELF_URL || 'https://us-central1-recordseek.cloudfunctions.net/zotero-auth';
 
 function fail(res, code, message) {
   return res.status(code).type('text/plain').send(message);
@@ -142,7 +143,7 @@ export async function handleStart(req, res, fetchImpl = fetch) {
   const returnTo = validateReturn(req.query.return);
   if (!returnTo) return fail(res, 400, 'return must be a RecordSeek page');
   const creds = credentials();
-  const callback = `${selfUrl(req)}?action=callback`;
+  const callback = `${SELF_URL}?action=callback`;
   const token = await oauthPost(ZOTERO.request, creds, { oauth_callback: callback }, '', fetchImpl);
   const oauthToken = token.get('oauth_token');
   const tokenSecret = token.get('oauth_token_secret');
