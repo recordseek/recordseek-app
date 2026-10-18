@@ -26,8 +26,14 @@ function serviceForPath(pathname: string): ServiceCrumb | null {
   if (pathname.startsWith('/geni')) {
     return {
       name: 'Geni',
-      icon: `${import.meta.env.BASE_URL}images/geni-logo.svg`,
+      icon: `${import.meta.env.BASE_URL}images/geni-icon.png`,
       white: true,
+    };
+  }
+  if (pathname.startsWith('/zotero')) {
+    return {
+      name: 'Zotero',
+      icon: `${import.meta.env.BASE_URL}images/zotero-icon.svg`,
     };
   }
   if (pathname.startsWith('/a-source')) {

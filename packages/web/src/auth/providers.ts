@@ -1,6 +1,5 @@
 import { clearGeniToken, getGeniName, getGeniToken, myProfile, revokeGeniToken, setGeniName } from '../geni';
 import { clearZoteroLogin, getZoteroLogin, revokeZoteroKey } from '../zotero';
-import { clearWikiTreeSession, getWikiTreeSession, revokeWikiTreeSession } from '../wikitree';
 import { fetchFsUser, isFsAuthenticated, logoutFs } from '../fsAuth';
 
 /** A service whose sign-in the header owns (Hello name + Log out). */
@@ -31,7 +30,7 @@ function forget(id: string, ...keys: string[]): void {
 /**
  * Best-effort server-side revoke: never longer than 5 s, never throws, so the caller
  * always goes on to clear local state. These calls end RecordSeek's access only. The
- * user's own login on geni.com, zotero.org or wikitree.com is a separate browser session
+ * user's own login on geni.com or zotero.org is a separate browser session
  * we cannot end. FamilySearch is the exception: its logout call ends the FS session.
  */
 async function bestEffort(revoke: () => Promise<unknown>): Promise<void> {
@@ -96,20 +95,6 @@ export const AUTH_PROVIDERS: AuthProvider[] = [
       if (login) await bestEffort(() => revokeZoteroKey(login));
       clearZoteroLogin();
       forget('zotero', 'rs_zotero_new');
-    },
-  },
-  {
-    id: 'wikitree',
-    label: 'WikiTree',
-    logo: img('wikitree-logo.png'),
-    match: (p) => p.startsWith('/wikitree'),
-    isSignedIn: () => getWikiTreeSession() !== null,
-    displayName: async () => getWikiTreeSession()?.userName ?? null,
-    async logout() {
-      const s = getWikiTreeSession();
-      if (s) await bestEffort(() => revokeWikiTreeSession(s.session));
-      clearWikiTreeSession();
-      forget('wikitree');
     },
   },
 ];

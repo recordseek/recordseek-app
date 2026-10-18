@@ -1083,6 +1083,9 @@ main.home {
 main.home .feedback-cta {
   margin-top: auto;
 }
+.service-tile-wide {
+  grid-column: 1 / -1;
+}
 main.home .service-grid {
   margin-bottom: 72px;
 }
@@ -1187,12 +1190,6 @@ a.donate-button:hover {
   text-align: center;
   color: var(--gray);
   font-size: 0.9rem;
-}
-
-/* WikiTree person picker: the watchlist can hold thousands of profiles. */
-.wt-list {
-  max-height: 16rem;
-  overflow-y: auto;
 }
 
 /* Zotero tag picker: compact chips. */

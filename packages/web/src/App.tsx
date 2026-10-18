@@ -25,7 +25,6 @@ import { GeniResults } from './screens/GeniResults';
 import { GeniAttach } from './screens/GeniAttach';
 import { GeniComplete } from './screens/GeniComplete';
 import { GeniFlowProvider } from './session/GeniContext';
-import { WikiTree } from './screens/WikiTree';
 import { isDevMode } from './devFlag';
 import { Header } from './screens/Header';
 import { Announcement } from './components/Announcement';
@@ -68,7 +67,6 @@ export function App() {
             <Route path="/geni-results" element={<DevOnly><GeniResults /></DevOnly>} />
             <Route path="/geni-attach" element={<DevOnly><GeniAttach /></DevOnly>} />
             <Route path="/geni-complete" element={<DevOnly><GeniComplete /></DevOnly>} />
-            <Route path="/wikitree" element={<DevOnly><WikiTree /></DevOnly>} />
             <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </OAuthGate>

@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { useNavigate } from 'react-router';
 import { useCapture } from '../capture/CaptureContext';
 import { track } from '../analytics';
@@ -12,7 +12,6 @@ const ROUTES: Record<Service, string> = {
   Citation: '/citation',
   Zotero: '/zotero',
   Geni: '/geni',
-  WikiTree: '/wikitree',
 };
 
 const img = (file: string, alt: string, fit = false) => (
@@ -41,12 +40,6 @@ const TILES: {
     label: 'Geni',
     dev: true,
     content: img('geni-logo.svg', 'Geni'),
-  },
-  {
-    service: 'WikiTree',
-    label: 'WikiTree',
-    dev: true,
-    content: img('wikitree-logo.png', 'WikiTree'),
   },
   {
     service: 'Zotero',
@@ -83,13 +76,34 @@ const CITATION_TILE = {
   ),
 };
 
+/** How many columns the auto-fill grid currently lays out, kept current on resize. */
+function useGridColumns(ref: RefObject<HTMLDivElement | null>): number {
+  const [columns, setColumns] = useState(0);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () =>
+      setColumns(getComputedStyle(el).gridTemplateColumns.split(' ').filter((c) => c && c !== 'none').length);
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [ref]);
+  return columns;
+}
+
 export function Main() {
   const navigate = useNavigate();
   const capture = useCapture();
-  // Zotero, Geni and WikiTree are hidden in production until `?dev=1` turns them on.
+  // Zotero and Geni are hidden in production until `?dev=1` turns them on.
   const dev = isDevMode();
   const tiles = [...TILES.filter((t) => dev || !t.dev).sort((x, y) => x.label.localeCompare(y.label)), CITATION_TILE];
   const captured = capture.title || capture.url;
+  const gridRef = useRef<HTMLDivElement>(null);
+  const columns = useGridColumns(gridRef);
+  // The last tile fills its row when it would otherwise sit there alone.
+  const lastAlone = columns > 1 && (tiles.length - 1) % columns === 0;
 
   // Always show the picker: auto-advancing to the remembered service hid the
   // choice and could drop a user into a sign-in they never asked for.
@@ -112,9 +126,14 @@ export function Main() {
       )}
       <p>Where would you like to save this source?</p>
 
-      <div className="service-grid">
+      <div className="service-grid" ref={gridRef}>
         {tiles.map((t) => (
-          <button key={t.service} type="button" className="service-tile" onClick={() => choose(t.service)}>
+          <button
+            key={t.service}
+            type="button"
+            className={t === CITATION_TILE && lastAlone ? 'service-tile service-tile-wide' : 'service-tile'}
+            onClick={() => choose(t.service)}
+          >
             {t.content}
           </button>
         ))}

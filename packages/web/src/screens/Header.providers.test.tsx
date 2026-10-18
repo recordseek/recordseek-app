@@ -12,7 +12,6 @@ vi.mock('../fsAuth', () => ({
   },
 }));
 vi.mock('../zotero', async (orig) => ({ ...(await orig<typeof import('../zotero')>()), revokeZoteroKey: async () => {} }));
-vi.mock('../wikitree', async (orig) => ({ ...(await orig<typeof import('../wikitree')>()), revokeWikiTreeSession: async () => {} }));
 const myProfile = vi.hoisted(() => vi.fn());
 vi.mock('../geni', async (orig) => ({
   ...(await orig<typeof import('../geni')>()),
@@ -34,7 +33,7 @@ function renderAt(path: string) {
   );
 }
 
-describe('Header for Geni, Zotero and WikiTree', () => {
+describe('Header for Geni and Zotero', () => {
   beforeEach(() => {
     localStorage.clear();
     sessionStorage.clear();
@@ -70,15 +69,6 @@ describe('Header for Geni, Zotero and WikiTree', () => {
     expect(await screen.findByText('PATH:/')).toBeInTheDocument();
   });
 
-  it('WikiTree: shows the user name; logout clears the session', async () => {
-    sessionStorage.setItem('rs_wikitree_session', JSON.stringify({ session: 's', userName: 'Smith-1', userId: 1 }));
-    renderAt('/wikitree');
-    expect(await screen.findByText('Hello Smith-1!')).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Log out' }));
-    expect(sessionStorage.getItem('rs_wikitree_session')).toBeNull();
-    expect(await screen.findByText('PATH:/')).toBeInTheDocument();
-  });
-
   it('shows nothing when signed out', () => {
     renderAt('/zotero');
     expect(screen.queryByRole('button', { name: 'Log out' })).toBeNull();
@@ -91,7 +81,6 @@ describe('Header for Geni, Zotero and WikiTree', () => {
       sessionStorage.setItem('rs_geni_me', 'Gena');
       sessionStorage.setItem('rs_auth_attempted_geni', '1');
       localStorage.setItem('rs_zotero', JSON.stringify({ key: 'k', userId: '1', username: 'zed' }));
-      sessionStorage.setItem('rs_wikitree_session', JSON.stringify({ session: 's', userName: 'Smith-1', userId: 1 }));
       sessionStorage.setItem('rs_capture', 'keep me');
     }
 
@@ -118,7 +107,6 @@ describe('Header for Geni, Zotero and WikiTree', () => {
     it('logs out of one row and stays open; the last one closes and goes home', async () => {
       signInAll();
       localStorage.removeItem('rs_zotero');
-      sessionStorage.removeItem('rs_wikitree_session');
       renderAt('/zotero');
       await userEvent.click(screen.getByRole('button', { name: 'Log out' }));
       await userEvent.click(screen.getByRole('button', { name: 'Log out of Geni' }));
@@ -136,7 +124,6 @@ describe('Header for Geni, Zotero and WikiTree', () => {
       expect(fsOn.value).toBe(false);
       expect(sessionStorage.getItem('rs_geni_token')).toBeNull();
       expect(localStorage.getItem('rs_zotero')).toBeNull();
-      expect(sessionStorage.getItem('rs_wikitree_session')).toBeNull();
       expect(sessionStorage.getItem('rs_capture')).toBe('keep me');
       expect(screen.queryByRole('dialog')).toBeNull();
       expect(screen.queryByRole('button', { name: 'Log out' })).toBeNull();

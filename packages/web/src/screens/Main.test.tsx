@@ -19,7 +19,6 @@ function renderMain() {
           <Route path="/citation" element={<div>CITATION SCREEN</div>} />
           <Route path="/zotero" element={<div>ZOTERO SCREEN</div>} />
           <Route path="/geni" element={<div>GENI SCREEN</div>} />
-          <Route path="/wikitree" element={<div>WIKITREE SCREEN</div>} />
         </Routes>
       </MemoryRouter>
     </CaptureProvider>,
@@ -54,9 +53,9 @@ describe('Main', () => {
     expect(screen.queryByText('SOURCE SCREEN')).not.toBeInTheDocument();
   });
 
-  it('hides Zotero, Geni and WikiTree by default', () => {
+  it('hides Zotero and Geni by default', () => {
     renderMain();
-    for (const name of ['Zotero', 'Geni', 'WikiTree']) {
+    for (const name of ['Zotero', 'Geni']) {
       expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
     }
   });
@@ -69,15 +68,11 @@ describe('Main', () => {
     expect(localStorage.getItem('recordseek-last-service')).toBe('Zotero');
   });
 
-  it('routes Geni and WikiTree tiles', async () => {
+  it('routes the Geni tile', async () => {
     window.history.replaceState(null, '', '/?dev=1');
-    const { unmount } = renderMain();
+    renderMain();
     await userEvent.click(screen.getByRole('button', { name: 'Geni' }));
     expect(screen.getByText('GENI SCREEN')).toBeInTheDocument();
-    unmount();
-    renderMain();
-    await userEvent.click(screen.getByRole('button', { name: 'WikiTree' }));
-    expect(screen.getByText('WIKITREE SCREEN')).toBeInTheDocument();
   });
 
   it('orders tiles alphabetically with Save to Somewhere Else last', () => {
@@ -91,6 +86,6 @@ describe('Main', () => {
     first.unmount();
     window.history.replaceState(null, '', '/?dev=1');
     renderMain();
-    expect(order()).toEqual(['Ancestry', 'FamilySearch', 'Geni', 'WikiTree', 'Zotero', 'Save to Somewhere Else']);
+    expect(order()).toEqual(['Ancestry', 'FamilySearch', 'Geni', 'Zotero', 'Save to Somewhere Else']);
   });
 });
