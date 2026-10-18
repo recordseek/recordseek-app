@@ -52,9 +52,11 @@ describe('JustCitation', () => {
 
   it('shows Title, URL, then Citation, and no notes', () => {
     renderJustCitation();
-    const text = document.querySelector('main')!.textContent!;
-    expect(text.indexOf('Title:')).toBeLessThan(text.indexOf('URL:'));
-    expect(text.indexOf('URL:')).toBeLessThan(text.indexOf('Citation'));
+    const title = screen.getByText('Title:');
+    const url = screen.getByText('URL:');
+    const citation = screen.getByLabelText('Citation');
+    expect(title.compareDocumentPosition(url) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(url.compareDocumentPosition(citation) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.queryByText(/Notes:/)).not.toBeInTheDocument();
     expect(screen.queryByText('A note')).not.toBeInTheDocument();
   });
