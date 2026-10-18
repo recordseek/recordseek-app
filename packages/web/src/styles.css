@@ -1108,14 +1108,17 @@ main.saved > button {
   color: var(--gray);
 }
 .newsletter-invite {
-  margin: 16px 0;
-  padding: 12px 14px;
-  border: 1px solid var(--input-border);
+  /* A callout: tinted with the brand green, accent bar on the left. */
+  margin: 24px 0 16px;
+  padding: 16px 18px;
+  background: #e8f8f5;
+  border: 1px solid #b8e9df;
+  border-left: 4px solid var(--accent);
   border-radius: 4px;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
 }
-.newsletter-invite h4 {
-  margin: 0 0 4px;
+.newsletter-invite h3 {
+  margin: 0 0 6px;
 }
 .newsletter-invite p {
   margin: 0 0 8px;
@@ -1123,14 +1126,15 @@ main.saved > button {
 .newsletter-invite form {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: center;
   gap: 8px;
 }
-.newsletter-invite label {
+.newsletter-invite input[type='email'] {
   flex: 1 1 200px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  margin: 0;
+}
+.newsletter-invite form button {
+  margin: 0;
 }
 .newsletter-invite .newsletter-hp {
   position: absolute;

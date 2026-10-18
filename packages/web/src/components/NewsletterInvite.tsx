@@ -75,13 +75,17 @@ export function NewsletterInvite({ source }: { source: string }) {
 
   return (
     <div className="newsletter-invite">
-      <h4>Get RecordSeek updates</h4>
+      <h3>Get RecordSeek updates</h3>
       <p>New save destinations and features as they launch. No spam; unsubscribe anytime.</p>
       <form onSubmit={submit}>
-        <label>
-          Email
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        </label>
+        <input
+          type="email"
+          aria-label="Email"
+          placeholder="you@example.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
         <input
           className="newsletter-hp"
           name="website"

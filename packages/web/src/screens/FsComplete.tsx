@@ -44,10 +44,10 @@ export function FsComplete() {
             View your source box on FamilySearch
           </a>
         </p>
-        <NewsletterInvite source="fs" />
         <button type="button" onClick={attachAnother}>
           Attach to a Person
         </button>
+        <NewsletterInvite source="fs" />
         <p className="close-note">You may now close this window.</p>
       </main>
     );
@@ -63,10 +63,10 @@ export function FsComplete() {
             View Profile on FamilySearch
           </a>
         </p>
-        <NewsletterInvite source="fs" />
         <button type="button" onClick={attachAnother}>
           Attach to Another Person
         </button>
+        <NewsletterInvite source="fs" />
         <p className="close-note">You may now close this window.</p>
       </main>
     );

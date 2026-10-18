@@ -47,7 +47,6 @@ export function SavedActions({ heading, title, links, children, onEdit, newslett
           </a>
         </p>
       ))}
-      {newsletterSource && <NewsletterInvite source={newsletterSource} />}
       <div className="form-footer">
         <BackButton onClick={onEdit} />
         <div className="footer-right">
@@ -56,6 +55,7 @@ export function SavedActions({ heading, title, links, children, onEdit, newslett
           </button>
         </div>
       </div>
+      {newsletterSource && <NewsletterInvite source={newsletterSource} />}
       <p className="close-note">You may now close this window.</p>
     </main>
   );
