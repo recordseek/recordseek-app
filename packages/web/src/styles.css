@@ -992,6 +992,7 @@ button.btn-save-later:hover:not(:disabled) {
   right: 6px;
   top: 50%;
   transform: translateY(-50%);
+  margin: 0; /* undo the global button margin */
   background: none;
   border: 0;
   color: #fff;
@@ -1001,8 +1002,9 @@ button.btn-save-later:hover:not(:disabled) {
   cursor: pointer;
   opacity: 0.85;
 }
-.announcement-close:hover,
+.announcement-close:hover:not(:disabled),
 .announcement-close:focus-visible {
+  background: none;
   opacity: 1;
 }
 .announcement a {
