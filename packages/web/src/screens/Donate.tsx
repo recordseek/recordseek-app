@@ -12,7 +12,7 @@ export function Donate() {
   return (
     <main className="donate">
       <img className="donate-photo" src={`${import.meta.env.BASE_URL}images/dovy.jpg`} alt="Dovy Paukstys" />
-      <h1>Keep RecordSeek free</h1>
+      <h1>Donate to RecordSeek</h1>
       <p>
         Hi, I&apos;m Dovy. I built RecordSeek in 2013 and still run it myself. It&apos;s free, with no ads, and every
         source you save makes your tree a little more trustworthy.
