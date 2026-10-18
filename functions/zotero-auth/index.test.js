@@ -10,6 +10,7 @@ import {
   handleStart,
   handleCallback,
   handleGeni,
+  handleWikiTree,
   handleZoteroAuth,
 } from './index.js';
 
@@ -177,6 +178,40 @@ test('geni proxy only relays allowed paths from allowed origins', async () => {
   }
   res = fakeRes();
   await handleGeni(fakeReq('POST', { path: 'document/add' }, { origin: 'https://evil.example', body: {} }), res, fetchImpl);
+  assert.equal(res.code, 403);
+  assert.equal(sent.length, 2);
+});
+
+test('wikitree relay passes the session cookie, returns a fresh one on login, and limits actions', async () => {
+  const sent = [];
+  const fetchImpl = async (url, init) => {
+    sent.push({ url, init });
+    return {
+      status: 200,
+      headers: { getSetCookie: () => ['wikitree_wtb__session=abc; path=/; secure; HttpOnly', 'wikitree_wtb_session_status=0-0-0-g; path=/', 'x=deleted; Max-Age=0'] },
+      text: async () => '{"clientLogin":{"result":"Success","username":"Smith-1"}}',
+    };
+  };
+  const origin = 'https://recordseek.com';
+  let res = fakeRes();
+  await handleWikiTree(fakeReq('POST', {}, { origin, body: { action: 'clientLogin', authcode: 'z', appId: 'RecordSeek' } }), res, fetchImpl);
+  assert.equal(res.code, 200);
+  assert.match(res.body.session, /^wikitree_wtb__session=abc; wikitree_wtb_session_status=0-0-0-g$/);
+  assert.equal(sent[0].url, 'https://api.wikitree.com/api.php');
+  assert.equal(sent[0].init.body.toString(), 'action=clientLogin&authcode=z&appId=RecordSeek');
+
+  res = fakeRes();
+  await handleWikiTree(fakeReq('POST', {}, { origin, body: { action: 'getWatchlist', session: 'wikitree_wtb__session=abc' } }), res, fetchImpl);
+  assert.equal(sent[1].init.headers.Cookie, 'wikitree_wtb__session=abc');
+  assert.ok(!sent[1].init.body.toString().includes('session'));
+
+  for (const action of ['editProfile', 'addPerson', '']) {
+    res = fakeRes();
+    await handleWikiTree(fakeReq('POST', {}, { origin, body: { action } }), res, fetchImpl);
+    assert.equal(res.code, 400);
+  }
+  res = fakeRes();
+  await handleWikiTree(fakeReq('POST', {}, { origin: 'https://evil.example', body: { action: 'getWatchlist' } }), res, fetchImpl);
   assert.equal(res.code, 403);
   assert.equal(sent.length, 2);
 });

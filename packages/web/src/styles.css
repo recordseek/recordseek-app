@@ -1167,3 +1167,9 @@ a.donate-button:hover {
   color: var(--gray);
   font-size: 0.9rem;
 }
+
+/* WikiTree person picker: the watchlist can hold thousands of profiles. */
+.wt-list {
+  max-height: 16rem;
+  overflow-y: auto;
+}

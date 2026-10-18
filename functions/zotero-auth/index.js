@@ -17,6 +17,9 @@ const ZOTERO = {
 const GENI_API = 'https://www.geni.com/api/';
 /** The only Geni writes the share app makes: create a document, tag a profile in it. */
 const GENI_PATHS = [/^document\/add$/, /^document-\d+\/tag\/profile-\d+$/];
+const WIKITREE_API = 'https://api.wikitree.com/api.php';
+/** WikiTree calls the share app makes: confirm a login, read the watchlist, search, look up one profile. */
+const WIKITREE_ACTIONS = ['clientLogin', 'getWatchlist', 'searchPerson', 'getProfile'];
 /** How long the user has to approve on zotero.org before the sign-in expires. */
 const STATE_TTL_MS = 15 * 60 * 1000;
 
@@ -229,10 +232,50 @@ export async function handleGeni(req, res, fetchImpl = fetch) {
   return res.status(upstream.status).type('application/json').send(await upstream.text());
 }
 
+/** "a=1; b=2" from upstream Set-Cookie headers, skipping deleted/empty cookies. */
+export function cookiePairs(setCookies) {
+  return setCookies
+    .map((c) => c.split(';')[0].trim())
+    .filter((pair) => pair.includes('=') && !/=(deleted)?$/.test(pair))
+    .join('; ');
+}
+
+/**
+ * WikiTree's API answers CORS only for wikitree.com origins, so the browser
+ * cannot read its responses from recordseek.com. This relays a narrow set of
+ * actions. The WikiTree session cookie (set when the authcode is confirmed) is
+ * handed back to the page as \`session\` and sent back in the body on later
+ * calls; it is passed on as a Cookie header and never stored here.
+ */
+export async function handleWikiTree(req, res, fetchImpl = fetch) {
+  const allowed = setCors(req, res, 'POST');
+  if (req.method === 'OPTIONS') return res.status(204).send('');
+  if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
+  if (!allowed) return res.status(403).json({ error: 'Origin not allowed' });
+  const { session, ...params } = req.body ?? {};
+  if (!WIKITREE_ACTIONS.includes(String(params.action ?? ''))) return res.status(400).json({ error: 'action not allowed' });
+  const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
+  if (session) headers.Cookie = String(session);
+  const body = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) body.set(k, String(v));
+  const upstream = await fetchImpl(WIKITREE_API, { method: 'POST', headers, body, redirect: 'manual' });
+  const text = await upstream.text();
+  const fresh = cookiePairs(upstream.headers?.getSetCookie?.() ?? []);
+  if (params.action === 'clientLogin' && fresh) {
+    try {
+      return res.status(upstream.status).json({ ...JSON.parse(text), session: fresh });
+    } catch {
+      return res.status(502).json({ error: 'unexpected WikiTree reply' });
+    }
+  }
+  return res.status(upstream.status).type('application/json').send(text);
+}
+
 export async function handleZoteroAuth(req, res, fetchImpl = fetch) {
   try {
     const action = String(req.query.action ?? '');
     if (action === 'geni') return await handleGeni(req, res, fetchImpl);
+    if (action === 'wikitree') return await handleWikiTree(req, res, fetchImpl);
     if (req.method !== 'GET') return fail(res, 405, 'GET only');
     if (action === 'start') return await handleStart(req, res, fetchImpl);
     if (action === 'callback') return await handleCallback(req, res, fetchImpl);

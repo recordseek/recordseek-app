@@ -1,16 +1,35 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { CITATION_STYLES, CITATION_STYLE_LABELS, type CitationStyle } from '@recordseek/core';
 import { track } from '../analytics';
 import { useCapture } from '../capture/CaptureContext';
 import { captureCitation } from '../citationText';
 import { usePersistedCitationStyle, clearLastService } from '../prefs';
-import { isValidWikiTreeId, wikiTreeEditUrl, wikiTreeRef } from '../wikitree';
+import { reportError } from '../sentry';
+import {
+  clearWikiTreeSession,
+  confirmAuthcode,
+  fetchWatchlist,
+  filterPeople,
+  getWikiTreeSession,
+  isValidWikiTreeId,
+  searchWikiTree,
+  takeAuthcode,
+  wikiTreeEditUrl,
+  wikiTreeLoginUrl,
+  wikiTreeRef,
+  WikiTreeAuthError,
+  type WikiTreePerson,
+  type WikiTreeSession,
+} from '../wikitree';
 import { BackButton } from '../components/BackButton';
 
 /**
  * WikiTree has no write API: format the citation as a `<ref>` block to paste,
- * and open the profile's edit page (given its WikiTree ID, like Smith-123).
+ * and open the chosen profile's edit page. The user signs in to WikiTree
+ * (clientLogin, see wikitree-callback.html) and picks a person from their
+ * watchlist (profiles they manage or follow), or searches all of WikiTree.
+ * A typed WikiTree ID (like Smith-123) stays as a fallback.
  */
 export function WikiTree() {
   const capture = useCapture();
@@ -20,10 +39,92 @@ export function WikiTree() {
   const [copyHint, setCopyHint] = useState(false);
   const [wikiId, setWikiId] = useState('');
   const [idError, setIdError] = useState(false);
+  const [session, setSession] = useState<WikiTreeSession | null>(getWikiTreeSession);
+  const [watchlist, setWatchlist] = useState<WikiTreePerson[] | null>(null);
+  const [filter, setFilter] = useState('');
+  const [first, setFirst] = useState('');
+  const [last, setLast] = useState('');
+  const [found, setFound] = useState<WikiTreePerson[] | null>(null);
+  const [picked, setPicked] = useState<WikiTreePerson | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     track('wikitree_viewed');
   }, []);
+
+  function lostSession(err: unknown, step: string): void {
+    reportError(err, { screen: 'wikitree', step });
+    track('wikitree_failed', { step });
+    if (err instanceof WikiTreeAuthError) {
+      clearWikiTreeSession();
+      setSession(null);
+      setWatchlist(null);
+      setError('Your WikiTree sign-in has ended. Please sign in again.');
+    } else {
+      setError('WikiTree couldn’t complete that. Try again, or enter a WikiTree ID below.');
+    }
+  }
+
+  // Back from WikiTree with an authcode: confirm it, which also gives us the user's name.
+  useEffect(() => {
+    const code = takeAuthcode();
+    if (!code) return;
+    setBusy(true);
+    confirmAuthcode(code)
+      .then((s) => {
+        track('wikitree_login_confirmed');
+        setSession(s);
+      })
+      .catch((err) => lostSession(err, 'login'))
+      .finally(() => setBusy(false));
+  }, []);
+
+  // Signed in: prefill the picker with the whole watchlist.
+  const sessionCookie = session?.session;
+  useEffect(() => {
+    if (!sessionCookie) return;
+    let cancelled = false;
+    setBusy(true);
+    fetchWatchlist(sessionCookie)
+      .then((people) => !cancelled && setWatchlist(people))
+      .catch((err) => !cancelled && lostSession(err, 'watchlist'))
+      .finally(() => !cancelled && setBusy(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionCookie]);
+
+  const visible = useMemo(() => filterPeople(watchlist ?? [], filter), [watchlist, filter]);
+
+  function signIn(): void {
+    track('wikitree_login_started');
+    window.location.assign(wikiTreeLoginUrl());
+  }
+
+  function signOut(): void {
+    clearWikiTreeSession();
+    setSession(null);
+    setWatchlist(null);
+    setFound(null);
+    setPicked(null);
+  }
+
+  function pick(p: WikiTreePerson): void {
+    setPicked(p);
+    track('wikitree_picked');
+  }
+
+  function search(event: FormEvent): void {
+    event.preventDefault();
+    if (busy || (!first.trim() && !last.trim())) return;
+    setBusy(true);
+    setError('');
+    searchWikiTree(sessionCookie ?? null, first, last)
+      .then(setFound)
+      .catch((err) => lostSession(err, 'search'))
+      .finally(() => setBusy(false));
+  }
 
   const ref = wikiTreeRef(captureCitation(capture, style), capture.url, capture.title);
 
@@ -43,6 +144,12 @@ export function WikiTree() {
     }
   }
 
+  function openPicked(): void {
+    if (!picked) return;
+    track('wikitree_opened');
+    window.open(wikiTreeEditUrl(picked.name), '_blank', 'noopener');
+  }
+
   function openEditor(): void {
     if (!isValidWikiTreeId(wikiId)) {
       setIdError(true);
@@ -57,7 +164,7 @@ export function WikiTree() {
   return (
     <main>
       <h3>Add to WikiTree</h3>
-      <p>WikiTree can’t take a source automatically. Copy the reference below, then paste it into the profile’s biography.</p>
+      <p>WikiTree can’t take a source automatically. Pick a person, copy the reference below, then paste it into the Sources section of their profile.</p>
 
       <div className="citation-label-row">
         <label className="field-label" htmlFor="wt-ref">
@@ -82,6 +189,65 @@ export function WikiTree() {
 
       <hr />
 
+      {!session ? (
+        <>
+          <p>Sign in to WikiTree to choose a person from your own tree.</p>
+          <button type="button" className="primary" disabled={busy} onClick={signIn}>
+            {busy ? 'Signing in…' : 'Sign in to WikiTree'}
+          </button>
+        </>
+      ) : (
+        <>
+          <p>
+            Signed in as <strong>{session.userName}</strong>{' '}
+            <button type="button" className="link-button" onClick={signOut}>
+              Sign out
+            </button>
+          </p>
+          <label className="field-label" htmlFor="wt-filter">
+            Your profiles{watchlist ? ` (${watchlist.length})` : ''}
+          </label>
+          <input
+            id="wt-filter"
+            type="search"
+            placeholder="Filter by name or WikiTree ID"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+          />
+          {busy && !watchlist && <p role="status">Loading your watchlist…</p>}
+          {watchlist && visible.length === 0 && <p>{watchlist.length ? 'No one on your watchlist matches.' : 'Your watchlist is empty.'}</p>}
+          {visible.length > 0 && (
+            <PersonList label="Your profiles" people={visible} picked={picked} onPick={pick} />
+          )}
+
+          <form onSubmit={search}>
+            <span className="field-label">Search all of WikiTree</span>
+            <input type="text" aria-label="First name" placeholder="First name" value={first} onChange={(e) => setFirst(e.target.value)} />
+            <input type="text" aria-label="Last name" placeholder="Last name" value={last} onChange={(e) => setLast(e.target.value)} />
+            <button type="submit" disabled={busy || (!first.trim() && !last.trim())}>
+              Search
+            </button>
+          </form>
+          {found && found.length === 0 && <p>No profiles found.</p>}
+          {found && found.length > 0 && <PersonList label="Search results" people={found} picked={picked} onPick={pick} />}
+        </>
+      )}
+      {error && <p role="alert">{error}</p>}
+
+      {picked && (
+        <>
+          <p>
+            <strong>{picked.display}</strong> ({picked.name}) is chosen. Copy the reference above, then open their edit page and paste it into the Sources section.
+          </p>
+          <button type="button" className="primary" onClick={openPicked}>
+            Open {picked.name} to paste
+          </button>
+        </>
+      )}
+
+      <hr />
+
+      <p className="field-hint">Not on your watchlist? Enter an ID.</p>
       <label className="field-label" htmlFor="wt-id">
         WikiTree ID
       </label>
@@ -112,5 +278,20 @@ export function WikiTree() {
         />
       </div>
     </main>
+  );
+}
+
+function PersonList(props: { label: string; people: WikiTreePerson[]; picked: WikiTreePerson | null; onPick: (p: WikiTreePerson) => void }) {
+  return (
+    <ul className="plain-list wt-list" aria-label={props.label}>
+      {props.people.map((p) => (
+        <li key={p.id}>
+          <label>
+            <input type="radio" name="wt-person" checked={props.picked?.id === p.id} onChange={() => props.onPick(p)} /> {p.display}
+            {p.years ? ` (${p.years})` : ''} <span className="field-hint">{p.name}</span>
+          </label>
+        </li>
+      ))}
+    </ul>
   );
 }
