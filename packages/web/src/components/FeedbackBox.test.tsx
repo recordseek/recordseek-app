@@ -29,4 +29,15 @@ describe('FeedbackBox', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't send that");
     expect(screen.getByLabelText('Your idea or bug')).toHaveValue('Add Zotero');
   });
+
+  it('opens in a modal dialog that Escape closes', async () => {
+    render(<FeedbackBox source="share" />);
+    await userEvent.click(screen.getByRole('button', { name: 'Have an idea? Found a bug?' }));
+    const dialog = screen.getByRole('dialog', { name: 'Send us an idea or bug' });
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    expect(screen.getByLabelText('Your idea or bug')).toHaveFocus();
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Have an idea? Found a bug?' })).toHaveFocus();
+  });
 });

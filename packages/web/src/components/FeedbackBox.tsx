@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { track } from '../analytics';
 
 /** Public endpoint (Cloud Run function in the `recordseek` project); VITE_FEEDBACK_URL overrides it. */
@@ -9,10 +9,12 @@ type Status = 'idle' | 'sending' | 'sent' | 'error';
 
 function feedbackUrl(): string {
   const env = import.meta.env as Record<string, string | boolean | undefined>;
-  return typeof env.VITE_FEEDBACK_URL === 'string' && env.VITE_FEEDBACK_URL ? env.VITE_FEEDBACK_URL : DEFAULT_FEEDBACK_URL;
+  return typeof env.VITE_FEEDBACK_URL === 'string' && env.VITE_FEEDBACK_URL
+    ? env.VITE_FEEDBACK_URL
+    : DEFAULT_FEEDBACK_URL;
 }
 
-/** "Have an idea? Found a bug?" — a collapsed link that opens a tiny form. */
+/** "Have an idea? Found a bug?" — a link that opens a small form in a modal. */
 export function FeedbackBox({ source }: { source: 'share' | 'website' }) {
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<Kind>('idea');
@@ -21,6 +23,13 @@ export function FeedbackBox({ source }: { source: 'share' | 'website' }) {
   // Honeypot: hidden from people, filled in by bots.
   const [website, setWebsite] = useState('');
   const [status, setStatus] = useState<Status>('idle');
+  const cta = useRef<HTMLButtonElement>(null);
+
+  function close(): void {
+    setOpen(false);
+    if (status === 'sent') setStatus('idle');
+    cta.current?.focus();
+  }
 
   async function submit(event: FormEvent): Promise<void> {
     event.preventDefault();
@@ -51,71 +60,109 @@ export function FeedbackBox({ source }: { source: 'share' | 'website' }) {
     }
   }
 
-  if (!open) {
-    return (
+  return (
+    <>
       <p className="feedback-cta">
-        <button type="button" className="link-button" onClick={() => setOpen(true)}>
+        <button ref={cta} type="button" className="link-button" onClick={() => setOpen(true)}>
           Have an idea? Found a bug?
         </button>
       </p>
-    );
-  }
+      {open && (
+        <Modal title="Send us an idea or bug" onClose={close}>
+          {status === 'sent' ? (
+            <div role="status">
+              <p>Thanks! We read every one.</p>
+              <div className="feedback-actions">
+                <button type="button" className="btn-sm" onClick={() => setStatus('idle')}>
+                  Send another
+                </button>
+                <button type="button" className="primary" onClick={close}>
+                  Close
+                </button>
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={submit}>
+              <div className="feedback-kinds" role="radiogroup" aria-label="Type">
+                {(['idea', 'bug'] as const).map((k) => (
+                  <label key={k}>
+                    <input type="radio" name="feedback-kind" checked={kind === k} onChange={() => setKind(k)} />
+                    {k === 'idea' ? 'Idea' : 'Bug'}
+                  </label>
+                ))}
+              </div>
+              <textarea
+                aria-label="Your idea or bug"
+                placeholder={
+                  kind === 'idea' ? 'What would make RecordSeek better?' : 'What went wrong, and on which site?'
+                }
+                value={message}
+                maxLength={5000}
+                rows={3}
+                required
+                onChange={(e) => setMessage(e.target.value)}
+              />
+              <input
+                type="email"
+                aria-label="Email (optional)"
+                placeholder="Email (optional, if you'd like a reply)"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+              <input
+                className="feedback-hp"
+                tabIndex={-1}
+                autoComplete="off"
+                aria-hidden="true"
+                name="website"
+                value={website}
+                onChange={(e) => setWebsite(e.target.value)}
+              />
+              {status === 'error' && <p role="alert">Couldn&apos;t send that. Please try again in a moment.</p>}
+              <div className="feedback-actions">
+                <button type="button" className="btn-sm" onClick={close}>
+                  Cancel
+                </button>
+                <button type="submit" className="primary" disabled={status === 'sending' || message.trim().length < 3}>
+                  {status === 'sending' ? 'Sending…' : 'Send'}
+                </button>
+              </div>
+            </form>
+          )}
+        </Modal>
+      )}
+    </>
+  );
+}
 
-  if (status === 'sent') {
-    return (
-      <div className="feedback-box" role="status">
-        <p>Thanks! We read every one.</p>
-        <button type="button" className="link-button" onClick={() => setStatus('idle')}>
-          Send another
-        </button>
-      </div>
-    );
-  }
+/** Centered dialog over a dimmed backdrop; Escape or a backdrop click closes it. */
+function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  const panel = useRef<HTMLDivElement>(null);
+  // Latest onClose without re-running the effects (it is a new function every render).
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+
+  useEffect(() => {
+    const root = panel.current;
+    (
+      root?.querySelector<HTMLElement>('textarea') ?? root?.querySelector<HTMLElement>('.feedback-actions button')
+    )?.focus();
+    function onKey(e: KeyboardEvent): void {
+      if (e.key === 'Escape') closeRef.current();
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
 
   return (
-    <form className="feedback-box" onSubmit={submit} aria-label="Send an idea or bug report">
-      <div className="feedback-kinds" role="radiogroup" aria-label="Type">
-        {(['idea', 'bug'] as const).map((k) => (
-          <label key={k}>
-            <input type="radio" name="feedback-kind" checked={kind === k} onChange={() => setKind(k)} />
-            {k === 'idea' ? 'Idea' : 'Bug'}
-          </label>
-        ))}
-      </div>
-      <textarea
-        aria-label="Your idea or bug"
-        placeholder={kind === 'idea' ? 'What would make RecordSeek better?' : 'What went wrong, and on which site?'}
-        value={message}
-        maxLength={5000}
-        rows={3}
-        required
-        onChange={(e) => setMessage(e.target.value)}
-      />
-      <input
-        type="email"
-        aria-label="Email (optional)"
-        placeholder="Email (optional, if you'd like a reply)"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-      />
-      <input
-        className="feedback-hp"
-        tabIndex={-1}
-        autoComplete="off"
-        aria-hidden="true"
-        name="website"
-        value={website}
-        onChange={(e) => setWebsite(e.target.value)}
-      />
-      {status === 'error' && <p role="alert">Couldn&apos;t send that. Please try again in a moment.</p>}
-      <div className="feedback-actions">
-        <button type="button" className="btn-sm" onClick={() => setOpen(false)}>
-          Cancel
+    <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div ref={panel} className="modal-panel" role="dialog" aria-modal="true" aria-label={title}>
+        <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>
+          ×
         </button>
-        <button type="submit" className="primary" disabled={status === 'sending' || message.trim().length < 3}>
-          {status === 'sending' ? 'Sending…' : 'Send'}
-        </button>
+        <h3>{title}</h3>
+        {children}
       </div>
-    </form>
+    </div>
   );
 }
