@@ -433,6 +433,7 @@ label:has(> input[type='radio']) {
 }
 
 input[type='text'],
+input[type='email'],
 input:not([type]),
 select,
 textarea {
@@ -1012,4 +1013,49 @@ button.btn-save-later:hover:not(:disabled) {
   font-weight: 700;
   text-decoration: underline;
   white-space: nowrap;
+}
+
+/* "Have an idea? Found a bug?" at the bottom of the home screen (components/FeedbackBox). */
+.feedback-cta {
+  margin: 28px 0 8px;
+  text-align: center;
+  font-size: 0.9rem;
+}
+.feedback-box {
+  margin: 28px auto 8px;
+  max-width: 520px;
+  padding: 14px;
+  border: 1px solid var(--input-border);
+  background: var(--card);
+}
+.feedback-box textarea,
+.feedback-box input[type='email'] {
+  width: 100%;
+  margin-top: 8px;
+}
+.feedback-kinds {
+  display: flex;
+  gap: 16px;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+.feedback-kinds label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.feedback-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+.feedback-actions button {
+  margin-top: 10px;
+}
+.feedback-hp {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
 }

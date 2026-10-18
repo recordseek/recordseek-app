@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router';
 import { useCapture } from '../capture/CaptureContext';
 import { track } from '../analytics';
 import { saveLastService, type Service } from '../prefs';
+import { FeedbackBox } from '../components/FeedbackBox';
 
 const ROUTES: Record<Service, string> = {
   FamilySearch: '/fs-source',
@@ -63,6 +64,8 @@ export function Main() {
           <span>Save to Somewhere Else</span>
         </button>
       </div>
+
+      <FeedbackBox source="share" />
     </main>
   );
 }

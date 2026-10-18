@@ -1,0 +1,17 @@
+{
+  "name": "recordseek-feedback",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "description": "Cloud Run function: stores ideas and bug reports from the share app and website in Firestore.",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "functions-framework --target=feedback",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@google-cloud/firestore": "^7.11.0",
+    "@google-cloud/functions-framework": "^3.4.0"
+  }
+}
