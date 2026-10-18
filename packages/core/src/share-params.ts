@@ -66,7 +66,10 @@ export const PERSON_KEYS = [
 export type PersonKey = (typeof PERSON_KEYS)[number];
 export type PersonParams = Partial<Record<PersonKey, string>>;
 
-const DEFAULT_KEYS: readonly string[] = [...BASE_KEYS, ...PERSON_KEYS, ...ATTRIBUTION_KEYS];
+/** Our own control params (hidden-feature switch): never part of the captured url. */
+const CONTROL_KEYS = ['dev'] as const;
+
+const DEFAULT_KEYS: readonly string[] = [...CONTROL_KEYS, ...BASE_KEYS, ...PERSON_KEYS, ...ATTRIBUTION_KEYS];
 
 /** Pick the known person params (non-empty strings only); undefined if none. */
 export function extractPersonParams(params: ShareParams): PersonParams | undefined {

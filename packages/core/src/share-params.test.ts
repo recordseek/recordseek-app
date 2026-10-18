@@ -133,3 +133,15 @@ describe('person params', () => {
     expect(p.url).toBe('https://x.com/r?id=1&page=2');
   });
 });
+
+describe('control params', () => {
+  it('does not fold dev=1 onto the source url', () => {
+    const p = parseShareParams('https://recordseek.com/share/?dev=1&url=https%3A%2F%2Fwww.findagrave.com%2Fmemorial%2F1%2Fx');
+    expect(p.url).toBe('https://www.findagrave.com/memorial/1/x');
+  });
+
+  it('does not fold a trailing dev=1 onto the source url', () => {
+    const p = parseShareParams('https://recordseek.com/share/?url=https%3A%2F%2Fwww.findagrave.com%2Fmemorial%2F1%2Fx&title=x&dev=1');
+    expect(p.url).toBe('https://www.findagrave.com/memorial/1/x');
+  });
+});
