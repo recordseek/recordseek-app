@@ -28,14 +28,12 @@ export function Geni() {
     track('geni_viewed');
   }, []);
 
-  // Coming back with "Modify Source": restore what was edited. Title first, because
-  // changing it regenerates the citation, which the second patch then overrides.
+  // Coming back with "Modify Source": restore what was edited, citation included.
   const restored = useRef(false);
   useEffect(() => {
     if (restored.current || !state.source) return;
     restored.current = true;
-    onChange({ title: state.source.title });
-    onChange({ url: state.source.url, citation: state.source.citation, notes: state.source.notes });
+    onChange(state.source);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

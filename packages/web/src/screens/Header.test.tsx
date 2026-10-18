@@ -32,14 +32,14 @@ describe('Header breadcrumb', () => {
 
   it('shows the citation crumb text', () => {
     renderAt('/citation');
-    expect(screen.getByText('Save to Somewhere Else')).toBeInTheDocument();
+    expect(screen.getByText('Save Citation')).toBeInTheDocument();
   });
 
   it('shows no service crumb on the main picker', () => {
     renderAt('/');
     expect(screen.queryByRole('img', { name: 'FamilySearch' })).toBeNull();
     expect(screen.queryByRole('img', { name: 'Ancestry' })).toBeNull();
-    expect(screen.queryByText('Save to Somewhere Else')).toBeNull();
+    expect(screen.queryByText('Save Citation')).toBeNull();
   });
 
   it('clicking the brand returns to the picker and clears the remembered service', async () => {

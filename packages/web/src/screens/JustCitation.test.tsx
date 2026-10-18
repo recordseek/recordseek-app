@@ -28,7 +28,7 @@ describe('JustCitation', () => {
     renderJustCitation();
     const citation = screen.getByLabelText('Citation') as HTMLTextAreaElement;
     expect(citation.value).toContain('Digital Public Library of America');
-    expect(screen.getByRole('link', { name: 'https://dp.la/' })).toBeInTheDocument();
+    expect((screen.getByLabelText(/Source \(URL\)/) as HTMLInputElement).value).toBe('https://dp.la/');
     expect(screen.getAllByRole('option')).toHaveLength(CITATION_STYLES.length);
   });
 
@@ -50,14 +50,26 @@ describe('JustCitation', () => {
     expect(await screen.findByRole('button', { name: 'Copied!' })).toBeInTheDocument();
   });
 
-  it('shows Title, URL, then Citation, and no notes', () => {
+  it('shows the FamilySearch fields: Source Title, Source (URL), then Citation, and no notes', () => {
     renderJustCitation();
-    const title = screen.getByText('Title:');
-    const url = screen.getByText('URL:');
+    const title = screen.getByLabelText('Source Title');
+    const url = screen.getByLabelText(/Source \(URL\)/);
     const citation = screen.getByLabelText('Citation');
     expect(title.compareDocumentPosition(url) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(url.compareDocumentPosition(citation) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.queryByText(/Notes:/)).not.toBeInTheDocument();
-    expect(screen.queryByText('A note')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Notes/)).not.toBeInTheDocument();
+  });
+
+  it('rebuilds the citation when the title or URL is edited', async () => {
+    renderJustCitation();
+    const citation = screen.getByLabelText('Citation') as HTMLTextAreaElement;
+    const title = screen.getByLabelText('Source Title');
+    await userEvent.clear(title);
+    await userEvent.type(title, 'Lithuanian Records');
+    expect(citation.value).toContain('Lithuanian Records');
+    const url = screen.getByLabelText(/Source \(URL\)/);
+    await userEvent.clear(url);
+    await userEvent.type(url, 'https://example.org/rec');
+    expect(citation.value).toContain('https://example.org/rec');
   });
 });

@@ -37,12 +37,12 @@ describe('Main', () => {
     renderMain();
     expect(screen.getByRole('button', { name: 'FamilySearch' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Ancestry' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Save to Somewhere Else' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save Citation' })).toBeInTheDocument();
   });
 
   it('navigates to the chosen service', async () => {
     renderMain();
-    await userEvent.click(screen.getByRole('button', { name: 'Save to Somewhere Else' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Save Citation' }));
     expect(screen.getByText('CITATION SCREEN')).toBeInTheDocument();
   });
 
@@ -75,17 +75,17 @@ describe('Main', () => {
     expect(screen.getByText('GENI SCREEN')).toBeInTheDocument();
   });
 
-  it('orders tiles alphabetically with Save to Somewhere Else last', () => {
+  it('orders tiles alphabetically with Save Citation last', () => {
     const order = () =>
       screen
         .getAllByRole('button')
         .filter((b) => b.className.includes('service-tile'))
         .map((b) => b.textContent || b.querySelector('img')?.getAttribute('alt'));
     const first = renderMain();
-    expect(order()).toEqual(['Ancestry', 'FamilySearch', 'Save to Somewhere Else']);
+    expect(order()).toEqual(['Ancestry', 'FamilySearch', 'Save Citation']);
     first.unmount();
     window.history.replaceState(null, '', '/?dev=1');
     renderMain();
-    expect(order()).toEqual(['Ancestry', 'FamilySearch', 'Geni', 'Zotero', 'Save to Somewhere Else']);
+    expect(order()).toEqual(['Ancestry', 'FamilySearch', 'Geni', 'Zotero', 'Save Citation']);
   });
 });

@@ -46,7 +46,7 @@ function serviceForPath(pathname: string): ServiceCrumb | null {
     return { name: 'Donate' };
   }
   if (pathname.startsWith('/citation')) {
-    return { name: 'Save to Somewhere Else' };
+    return { name: 'Save Citation' };
   }
   return null;
 }

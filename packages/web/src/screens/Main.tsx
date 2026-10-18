@@ -18,7 +18,7 @@ const img = (file: string, alt: string, fit = false) => (
   <img className={fit ? 'logo-fit' : undefined} src={`${import.meta.env.BASE_URL}images/${file}`} alt={alt} />
 );
 
-/** Every tile except "Save to Somewhere Else", which always goes last. */
+/** Every tile except "Save Citation", which always goes last. */
 const TILES: {
   service: Service;
   label: string;
@@ -51,7 +51,7 @@ const TILES: {
 
 const CITATION_TILE = {
   service: 'Citation' as Service,
-  label: 'Save to Somewhere Else',
+  label: 'Save Citation',
   content: (
     <>
       {/* Inline SVG, not an emoji: emoji glyphs are missing on some devices. */}
@@ -71,7 +71,7 @@ const CITATION_TILE = {
         <path d="M14 2v6h6" />
         <path d="M8 13h8M8 17h8M8 9h2" />
       </svg>
-      <span>Save to Somewhere Else</span>
+      <span>Save Citation</span>
     </>
   ),
 };

@@ -22,9 +22,9 @@ export function toSourceUrl(value: string): string | null {
   }
 }
 
-function citationFor(capture: Capture, title: string, style: CitationStyle): string {
+function citationFor(capture: Capture, title: string, url: string, style: CitationStyle): string {
   return formatCitation(
-    { sourceType: 'website', title, publisher: capture.publisher, url: capture.url, accessedDate: capture.accessedDate },
+    { sourceType: 'website', title, publisher: capture.publisher, url, accessedDate: capture.accessedDate },
     style,
   );
 }
@@ -38,7 +38,7 @@ export function Source() {
   const [title, setTitle] = useState(capture.title);
   const [url, setUrl] = useState(capture.url);
   const [notes, setNotes] = useState(capture.notes);
-  const [citation, setCitation] = useState(() => citationFor(capture, capture.title, style));
+  const [citation, setCitation] = useState(() => citationFor(capture, capture.title, capture.url, style));
   const [authed] = useState(() => isFsAuthenticated());
   const [loginError, setLoginError] = useState(false);
 
@@ -54,7 +54,18 @@ export function Source() {
 
   function changeStyle(next: CitationStyle): void {
     setStyle(next);
-    setCitation(citationFor(capture, title, next));
+    setCitation(citationFor(capture, title, url, next));
+  }
+
+  // Editing the title or URL rebuilds the citation from them.
+  function changeTitle(next: string): void {
+    setTitle(next);
+    setCitation(citationFor(capture, next, url, style));
+  }
+
+  function changeUrl(next: string): void {
+    setUrl(next);
+    setCitation(citationFor(capture, title, next, style));
   }
 
   // FamilySearch rejects a source without a title or with an about that isn't a URL.
@@ -101,14 +112,14 @@ export function Source() {
         <label className="field-label" htmlFor="source-title">
           Source Title
         </label>
-        <input id="source-title" value={title} onChange={(e) => setTitle(e.target.value)} required />
+        <input id="source-title" value={title} onChange={(e) => changeTitle(e.target.value)} required />
       </div>
 
       <div className="field">
         <label className="field-label" htmlFor="source-url">
           Source <span className="field-hint">(URL)</span>
         </label>
-        <input id="source-url" value={url} onChange={(e) => setUrl(e.target.value)} required />
+        <input id="source-url" value={url} onChange={(e) => changeUrl(e.target.value)} required />
       </div>
 
       <div className="field">
