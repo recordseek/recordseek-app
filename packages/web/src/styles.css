@@ -105,7 +105,7 @@ body {
   row-gap: 6px;
 }
 
-/* Support / About / Donate (screens/Header). */
+/* About / Donate / Help (screens/Header). */
 .header-menu {
   margin-left: auto;
   display: flex;
@@ -123,6 +123,15 @@ body {
   font-weight: 700;
   text-decoration: none;
   cursor: pointer;
+}
+.header-menu button,
+.header-menu a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.header-menu .menu-icon {
+  flex: none;
 }
 .header-menu button:hover:not(:disabled),
 .header-menu a:hover {

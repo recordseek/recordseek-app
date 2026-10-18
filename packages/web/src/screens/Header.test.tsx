@@ -52,10 +52,17 @@ describe('Header breadcrumb', () => {
 });
 
 describe('Header menu', () => {
-  it('opens the idea/bug form from Support', async () => {
+  it('opens the idea/bug form from Help', async () => {
     renderAt('/');
-    await userEvent.click(screen.getByRole('button', { name: 'Support' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Help' }));
     expect(screen.getByRole('dialog', { name: 'Send us an idea or bug' })).toBeInTheDocument();
+  });
+
+  it('lists About, Donate, Help in that order, each with an icon', () => {
+    renderAt('/');
+    const nav = screen.getByRole('navigation', { name: 'RecordSeek' });
+    expect([...nav.children].map((el) => el.textContent)).toEqual(['About', 'Donate', 'Help']);
+    expect(nav.querySelectorAll('svg.menu-icon')).toHaveLength(3);
   });
 
   it('links About to the website in a new tab', () => {
