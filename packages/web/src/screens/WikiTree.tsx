@@ -12,6 +12,7 @@ import {
   fetchWatchlist,
   filterPeople,
   getWikiTreeSession,
+  hasAuthcode,
   isValidWikiTreeId,
   searchWikiTree,
   takeAuthcode,
@@ -22,6 +23,8 @@ import {
   type WikiTreePerson,
   type WikiTreeSession,
 } from '../wikitree';
+import { useAutoSignIn } from '../auth/useAutoSignIn';
+import { Loading } from './Loading';
 import { BackButton } from '../components/BackButton';
 import { SavedActions } from '../components/SavedActions';
 
@@ -48,6 +51,8 @@ export function WikiTree() {
   const [found, setFound] = useState<WikiTreePerson[] | null>(null);
   const [picked, setPicked] = useState<WikiTreePerson | null>(null);
   const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState(hasAuthcode);
+  const [searching, setSearching] = useState(false);
   const [error, setError] = useState('');
   const [opened, setOpened] = useState('');
 
@@ -57,6 +62,7 @@ export function WikiTree() {
 
   function lostSession(err: unknown, step: string): void {
     reportError(err, { screen: 'wikitree', step });
+    auth.hold();
     track('wikitree_failed', { step });
     if (err instanceof WikiTreeAuthError) {
       clearWikiTreeSession();
@@ -72,14 +78,13 @@ export function WikiTree() {
   useEffect(() => {
     const code = takeAuthcode();
     if (!code) return;
-    setBusy(true);
     confirmAuthcode(code)
       .then((s) => {
         track('wikitree_login_confirmed');
         setSession(s);
       })
       .catch((err) => lostSession(err, 'login'))
-      .finally(() => setBusy(false));
+      .finally(() => setConfirming(false));
   }, []);
 
   // Signed in: prefill the picker with the whole watchlist.
@@ -104,7 +109,10 @@ export function WikiTree() {
     window.location.assign(wikiTreeLoginUrl());
   }
 
+  const auth = useAutoSignIn('wikitree', Boolean(session), signIn, confirming);
+
   function signOut(): void {
+    auth.hold();
     clearWikiTreeSession();
     setSession(null);
     setWatchlist(null);
@@ -120,12 +128,12 @@ export function WikiTree() {
   function search(event: FormEvent): void {
     event.preventDefault();
     if (busy || (!first.trim() && !last.trim())) return;
-    setBusy(true);
+    setSearching(true);
     setError('');
     searchWikiTree(sessionCookie ?? null, first, last)
       .then(setFound)
       .catch((err) => lostSession(err, 'search'))
-      .finally(() => setBusy(false));
+      .finally(() => setSearching(false));
   }
 
   const ref = wikiTreeRef(captureCitation(capture, style), capture.url, capture.title);
@@ -164,6 +172,10 @@ export function WikiTree() {
     window.open(wikiTreeEditUrl(wikiId), '_blank', 'noopener');
     setOpened(wikiId.trim());
   }
+
+  if (confirming || (!session && auth.redirecting)) return <Loading status="Signing in to WikiTree…" />;
+  if (searching) return <Loading status="Searching WikiTree…" />;
+  if (session && busy && !watchlist) return <Loading status="Loading your WikiTree watchlist…" />;
 
   if (opened) {
     return (
@@ -208,9 +220,9 @@ export function WikiTree() {
 
       {!session ? (
         <>
-          <p>Sign in to WikiTree to choose a person from your own tree.</p>
-          <button type="button" className="primary" disabled={busy} onClick={signIn}>
-            {busy ? 'Signing in…' : 'Sign in to WikiTree'}
+          <p role="alert">{error || 'WikiTree sign-in didn’t finish. Please try again.'}</p>
+          <button type="button" className="primary" onClick={auth.retry}>
+            Try again
           </button>
         </>
       ) : (
@@ -231,7 +243,6 @@ export function WikiTree() {
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
           />
-          {busy && !watchlist && <p role="status">Loading your watchlist…</p>}
           {watchlist && visible.length === 0 && <p>{watchlist.length ? 'No one on your watchlist matches.' : 'Your watchlist is empty.'}</p>}
           {visible.length > 0 && (
             <PersonList label="Your profiles" people={visible} picked={picked} onPick={pick} />
@@ -249,7 +260,7 @@ export function WikiTree() {
           {found && found.length > 0 && <PersonList label="Search results" people={found} picked={picked} onPick={pick} />}
         </>
       )}
-      {error && <p role="alert">{error}</p>}
+      {session && error && <p role="alert">{error}</p>}
 
       {picked && (
         <>

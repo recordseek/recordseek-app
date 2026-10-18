@@ -18,6 +18,8 @@ import {
   type ZoteroCollection,
   type ZoteroLogin,
 } from '../zotero';
+import { useAutoSignIn } from '../auth/useAutoSignIn';
+import { Loading } from './Loading';
 import { BackButton } from '../components/BackButton';
 import { SourceFields, useSourceFields } from '../components/SourceFields';
 import { TagEventsPicker, TAG_LABELS } from '../components/TagEventsButton';
@@ -45,6 +47,7 @@ export function Zotero() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [login, setLogin] = useState<ZoteroLogin | null>(getZoteroLogin);
   const [collections, setCollections] = useState<ZoteroCollection[]>([]);
+  const [collectionsLoaded, setCollectionsLoaded] = useState(false);
   const [collection, setCollection] = useState('');
   const [eventTags, setEventTags] = useState<Record<EventTag, boolean>>(() => Object.fromEntries(EVENT_TAGS.map((t) => [t, false])) as Record<EventTag, boolean>);
   const tags = EVENT_TAGS.filter((t) => eventTags[t]).map((t) => TAG_LABELS[t]);
@@ -72,9 +75,14 @@ export function Zotero() {
     if (!login) return;
     let live = true;
     listCollections(login)
-      .then((rows) => live && setCollections(rows))
+      .then((rows) => {
+        if (!live) return;
+        setCollections(rows);
+        setCollectionsLoaded(true);
+      })
       .catch((err: unknown) => {
         if (!live) return;
+        setCollectionsLoaded(true);
         if (err instanceof ZoteroError && (err.status === 403 || err.status === 401)) {
           // The key was revoked on zotero.org: start over.
           clearZoteroLogin();
@@ -95,10 +103,14 @@ export function Zotero() {
     window.location.assign(zoteroStartUrl(returnUrl()));
   }
 
+  const auth = useAutoSignIn('zotero', Boolean(login), connect);
+
   function disconnect(): void {
     clearZoteroLogin();
     setLogin(null);
     setCollections([]);
+    setCollectionsLoaded(false);
+    auth.hold();
     track('zotero_disconnected');
   }
 
@@ -139,13 +151,14 @@ export function Zotero() {
     navigate('/');
   }
 
+  if (!login && auth.redirecting) return <Loading status="Signing in to Zotero…" />;
   if (!login) {
     return (
       <main>
-        <h3>Save to Zotero</h3>
-        <p>Connect your Zotero account so RecordSeek can add this page to your library.</p>
-        <button type="button" className="primary" onClick={connect}>
-          Connect Zotero
+        <h3>Couldn’t connect to Zotero</h3>
+        <p role="alert">Zotero sign-in didn’t finish. Please try again.</p>
+        <button type="button" className="primary" onClick={auth.retry}>
+          Try again
         </button>
         <div className="form-footer">
           <BackButton onClick={back} />
@@ -153,6 +166,9 @@ export function Zotero() {
       </main>
     );
   }
+
+  if (status === 'saving') return <Loading status="Saving to Zotero…" />;
+  if (!collectionsLoaded && !savedKey) return <Loading status="Loading your Zotero collections…" />;
 
   if (savedKey) {
     return (
@@ -205,8 +221,8 @@ export function Zotero() {
       <p className="field-hint">Accessed {capture.accessedDate}</p>
 
       {status === 'error' && <p role="alert">{errorText}</p>}
-      <button type="button" className="primary" disabled={status === 'saving'} onClick={() => void save()}>
-        {status === 'saving' ? 'Saving…' : 'Save to Zotero'}
+      <button type="button" className="primary" onClick={() => void save()}>
+        Save to Zotero
       </button>
 
       <div className="form-footer">

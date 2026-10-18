@@ -1,6 +1,7 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import { App } from './App';
+import { stubRedirect } from './test/redirect';
 
 const DPLA_CAPTURE =
   '/?_=1781642252441&url=https%3A%2F%2Fdp.la%2F&h1=Digital%20Public%20Library%20of%20America' +
@@ -34,9 +35,12 @@ describe('hidden destinations', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Create a Source' })).toBeInTheDocument();
   });
 
-  it('opens /geni with dev mode', () => {
+  it('opens /geni with dev mode (and heads to Geni sign-in)', () => {
     window.history.replaceState({}, '', DPLA_CAPTURE + '&dev=1#/geni');
+    const assign = stubRedirect();
     render(<App />);
-    expect(screen.getByRole('heading', { name: 'Save to Geni' })).toBeInTheDocument();
+    expect(screen.getByText('Signing in to Geni…')).toBeInTheDocument();
+    expect(assign).toHaveBeenCalledTimes(1);
+    vi.unstubAllGlobals();
   });
 });

@@ -82,7 +82,7 @@ function jsonp(path: string, params: Record<string, string>, timeoutMs = 15000):
   });
 }
 
-/** Retries while Geni is rate limiting; `onBusy` lets the screen say so. */
+/** Retries while Geni is rate limiting; retries are silent (the screen keeps its loading state); `onBusy` is optional. */
 export async function withRetry<T>(
   call: () => Promise<T>,
   onBusy: () => void = () => {},

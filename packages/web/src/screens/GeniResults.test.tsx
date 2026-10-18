@@ -24,7 +24,7 @@ describe('GeniResults', () => {
     const spy = vi.spyOn(geni, 'searchPeople').mockResolvedValue(page({ profiles: [thumb] }));
     const { container } = renderGeni('/geni-results', { search });
     expect(await screen.findByRole('link', { name: 'Elizabeth Burke' })).toHaveAttribute('href', BURKE.url);
-    expect(spy).toHaveBeenCalledWith('TOK', search, 1, expect.any(Function));
+    expect(spy).toHaveBeenCalledWith('TOK', search, 1);
     expect(screen.getByText(/Norfolk, Virginia/)).toBeInTheDocument();
     expect(container.querySelector('img.geni-thumb')).toHaveAttribute('src', 'https://media.geni.com/t.jpg');
     await userEvent.click(screen.getByRole('button', { name: 'Select' }));
@@ -38,7 +38,7 @@ describe('GeniResults', () => {
     expect(await screen.findByText(/1–50 of 120 results/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Next' }));
     await screen.findByText(/51–100 of 120 results/);
-    expect(spy).toHaveBeenLastCalledWith('TOK', search, 2, expect.any(Function));
+    expect(spy).toHaveBeenLastCalledWith('TOK', search, 2);
   });
 
   it('says so when the extra details filtered everything out of the page', async () => {
@@ -51,6 +51,25 @@ describe('GeniResults', () => {
     vi.spyOn(geni, 'searchPeople').mockResolvedValue(page({ profiles: [], returned: 0, total: 0 }));
     renderGeni('/geni-results', { search });
     expect(await screen.findByText('No results found.')).toBeInTheDocument();
+  });
+
+  it('retries behind the Loading screen with no "busy, retrying" text', async () => {
+    let calls = 0;
+    let release: () => void = () => {};
+    const gate = new Promise<void>((r) => (release = r));
+    vi.spyOn(geni, 'searchPeople').mockImplementation(async (_t, _s, _p, onBusy) => {
+      calls++;
+      onBusy?.(); // Geni answered busy; the real client would now wait and retry
+      await gate;
+      return page();
+    });
+    renderGeni('/geni-results', { search });
+    expect(screen.getByRole('status')).toHaveTextContent('Searching Geni…');
+    expect(screen.queryByText(/busy, retrying/i)).not.toBeInTheDocument();
+    release();
+    await screen.findByRole('link', { name: 'Elizabeth Burke' });
+    expect(calls).toBe(1);
+    expect(screen.queryByText(/busy, retrying/i)).not.toBeInTheDocument();
   });
 
   it('rate limit: friendly message, retry, and no error report', async () => {
@@ -85,7 +104,7 @@ describe('GeniResults', () => {
     const find = vi.spyOn(geni, 'searchPeople');
     renderGeni('/geni-results', { search: { ...geni.emptyCriteria(), pid: '6000000085123762838' } });
     expect(await screen.findByRole('link', { name: 'Elizabeth Burke' })).toBeInTheDocument();
-    expect(lookup).toHaveBeenCalledWith('TOK', 'profile-g6000000085123762838', expect.any(Function));
+    expect(lookup).toHaveBeenCalledWith('TOK', 'profile-g6000000085123762838', );
     expect(find).not.toHaveBeenCalled();
   });
 

@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router';
 import { CaptureProvider } from '../capture/CaptureContext';
 import { WikiTree } from './WikiTree';
+import { stubRedirect } from '../test/redirect';
 
 const HREF = 'http://localhost:9000/?_=1781642252441&url=https%3A%2F%2Fdp.la%2F&title=Digital%20Public%20Library%20of%20America';
 
@@ -23,7 +24,11 @@ function renderScreen() {
 const raw = (n: number, first: string) => ({ Id: n, Name: `Smith-${n}`, FirstName: first, LastNameAtBirth: 'Smith', BirthDate: '1850-00-00' });
 
 describe('WikiTree', () => {
-  beforeEach(() => sessionStorage.clear());
+  beforeEach(() => {
+    sessionStorage.clear();
+    // Signed out by default: the screen would redirect, so mark the attempt as used.
+    sessionStorage.setItem('rs_auth_attempted_wikitree', '1');
+  });
   afterEach(() => vi.unstubAllGlobals());
 
   it('shows a ref block with the wiki link', () => {
@@ -46,12 +51,12 @@ describe('WikiTree', () => {
     renderScreen();
     await userEvent.type(screen.getByLabelText('WikiTree ID'), 'Smith');
     await userEvent.click(screen.getByRole('button', { name: 'Open the edit page' }));
-    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(screen.getByText(/A WikiTree ID looks like/)).toBeInTheDocument();
     expect(open).not.toHaveBeenCalled();
     await userEvent.type(screen.getByLabelText('WikiTree ID'), '-123');
     await userEvent.click(screen.getByRole('button', { name: 'Open the edit page' }));
     expect(open).toHaveBeenCalledWith('https://www.wikitree.com/index.php?title=Special:EditPerson&w=Smith-123', '_blank', 'noopener');
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByText(/A WikiTree ID looks like/)).not.toBeInTheDocument();
     open.mockRestore();
   });
 
@@ -75,10 +80,39 @@ describe('WikiTree', () => {
     expect(screen.getByText('MAIN')).toBeInTheDocument();
   });
 
-  it('offers sign-in when signed out', () => {
+  it('redirects to WikiTree at once when signed out, showing the Loading screen', () => {
+    sessionStorage.clear();
+    const assign = stubRedirect();
     renderScreen();
-    expect(screen.getByRole('button', { name: 'Sign in to WikiTree' })).toBeInTheDocument();
+    expect(assign).toHaveBeenCalledTimes(1);
+    expect(String(assign.mock.calls[0]?.[0])).toContain('clientLogin');
+    expect(screen.getByRole('status')).toHaveTextContent('Signing in to WikiTree…');
+  });
+
+  it('does not redirect again after a failed return: shows Try again and the ID fallback', async () => {
+    const assign = stubRedirect();
+    renderScreen();
+    expect(assign).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent('sign-in didn’t finish');
     expect(screen.getByText(/Not on your watchlist\? Enter an ID/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(assign).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows Loading while the authcode is confirmed and the watchlist loads', async () => {
+    sessionStorage.setItem('rs_wikitree_authcode', 'code');
+    const assign = stubRedirect();
+    vi.stubGlobal('fetch', vi.fn(async (_url: string, init: { body: URLSearchParams }) => {
+      const data =
+        init.body.get('action') === 'clientLogin'
+          ? { clientLogin: { result: 'Success', username: 'Smith-1', userid: 1 }, session: 'c=1' }
+          : [{ status: 0, watchlistCount: 1, watchlist: [raw(1, 'Ann')] }];
+      return { ok: true, status: 200, json: async () => data };
+    }));
+    renderScreen();
+    expect(screen.getByRole('status')).toHaveTextContent('Signing in to WikiTree…');
+    await screen.findByText('Ann Smith', { exact: false });
+    expect(assign).not.toHaveBeenCalled();
   });
 
   it('confirms the authcode, lists the watchlist, filters and picks', async () => {
@@ -111,6 +145,6 @@ describe('WikiTree', () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, json: async () => [{ status: 'Access denied' }] })));
     renderScreen();
     expect(await screen.findByRole('alert')).toHaveTextContent(/sign in again/i);
-    expect(screen.getByRole('button', { name: 'Sign in to WikiTree' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
   });
 });

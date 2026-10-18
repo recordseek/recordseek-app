@@ -57,6 +57,15 @@ export function wikiTreeLoginUrl(): string {
   return `${API_LOGIN}?${new URLSearchParams({ action: 'clientLogin', returnURL: wikiTreeReturnUrl(), appId: WIKITREE_APP_ID })}`;
 }
 
+/** True when wikitree-callback.html left an authcode to confirm. */
+export function hasAuthcode(): boolean {
+  try {
+    return Boolean(sessionStorage.getItem(AUTHCODE_KEY));
+  } catch {
+    return false;
+  }
+}
+
 /** Reads and clears the authcode that wikitree-callback.html stashed. */
 export function takeAuthcode(): string | null {
   try {

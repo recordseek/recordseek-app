@@ -13,7 +13,8 @@ import {
 import { useGeniFlow } from '../session/GeniContext';
 import { BackButton } from '../components/BackButton';
 import { ForwardButton } from '../components/ForwardButton';
-import { BUSY_TEXT, useGeniGuard } from './geniGuard';
+import { useGeniGuard } from './geniGuard';
+import { Loading } from './Loading';
 
 interface QuickPick {
   label: string;
@@ -33,6 +34,7 @@ export function GeniSearch() {
   const s = state.search;
   const [quick, setQuick] = useState<QuickPick[]>([]);
   const [quickNote, setQuickNote] = useState('');
+  const [quickLoading, setQuickLoading] = useState(true);
 
   // Load "me" and then my family, one call after the other (Geni allows ~10 calls per 10 s).
   useEffect(() => {
@@ -40,11 +42,10 @@ export function GeniSearch() {
     let active = true;
     (async () => {
       try {
-        const busy = () => active && setQuickNote(BUSY_TEXT);
-        const me = await myProfile(token, busy);
+        const me = await myProfile(token);
         if (!active) return;
         setQuick([{ label: 'Me', person: me }]);
-        const family = await immediateFamily(token, 'profile', busy);
+        const family = await immediateFamily(token, 'profile');
         if (!active) return;
         setQuick([
           { label: 'Me', person: me },
@@ -54,9 +55,13 @@ export function GeniSearch() {
           ...family.children.map((person) => ({ label: 'Child', person })),
         ]);
         setQuickNote('');
+        setQuickLoading(false);
       } catch {
         // Quick picks are a convenience; searching still works.
-        if (active) setQuickNote('Couldn’t load your family from Geni right now. You can still search.');
+        if (active) {
+          setQuickNote('Couldn’t load your family from Geni right now. You can still search.');
+          setQuickLoading(false);
+        }
       }
     })();
     return () => {
@@ -83,6 +88,7 @@ export function GeniSearch() {
   }
 
   if (!token) return null;
+  if (quickLoading) return <Loading status="Loading your family from Geni…" />;
 
   return (
     <main>

@@ -3,8 +3,6 @@ import { useNavigate } from 'react-router';
 import { getGeniToken } from '../geni';
 import { useGeniFlow } from '../session/GeniContext';
 
-export const BUSY_TEXT = 'Geni is busy, retrying…';
-
 /**
  * The Geni token for screens after the source form. Without a token, or without
  * the source from /geni, it sends the user back to /geni (which has the sign-in).

@@ -13,7 +13,8 @@ import { reportError } from '../sentry';
 import { useGeniFlow } from '../session/GeniContext';
 import { BackButton } from '../components/BackButton';
 import { ForwardButton } from '../components/ForwardButton';
-import { BUSY_TEXT, useGeniGuard } from './geniGuard';
+import { useGeniGuard } from './geniGuard';
+import { Loading } from './Loading';
 
 const GROUPS: { key: keyof GeniFamily; title: string }[] = [
   { key: 'parents', title: 'Parents' },
@@ -42,7 +43,6 @@ export function GeniAttach() {
   const [familyNote, setFamilyNote] = useState('');
   const [extra, setExtra] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -53,7 +53,7 @@ export function GeniAttach() {
   useEffect(() => {
     if (!token || !person) return;
     let active = true;
-    immediateFamily(token, person.id, () => active && setFamilyNote(BUSY_TEXT))
+    immediateFamily(token, person.id)
       .then((f) => {
         if (!active) return;
         setFamily(f);
@@ -85,7 +85,6 @@ export function GeniAttach() {
           sourceUrl: source.url,
           profileIds: people.map((p) => p.id),
         },
-        () => setNotice(BUSY_TEXT),
       );
       track('geni_saved', { tagged: doc.tagged, people: doc.taggedIds.length });
       setSaved({ doc, people });
@@ -96,9 +95,11 @@ export function GeniAttach() {
       setError(describeGeniError(err));
     } finally {
       setBusy(false);
-      setNotice('');
     }
   }
+
+  if (busy) return <Loading status="Saving to Geni…" />;
+  if (!family && !familyNote) return <Loading status="Loading their family from Geni…" />;
 
   return (
     <main>
@@ -152,7 +153,6 @@ export function GeniAttach() {
       )}
 
       <p className="field-hint">Geni sets who can see new documents; check the document’s privacy on Geni.</p>
-      {notice && <p role="status">{notice}</p>}
       {error && <p role="alert">{error}</p>}
 
       <div className="form-footer">

@@ -5,6 +5,8 @@ import { useCapture } from '../capture/CaptureContext';
 import { clearGeniToken, geniLoginUrl, getGeniToken } from '../geni';
 import { clearLastService } from '../prefs';
 import { useGeniFlow } from '../session/GeniContext';
+import { useAutoSignIn } from '../auth/useAutoSignIn';
+import { Loading } from './Loading';
 import { BackButton } from '../components/BackButton';
 import { ForwardButton } from '../components/ForwardButton';
 import { SourceFields, useSourceFields } from '../components/SourceFields';
@@ -42,10 +44,13 @@ export function Geni() {
     window.location.assign(geniLoginUrl());
   }
 
+  const auth = useAutoSignIn('geni', Boolean(token), signIn);
+
   function signOut(): void {
     clearGeniToken();
     clearAll();
     setToken(null);
+    auth.hold();
   }
 
   function back(): void {
@@ -60,13 +65,14 @@ export function Geni() {
     navigate('/geni-search');
   }
 
+  if (!token && auth.redirecting) return <Loading status="Signing in to Geni…" />;
   if (!token) {
     return (
       <main>
-        <h3>Save to Geni</h3>
-        <p>Sign in to Geni so RecordSeek can add this page as a document on a profile.</p>
-        <button type="button" className="primary" onClick={signIn}>
-          Sign in to Geni
+        <h3>Couldn’t connect to Geni</h3>
+        <p role="alert">Geni sign-in didn’t finish. Please try again.</p>
+        <button type="button" className="primary" onClick={auth.retry}>
+          Try again
         </button>
         <div className="form-footer">
           <BackButton onClick={back} />

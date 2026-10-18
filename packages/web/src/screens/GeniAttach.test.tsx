@@ -26,7 +26,8 @@ afterEach(() => vi.restoreAllMocks());
 describe('GeniAttach', () => {
   it('shows the person and the source, and falls back to search without a person', async () => {
     renderGeni('/geni-attach', { selected: BURKE });
-    expect(screen.getByRole('link', { name: 'Elizabeth Burke' })).toHaveAttribute('href', BURKE.url);
+    expect(screen.getByRole('status')).toHaveTextContent('Loading their family from Geni…');
+    expect(await screen.findByRole('link', { name: 'Elizabeth Burke' })).toHaveAttribute('href', BURKE.url);
     expect(screen.getByText(/Source: "DPLA"/)).toBeInTheDocument();
     await screen.findByLabelText(/John Burke/);
   });
@@ -49,7 +50,6 @@ describe('GeniAttach', () => {
         sourceUrl: SOURCE.url,
         profileIds: ['profile-1'],
       }),
-      expect.any(Function),
     );
     expect(await screen.findByTestId('where')).toHaveTextContent('/geni-complete');
   });

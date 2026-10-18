@@ -15,7 +15,8 @@ import { reportError } from '../sentry';
 import { useGeniFlow } from '../session/GeniContext';
 import { BackButton } from '../components/BackButton';
 import { pageWindow } from './FsResults';
-import { BUSY_TEXT, useGeniGuard } from './geniGuard';
+import { useGeniGuard } from './geniGuard';
+import { Loading } from './Loading';
 import './geni.css';
 
 // Geni reports millions of matches for a common name; a pager past this helps no one.
@@ -44,7 +45,6 @@ export function GeniResults() {
   const [results, setResults] = useState<GeniProfile[] | null>(null);
   const [returned, setReturned] = useState(0);
   const [total, setTotal] = useState(0);
-  const [notice, setNotice] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [canRetry, setCanRetry] = useState(false);
   // Paging quickly can overlap requests; only the latest may update the screen.
@@ -57,8 +57,6 @@ export function GeniResults() {
     setResults(null);
     setError(null);
     setCanRetry(false);
-    setNotice('');
-    const busy = () => !stale() && setNotice(BUSY_TEXT);
     try {
       if (byPid) {
         if (!pidRef) {
@@ -66,7 +64,7 @@ export function GeniResults() {
           setResults([]);
           return;
         }
-        const person = await getProfile(token, pidRef, busy);
+        const person = await getProfile(token, pidRef);
         if (stale()) return;
         if (!person) setError(`No Geni profile found with ID ${s.pid.trim()}. Check the ID and try again.`);
         setResults(person ? [person] : []);
@@ -74,7 +72,7 @@ export function GeniResults() {
         setTotal(person ? 1 : 0);
         if (page === 1) track('geni_results', { result_count: person ? 1 : 0, by_id: true });
       } else {
-        const found = await searchPeople(token, s, page, busy);
+        const found = await searchPeople(token, s, page);
         if (stale()) return;
         setResults(found.profiles);
         setReturned(found.returned);
@@ -89,8 +87,6 @@ export function GeniResults() {
       setError(describeGeniError(err));
       setCanRetry(true);
       setResults([]);
-    } finally {
-      if (!stale()) setNotice('');
     }
   }, [token, byPid, pidRef, s, page]);
 
@@ -104,6 +100,8 @@ export function GeniResults() {
   }
 
   if (!token) return null;
+
+  if (results === null) return <Loading status="Searching Geni…" />;
 
   const people = results ?? [];
   const searchTerm = (s.surname || s.givenName || 'person').trim();
@@ -126,7 +124,6 @@ export function GeniResults() {
           Try again
         </button>
       )}
-      {results === null && <p role="status">{notice || 'Searching Geni…'}</p>}
       {results !== null && people.length === 0 && !error && (
         <p>
           {returned > 0

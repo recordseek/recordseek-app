@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router';
 import { CaptureProvider } from '../capture/CaptureContext';
 import { Zotero } from './Zotero';
+import { stubRedirect } from '../test/redirect';
 
 const HREF = 'http://localhost:9000/?_=1781642252441&url=https%3A%2F%2Fdp.la%2F&title=DPLA';
 
@@ -43,9 +44,40 @@ function posted(f: ReturnType<typeof mockApi>) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('Zotero', () => {
-  it('offers Connect when there is no key', () => {
+  it('redirects to Zotero at once when there is no key, showing the Loading screen', () => {
+    const assign = stubRedirect();
     renderScreen();
-    expect(screen.getByRole('button', { name: 'Connect Zotero' })).toBeInTheDocument();
+    expect(assign).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('status')).toHaveTextContent('Signing in to Zotero…');
+  });
+
+  it('does not redirect again after a failed return: shows Try again', async () => {
+    const assign = stubRedirect();
+    sessionStorage.setItem('rs_auth_attempted_zotero', '1');
+    renderScreen();
+    expect(assign).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent('Zotero sign-in didn’t finish');
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(assign).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows Loading while collections load and while saving', async () => {
+    connect();
+    let release: () => void = () => {};
+    const gate = new Promise<void>((r) => (release = r));
+    vi.stubGlobal('fetch', vi.fn(async (_url: string, init?: RequestInit) => {
+      if (init?.method === 'POST') {
+        await gate;
+        return { ok: true, status: 200, json: async () => ({ successful: { '0': { key: 'ITEM1', version: 3 } } }) };
+      }
+      return { ok: true, status: 200, json: async () => [] };
+    }));
+    renderScreen();
+    expect(screen.getByRole('status')).toHaveTextContent('Loading your Zotero collections…');
+    await userEvent.click(await screen.findByRole('button', { name: 'Save to Zotero' }));
+    expect(screen.getByRole('status')).toHaveTextContent('Saving to Zotero…');
+    release();
+    await screen.findByRole('link', { name: 'View in Zotero' });
   });
 
   it('shows only the FamilySearch-style fields, with Accessed as plain text', async () => {
@@ -143,18 +175,21 @@ describe('Zotero', () => {
   it('drops a revoked key back to Connect', async () => {
     connect();
     mockApi({ ok: false, status: 403, body: {} });
+    const stubbed = stubRedirect();
     renderScreen();
     await userEvent.click(await screen.findByRole('button', { name: 'Save to Zotero' }));
-    expect(await screen.findByRole('button', { name: 'Connect Zotero' })).toBeInTheDocument();
+    expect(stubbed).toHaveBeenCalledTimes(1); // a revoked key signs in again
     expect(localStorage.getItem('rs_zotero')).toBeNull();
   });
 
   it('disconnects', async () => {
     connect();
     mockApi({ ok: true, status: 200, body: {} });
+    const stubbed = stubRedirect();
     renderScreen();
     await userEvent.click(await screen.findByRole('button', { name: 'Disconnect' }));
-    expect(screen.getByRole('button', { name: 'Connect Zotero' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+    expect(stubbed).not.toHaveBeenCalled();
     expect(localStorage.getItem('rs_zotero')).toBeNull();
   });
 });

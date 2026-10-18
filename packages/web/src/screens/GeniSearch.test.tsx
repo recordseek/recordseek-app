@@ -18,6 +18,7 @@ afterEach(() => vi.restoreAllMocks());
 describe('GeniSearch', () => {
   it('disables Next until there is a name, then goes to the results', async () => {
     renderGeni('/geni-search');
+    await screen.findByLabelText('Birth Year');
     const next = screen.getByRole('button', { name: 'Next' });
     expect(next).toBeDisabled();
     await userEvent.type(screen.getByLabelText('Birth Year'), '1712');
@@ -29,14 +30,14 @@ describe('GeniSearch', () => {
     expect(screen.getByTestId('where')).toHaveTextContent('/geni-results');
   });
 
-  it('says Geni searches by name only', () => {
+  it('says Geni searches by name only', async () => {
     renderGeni('/geni-search');
-    expect(screen.getByText(/Geni searches by name only/)).toBeInTheDocument();
+    expect(await screen.findByText(/Geni searches by name only/)).toBeInTheDocument();
   });
 
   it('normalizes a pasted geni.com link and rejects pasted junk', async () => {
     renderGeni('/geni-search');
-    const box = screen.getByLabelText(/Already know their Geni profile/);
+    const box = await screen.findByLabelText(/Already know their Geni profile/);
     await userEvent.click(box);
     await userEvent.paste('https://www.geni.com/people/Col-Albert-Smith/6000000085123762838');
     expect(box).toHaveValue('6000000085123762838');
@@ -49,7 +50,7 @@ describe('GeniSearch', () => {
 
   it('accepts profile-123 and disables the name fields', async () => {
     renderGeni('/geni-search');
-    await userEvent.type(screen.getByLabelText(/Already know their Geni profile/), 'profile-123');
+    await userEvent.type(await screen.findByLabelText(/Already know their Geni profile/), 'profile-123');
     expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled();
     expect(screen.getByLabelText('Given Name(s)')).toBeDisabled();
   });
@@ -64,7 +65,7 @@ describe('GeniSearch', () => {
   it('has a Me pick, loaded before the family call', async () => {
     renderGeni('/geni-search');
     expect(await screen.findByRole('button', { name: 'Me' })).toBeInTheDocument();
-    expect(geni.myProfile).toHaveBeenCalledWith('TOK', expect.any(Function));
+    expect(geni.myProfile).toHaveBeenCalledWith('TOK');
   });
 
   it('still works when the quick picks cannot load', async () => {
@@ -75,9 +76,14 @@ describe('GeniSearch', () => {
     expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled();
   });
 
+  it('shows the loading screen while the quick picks load', () => {
+    renderGeni('/geni-search');
+    expect(screen.getByRole('status')).toHaveTextContent('Loading your family from Geni…');
+  });
+
   it('Reset clears the form', async () => {
     renderGeni('/geni-search', { search: { ...geni.emptyCriteria(), surname: 'Burke' } });
-    expect(screen.getByLabelText('Last Names (Surname)')).toHaveValue('Burke');
+    expect(await screen.findByLabelText('Last Names (Surname)')).toHaveValue('Burke');
     await userEvent.click(screen.getByRole('button', { name: 'Reset' }));
     expect(screen.getByLabelText('Last Names (Surname)')).toHaveValue('');
     expect(BURKE.id).toBe('profile-1');
