@@ -53,9 +53,32 @@ describe('Zotero', () => {
     const link = await screen.findByRole('link', { name: 'View it on zotero.org' });
     expect(link).toHaveAttribute('href', 'https://www.zotero.org/jane/items/ITEM1');
     const post = f.mock.calls.find(([, init]) => init?.method === 'POST')![1] as RequestInit;
-    const item = JSON.parse(post.body as string)[0];
+    const [item, note] = JSON.parse(post.body as string);
     expect(item).toMatchObject({ itemType: 'webpage', url: 'https://dp.la/', collections: ['C1'] });
+    expect(item.key).toMatch(/^[2-9A-HJ-NP-Z]{8}$/);
+    expect(note).toMatchObject({ itemType: 'note', parentItem: item.key });
+    expect(note.note).toContain('DPLA');
     expect((post.headers as Record<string, string>)['Zotero-Write-Token']).toMatch(/^[0-9a-f]{32}$/);
+  });
+
+  it('saves the edited fields as the chosen item type', async () => {
+    connect();
+    const f = mockApi({ ok: true, status: 200, body: { successful: { '0': { key: 'ITEM1', version: 3 } } } });
+    renderScreen();
+    await screen.findByRole('option', { name: 'Research' });
+    const title = screen.getByLabelText('Source Title');
+    await userEvent.clear(title);
+    await userEvent.type(title, 'Edited');
+    expect((screen.getByLabelText('Citation') as HTMLTextAreaElement).value).toContain('Edited');
+    await userEvent.type(screen.getByLabelText(/Describe the Record/), 'my notes');
+    await userEvent.selectOptions(screen.getByLabelText('Item type'), 'newspaperArticle');
+    await userEvent.click(screen.getByRole('button', { name: 'Save to Zotero' }));
+    await screen.findByRole('link', { name: 'View it on zotero.org' });
+    const post = f.mock.calls.find(([, init]) => init?.method === 'POST')![1] as RequestInit;
+    const [item, note] = JSON.parse(post.body as string);
+    expect(item).toMatchObject({ itemType: 'newspaperArticle', title: 'Edited' });
+    expect(item.extra).toContain('Edited');
+    expect(note.note).toContain('my notes');
   });
 
   it('shows an error when the save fails and lets the user retry', async () => {

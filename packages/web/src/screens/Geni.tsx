@@ -2,7 +2,6 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { track } from '../analytics';
 import { useCapture } from '../capture/CaptureContext';
-import { captureCitation } from '../citationText';
 import {
   addDocument,
   clearGeniToken,
@@ -14,9 +13,10 @@ import {
   type GeniDocument,
   type GeniProfile,
 } from '../geni';
-import { usePersistedCitationStyle, clearLastService } from '../prefs';
+import { clearLastService } from '../prefs';
 import { reportError } from '../sentry';
 import { BackButton } from '../components/BackButton';
+import { SourceFields, useSourceFields } from '../components/SourceFields';
 
 const BUSY_TEXT = 'Geni is busy, retrying…';
 
@@ -29,7 +29,7 @@ const BUSY_TEXT = 'Geni is busy, retrying…';
 export function Geni() {
   const capture = useCapture();
   const navigate = useNavigate();
-  const [style] = usePersistedCitationStyle();
+  const { values, style, onChange, setStyle } = useSourceFields(capture);
   const [token, setToken] = useState<string | null>(getGeniToken);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<GeniProfile[] | null>(null);
@@ -43,7 +43,7 @@ export function Geni() {
     track('geni_viewed');
   }, []);
 
-  const text = `${captureCitation(capture, style)}\n\n${capture.url}`;
+  const text = [values.citation, values.notes, values.url].filter((t) => t.trim()).join('\n\n');
 
   /** Runs a Geni call with the busy notice and shared error handling. */
   async function run(step: string, work: () => Promise<void>): Promise<void> {
@@ -100,7 +100,7 @@ export function Geni() {
     if (!token || !picked || busy) return;
     void run('save', async () => {
       const doc = await addDocument(
-        { token, title: capture.title || capture.url, text, sourceUrl: capture.url, profileId: picked.id },
+        { token, title: values.title.trim() || values.url, text, sourceUrl: values.url, profileId: picked.id },
         () => setNotice(BUSY_TEXT),
       );
       track('geni_saved', { tagged: doc.tagged });
@@ -148,11 +148,12 @@ export function Geni() {
     <main>
       <h3>Save to Geni</h3>
       <p>
-        For <strong>{capture.title || capture.url}</strong>{' '}
         <button type="button" className="link-button" onClick={signOut}>
           Sign out
         </button>
       </p>
+
+      <SourceFields idPrefix="geni" values={values} style={style} onChange={onChange} onStyleChange={setStyle} />
 
       <form onSubmit={search}>
         <label className="field-label" htmlFor="geni-query">
@@ -185,12 +186,8 @@ export function Geni() {
 
       {picked && (
         <>
-          <label className="field-label" htmlFor="geni-doc">
-            Document text
-          </label>
-          <textarea id="geni-doc" aria-label="Document text" readOnly value={text} rows={5} />
           <p className="field-hint">Geni sets who can see new documents; check the document’s privacy on Geni.</p>
-          <button type="button" className="primary" disabled={busy} onClick={save}>
+          <button type="button" className="primary" disabled={busy || !values.title.trim() || !values.url.trim()} onClick={save}>
             {busy ? 'Saving…' : `Save to ${picked.name}`}
           </button>
         </>

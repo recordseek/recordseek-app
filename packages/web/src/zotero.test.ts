@@ -1,7 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
-import type { Capture } from './capture/CaptureContext';
 import {
   buildZoteroItem,
+  buildZoteroNote,
+  newItemKey,
+  type ZoteroForm,
   clearZoteroLogin,
   createItem,
   getZoteroLogin,
@@ -12,13 +14,13 @@ import {
   ZoteroError,
 } from './zotero';
 
-const capture: Capture = {
-  url: 'https://dp.la/',
+const form: ZoteroForm = {
+  itemType: 'webpage',
   title: 'DPLA',
-  publisher: 'Digital Public Library',
-  domain: 'dp.la',
+  url: 'https://dp.la/',
+  citation: 'The citation',
   notes: '',
-  accessedDate: '18 October 2026',
+  publisher: 'Digital Public Library',
 };
 const login = { key: 'KEY', userId: '42', username: 'jane' };
 
@@ -28,9 +30,10 @@ function json(body: unknown, status = 200): typeof fetch {
 
 describe('zotero', () => {
   it('builds a webpage item', () => {
-    const item = buildZoteroItem(capture, 'The citation', 'COLL', new Date('2026-10-18T12:34:56.789Z'));
+    const item = buildZoteroItem({ ...form, collectionKey: 'COLL' }, new Date('2026-10-18T12:34:56.789Z'), 'ABCD2345');
     expect(item).toEqual({
       itemType: 'webpage',
+      key: 'ABCD2345',
       title: 'DPLA',
       url: 'https://dp.la/',
       accessDate: '2026-10-18T12:34:56Z',
@@ -38,7 +41,29 @@ describe('zotero', () => {
       extra: 'The citation',
       collections: ['COLL'],
     });
-    expect(buildZoteroItem(capture, 'c').collections).toEqual([]);
+    expect(buildZoteroItem(form).collections).toEqual([]);
+  });
+
+  it('only sets the publisher field each item type has', () => {
+    const at = (itemType: ZoteroForm['itemType']) => buildZoteroItem({ ...form, itemType });
+    expect(at('newspaperArticle')).toMatchObject({ publicationTitle: 'Digital Public Library' });
+    expect(at('newspaperArticle')).not.toHaveProperty('websiteTitle');
+    expect(at('book')).toMatchObject({ publisher: 'Digital Public Library' });
+    expect(at('document')).toMatchObject({ publisher: 'Digital Public Library' });
+    for (const t of ['manuscript', 'letter'] as const) {
+      expect(at(t)).not.toHaveProperty('websiteTitle');
+      expect(at(t)).not.toHaveProperty('publisher');
+      expect(at(t)).not.toHaveProperty('publicationTitle');
+    }
+  });
+
+  it('builds an escaped child note and an 8-char key', () => {
+    expect(buildZoteroNote('KEY12345', 'A <b> & c', 'line1\nline2')).toEqual({
+      itemType: 'note',
+      parentItem: 'KEY12345',
+      note: '<p>A &lt;b&gt; &amp; c</p><p>line1<br/>line2</p>',
+    });
+    expect(newItemKey()).toMatch(/^[2-9A-HJ-NP-Z]{8}$/);
   });
 
   it('reads and clears the stored login', () => {
@@ -73,7 +98,7 @@ describe('zotero', () => {
 
   it('creates an item with a write token', async () => {
     const f = json({ successful: { '0': { key: 'ITEM1', version: 7 } } });
-    const made = await createItem(login, buildZoteroItem(capture, 'c'), 'tok', f);
+    const made = await createItem(login, [buildZoteroItem(form)], 'tok', f);
     expect(made).toEqual({ key: 'ITEM1', version: 7 });
     const [, init] = (f as unknown as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
     expect((init.headers as Record<string, string>)['Zotero-Write-Token']).toBe('tok');
@@ -81,8 +106,8 @@ describe('zotero', () => {
   });
 
   it('reports rejected items and HTTP errors', async () => {
-    await expect(createItem(login, buildZoteroItem(capture, 'c'), 't', json({ failed: { '0': { message: 'bad' } } }))).rejects.toThrow('bad');
-    await expect(createItem(login, buildZoteroItem(capture, 'c'), 't', json({}, 403))).rejects.toBeInstanceOf(ZoteroError);
+    await expect(createItem(login, [buildZoteroItem(form)], 't', json({ failed: { '0': { message: 'bad' } } }))).rejects.toThrow('bad');
+    await expect(createItem(login, [buildZoteroItem(form)], 't', json({}, 403))).rejects.toBeInstanceOf(ZoteroError);
   });
 
   it('makes distinct 32-char write tokens and item links', () => {

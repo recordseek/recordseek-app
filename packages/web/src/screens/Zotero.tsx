@@ -2,11 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { track } from '../analytics';
 import { useCapture } from '../capture/CaptureContext';
-import { captureCitation } from '../citationText';
-import { usePersistedCitationStyle, clearLastService } from '../prefs';
+import { clearLastService } from '../prefs';
 import { reportError } from '../sentry';
 import {
   buildZoteroItem,
+  buildZoteroNote,
+  newItemKey,
+  ZOTERO_ITEM_TYPES,
+  type ZoteroItemType,
   clearZoteroLogin,
   createItem,
   getZoteroLogin,
@@ -19,6 +22,7 @@ import {
   type ZoteroLogin,
 } from '../zotero';
 import { BackButton } from '../components/BackButton';
+import { SourceFields, useSourceFields } from '../components/SourceFields';
 
 type Status = 'idle' | 'saving' | 'error';
 
@@ -28,14 +32,15 @@ function returnUrl(): string {
 }
 
 /**
- * Save the capture to a Zotero library as a webpage item. Sign-in is OAuth 1.0a
+ * Save the capture to a Zotero library as a library item. Sign-in is OAuth 1.0a
  * through the zotero-auth function (which holds the client secret); the API key
  * it returns lives in localStorage and calls go straight to api.zotero.org.
  */
 export function Zotero() {
   const capture = useCapture();
   const navigate = useNavigate();
-  const [style] = usePersistedCitationStyle();
+  const { values, style, onChange, setStyle } = useSourceFields(capture);
+  const [itemType, setItemType] = useState<ZoteroItemType>('webpage');
   const [login, setLogin] = useState<ZoteroLogin | null>(getZoteroLogin);
   const [collections, setCollections] = useState<ZoteroCollection[]>([]);
   const [collection, setCollection] = useState('');
@@ -95,8 +100,14 @@ export function Zotero() {
     if (!login || status === 'saving') return;
     setStatus('saving');
     try {
-      const item = buildZoteroItem(capture, captureCitation(capture, style), collection || undefined);
-      const made = await createItem(login, item, writeToken.current);
+      const key = newItemKey();
+      const item = buildZoteroItem(
+        { ...values, itemType, publisher: capture.publisher, collectionKey: collection || undefined },
+        new Date(),
+        key,
+      );
+      // Parent and child note go in one request, so the note can name the client-made key.
+      const made = await createItem(login, [item, buildZoteroNote(key, values.citation, values.notes)], writeToken.current);
       track('zotero_saved', { has_collection: Boolean(collection) });
       setSavedKey(made.key);
       setStatus('idle');
@@ -159,9 +170,21 @@ export function Zotero() {
           Disconnect
         </button>
       </p>
-      <p>
-        For <strong>{capture.title || capture.url}</strong>
-      </p>
+
+      <SourceFields idPrefix="zotero" values={values} style={style} onChange={onChange} onStyleChange={setStyle} />
+
+      <div className="field">
+        <label className="field-label" htmlFor="zotero-item-type">
+          Item type
+        </label>
+        <select id="zotero-item-type" value={itemType} onChange={(e) => setItemType(e.target.value as ZoteroItemType)}>
+          {ZOTERO_ITEM_TYPES.map((t) => (
+            <option key={t.value} value={t.value}>
+              {t.label}
+            </option>
+          ))}
+        </select>
+      </div>
 
       <label className="field-label" htmlFor="zotero-collection">
         Collection
@@ -176,7 +199,7 @@ export function Zotero() {
       </select>
 
       {status === 'error' && <p role="alert">{errorText}</p>}
-      <button type="button" className="primary" disabled={status === 'saving'} onClick={() => void save()}>
+      <button type="button" className="primary" disabled={status === 'saving' || !values.title.trim() || !values.url.trim()} onClick={() => void save()}>
         {status === 'saving' ? 'Saving…' : 'Save to Zotero'}
       </button>
 

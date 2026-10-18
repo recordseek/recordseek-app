@@ -51,10 +51,16 @@ describe('Geni', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Search' }));
     expect(search).toHaveBeenCalledWith('TOK', 'burke', expect.any(Function));
     await userEvent.click(await screen.findByRole('radio', { name: /Elizabeth Burke/ }));
-    expect((screen.getByLabelText('Document text') as HTMLTextAreaElement).value).toMatch(/DPLA[\s\S]*\n\nhttps:\/\/dp\.la\/$/);
+    await userEvent.type(screen.getByLabelText(/Describe the Record/), 'my notes');
     await userEvent.click(screen.getByRole('button', { name: 'Save to Elizabeth Burke' }));
     expect(add).toHaveBeenCalledWith(
-      expect.objectContaining({ token: 'TOK', title: 'DPLA', sourceUrl: 'https://dp.la/', profileId: 'profile-1' }),
+      expect.objectContaining({
+        token: 'TOK',
+        title: 'DPLA',
+        text: expect.stringMatching(/DPLA[\s\S]*\n\nmy notes\n\nhttps:\/\/dp\.la\/$/),
+        sourceUrl: 'https://dp.la/',
+        profileId: 'profile-1',
+      }),
       expect.any(Function),
     );
     expect(await screen.findByRole('link', { name: 'View the document on Geni' })).toHaveAttribute(
