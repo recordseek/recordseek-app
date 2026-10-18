@@ -532,7 +532,7 @@ export async function addDocument(
         fetchImpl,
       ),
     onBusy,
-  )) as { id?: string };
+  )) as { id?: string; guid?: string };
   if (!doc.id) throw new GeniError('Geni returned no document');
   const taggedIds: string[] = [];
   const failedIds: string[] = [];
@@ -546,7 +546,8 @@ export async function addDocument(
   }
   return {
     id: doc.id,
-    url: `https://www.geni.com/documents/view?doc_id=${doc.id.replace(/^document-/, '')}`,
+    // Geni's document pages take the long guid (doc_id=6000000…), not the API's numeric id.
+    url: `https://www.geni.com/documents/view?doc_id=${doc.guid ?? doc.id.replace(/^document-/, '')}`,
     tagged: failedIds.length === 0,
     taggedIds,
     failedIds,

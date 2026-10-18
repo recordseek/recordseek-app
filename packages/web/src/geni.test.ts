@@ -118,9 +118,9 @@ describe('addDocument', () => {
   const reply = (body: unknown, status = 200) => ({ ok: status < 400, status, json: async () => body });
 
   it('creates the document then tags the profile, through the helper', async () => {
-    const f = vi.fn().mockResolvedValueOnce(reply({ id: 'document-555' })).mockResolvedValueOnce(reply({ id: 'profile-9' }));
+    const f = vi.fn().mockResolvedValueOnce(reply({ id: 'document-555', guid: '6000000228285160853' })).mockResolvedValueOnce(reply({ id: 'profile-9' }));
     const doc = await addDocument(input, undefined, f as unknown as typeof fetch);
-    expect(doc).toEqual({ id: 'document-555', url: 'https://www.geni.com/documents/view?doc_id=555', tagged: true, taggedIds: ['profile-9'], failedIds: [] });
+    expect(doc).toEqual({ id: 'document-555', url: 'https://www.geni.com/documents/view?doc_id=6000000228285160853', tagged: true, taggedIds: ['profile-9'], failedIds: [] });
     const [addUrl, addInit] = f.mock.calls[0] as [string, RequestInit];
     expect(new URL(addUrl).searchParams.get('action')).toBe('geni');
     expect(new URL(addUrl).searchParams.get('path')).toBe('document/add');
