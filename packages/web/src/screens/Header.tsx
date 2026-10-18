@@ -10,6 +10,8 @@ const WEBSITE_URL = 'https://recordseek.com/';
 interface ServiceCrumb {
   name: string;
   icon?: string;
+  /** Recolor a dark/colored logo white so it reads on the dark navbar. */
+  white?: boolean;
 }
 
 /** Map the current route to the service whose flow we're in. */
@@ -18,7 +20,7 @@ function serviceForPath(pathname: string): ServiceCrumb | null {
     return { name: 'FamilySearch', icon: `${import.meta.env.BASE_URL}images/familysearch-tree.svg` };
   }
   if (pathname.startsWith('/geni')) {
-    return { name: 'Geni', icon: `${import.meta.env.BASE_URL}images/geni-logo.svg` };
+    return { name: 'Geni', icon: `${import.meta.env.BASE_URL}images/geni-logo.svg`, white: true };
   }
   if (pathname.startsWith('/a-source')) {
     return { name: 'Ancestry', icon: `${import.meta.env.BASE_URL}images/ancestry-icon.svg` };
@@ -88,7 +90,11 @@ export function Header() {
             ›
           </span>
           {service.icon ? (
-            <img className="crumb-logo" src={service.icon} alt={service.name} />
+            <img
+              className={service.white ? 'crumb-logo crumb-logo-white' : 'crumb-logo'}
+              src={service.icon}
+              alt={service.name}
+            />
           ) : (
             <span className="crumb-name">{service.name}</span>
           )}

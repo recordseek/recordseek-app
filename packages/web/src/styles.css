@@ -96,6 +96,10 @@ body {
   display: block;
 }
 
+.app-header .crumb-logo-white {
+  filter: brightness(0) invert(1);
+}
+
 .app-header .crumb-name {
   font-weight: 700;
 }
@@ -1069,10 +1073,24 @@ button.btn-save-later:hover:not(:disabled) {
 }
 
 /* "Have an idea? Found a bug?" at the bottom of the home screen; the form opens in a modal (components/FeedbackBox). */
+/* The home screen fills the window so the idea/bug link sits near the bottom. */
+main.home {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 120px);
+}
 .feedback-cta {
-  margin: 28px 0 8px;
+  margin: 72px 0 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--input-border);
   text-align: center;
   font-size: 0.9rem;
+}
+main.home .feedback-cta {
+  margin-top: auto;
+}
+main.home .service-grid {
+  margin-bottom: 72px;
 }
 .modal-backdrop {
   position: fixed;

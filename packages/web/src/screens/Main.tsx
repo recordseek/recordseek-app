@@ -30,7 +30,7 @@ export function Main() {
   }
 
   return (
-    <main>
+    <main className="home">
       <h1>Create a Source</h1>
       {captured ? (
         <p>
