@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { afterEach, describe, it, expect, vi } from 'vitest';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { CITATION_STYLES } from '@recordseek/core';
@@ -18,6 +18,8 @@ function renderASource() {
     </MemoryRouter>,
   );
 }
+
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe('ASource', () => {
   it('natively posts the capture to Ancestry', () => {
@@ -41,4 +43,65 @@ describe('ASource', () => {
     expect(citation.value).not.toBe(before);
     expect(citation.value).toContain('"Jane Doe."');
   });
+
+  it('hands edited fields to the popup and confirms its save callback', async () => {
+    vi.stubGlobal('location', new URL('https://recordseek.com'));
+    const postMessage = vi.fn();
+    const popup = { location: { href: '' }, postMessage } as unknown as Window;
+    vi.spyOn(window, 'open').mockReturnValue(popup);
+    renderASource();
+    const title = document.querySelector('input[name="sourceTitle"]') as HTMLInputElement;
+    await userEvent.clear(title);
+    await userEvent.type(title, 'Reviewed title');
+    await userEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByRole('status')).toHaveTextContent('Continue in the Ancestry window');
+    act(() => window.dispatchEvent(new MessageEvent('message', {
+      origin: 'https://www.ancestry.com', source: popup, data: 'readyForAncestryCitation',
+    })));
+    expect(postMessage).toHaveBeenCalledWith(expect.objectContaining({
+      value: expect.objectContaining({ sourceTitle: 'Reviewed title', mediaNote: 'a note' }),
+    }), 'https://www.ancestry.com');
+    act(() => window.dispatchEvent(new MessageEvent('message', {
+      origin: 'https://www.ancestry.com', source: popup,
+      data: { message: 's2aCallback', type: 'saveCitation' },
+    })));
+    expect(screen.getByRole('status')).toHaveTextContent('Ancestry confirmed');
+    expect(screen.queryByRole('button', { name: 'Continue in this tab' })).toBeNull();
+  });
+
+  it('lets the user submit the native fallback and disposes the popup listener', async () => {
+    vi.stubGlobal('location', new URL('https://recordseek.com'));
+    const popup = { location: { href: '' }, postMessage: vi.fn() } as unknown as Window;
+    const open = vi.spyOn(window, 'open').mockReturnValue(popup);
+    renderASource();
+    await userEvent.click(screen.getByRole('button', { name: 'Next' }));
+    let wasPrevented: boolean | undefined;
+    // Observe React's decision, then suppress jsdom's unimplemented native navigation.
+    window.addEventListener('submit', (event) => {
+      wasPrevented = event.defaultPrevented;
+      event.preventDefault();
+    }, { once: true });
+    await userEvent.click(screen.getByRole('button', { name: 'Continue in this tab' }));
+    expect(wasPrevented).toBe(false);
+    expect(open).toHaveBeenCalledTimes(1);
+    act(() => window.dispatchEvent(new MessageEvent('message', {
+      origin: 'https://www.ancestry.com', source: popup, data: 'readyForAncestryCitation',
+    })));
+    expect(popup.postMessage).not.toHaveBeenCalled();
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('removes the pending popup listener when the screen unmounts', async () => {
+    vi.stubGlobal('location', new URL('https://recordseek.com'));
+    const popup = { location: { href: '' }, postMessage: vi.fn() } as unknown as Window;
+    vi.spyOn(window, 'open').mockReturnValue(popup);
+    const view = renderASource();
+    await userEvent.click(screen.getByRole('button', { name: 'Next' }));
+    view.unmount();
+    window.dispatchEvent(new MessageEvent('message', {
+      origin: 'https://www.ancestry.com', source: popup, data: 'readyForAncestryCitation',
+    }));
+    expect(popup.postMessage).not.toHaveBeenCalled();
+  });
+
 });
