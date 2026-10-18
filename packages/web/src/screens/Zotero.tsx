@@ -230,7 +230,7 @@ export function Zotero() {
       <p className="field-hint">Accessed {capture.accessedDate}</p>
 
       {status === 'error' && <p role="alert">{errorText}</p>}
-      {existingKey ? (
+      {existingKey && (
         <div className="zotero-duplicate" role="alert">
           <p>
             <strong>This page is already in your Zotero library.</strong>
@@ -240,18 +240,16 @@ export function Zotero() {
               View it in Zotero
             </a>
           </p>
-          <button type="button" className="primary" onClick={() => void save(true)}>
-            Save another copy
-          </button>
         </div>
-      ) : (
-        <button type="button" className="primary" onClick={() => void save()}>
-          Save to Zotero
-        </button>
       )}
 
       <div className="form-footer">
         <BackButton onClick={back} />
+        <div className="footer-right">
+          <button type="button" className="primary" onClick={() => void save(Boolean(existingKey))}>
+            {existingKey ? 'Save another copy' : 'Save to Zotero'}
+          </button>
+        </div>
       </div>
     </main>
   );
