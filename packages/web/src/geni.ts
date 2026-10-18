@@ -5,6 +5,7 @@ const GENI_APP_ID = '2301';
 const API = 'https://www.geni.com/api/';
 const TOKEN_KEY = 'rs_geni_token';
 const NAME_KEY = 'rs_geni_me';
+const ID_KEY = 'rs_geni_uid';
 /** Waits between tries when Geni answers "Rate limit exceeded." (it allows ~10 calls per 10 s). */
 export const GENI_RETRY_DELAYS_MS = [2000, 5000, 10000];
 
@@ -43,6 +44,7 @@ export function clearGeniToken(): void {
   try {
     sessionStorage.removeItem(TOKEN_KEY);
     sessionStorage.removeItem(NAME_KEY);
+    sessionStorage.removeItem(ID_KEY);
     sessionStorage.removeItem('rs_geni_flow');
   } catch {
     /* storage unavailable */
@@ -55,6 +57,23 @@ export function getGeniName(): string | null {
     return sessionStorage.getItem(NAME_KEY);
   } catch {
     return null;
+  }
+}
+
+/** The signed-in user's profile id, cached like the name (hashed for the newsletter invite). */
+export function getGeniId(): string | null {
+  try {
+    return sessionStorage.getItem(ID_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setGeniId(id: string): void {
+  try {
+    sessionStorage.setItem(ID_KEY, id);
+  } catch {
+    /* storage unavailable */
   }
 }
 

@@ -158,9 +158,17 @@ const FS_ID_PREFIX = 'fs_';
  * PostHog ever seeing the id, name or email.
  */
 export async function fsDistinctId(fsUserId: string): Promise<string> {
-  const bytes = new TextEncoder().encode(`recordseek-fs:${fsUserId}`);
+  return accountHash('fs', fsUserId);
+}
+
+/**
+ * One-way, per-provider hash of an account id (`fs_`, `geni_` or `zotero_` + 32 hex).
+ * The same scheme PostHog uses, so the newsletter server never sees a real id either.
+ */
+export async function accountHash(provider: 'fs' | 'geni' | 'zotero', id: string): Promise<string> {
+  const bytes = new TextEncoder().encode(`recordseek-${provider}:${id}`);
   const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
-  return FS_ID_PREFIX + Array.from(digest.slice(0, 16), (b) => b.toString(16).padStart(2, '0')).join('');
+  return `${provider}_` + Array.from(digest.slice(0, 16), (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 /** Identify the signed-in FamilySearch user (no person properties are sent). */

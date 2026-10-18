@@ -1,4 +1,4 @@
-import { clearGeniToken, getGeniName, getGeniToken, myProfile, revokeGeniToken, setGeniName } from '../geni';
+import { clearGeniToken, getGeniName, getGeniToken, myProfile, revokeGeniToken, setGeniId, setGeniName } from '../geni';
 import { clearZoteroLogin, getZoteroLogin, revokeZoteroKey } from '../zotero';
 import { fetchFsUser, isFsAuthenticated, logoutFs } from '../fsAuth';
 
@@ -54,7 +54,7 @@ export const AUTH_PROVIDERS: AuthProvider[] = [
     },
     async logout() {
       await bestEffort(logoutFs);
-      forget('fs', 'fs_pkce_verifier', 'fs_return_route');
+      forget('fs', 'fs_pkce_verifier', 'fs_return_route', 'rs_fs_uid');
     },
   },
   {
@@ -71,6 +71,7 @@ export const AUTH_PROVIDERS: AuthProvider[] = [
       try {
         const me = await myProfile(token);
         if (me.name) setGeniName(me.name);
+        if (me.id) setGeniId(me.id);
         return me.name || null;
       } catch {
         return null;

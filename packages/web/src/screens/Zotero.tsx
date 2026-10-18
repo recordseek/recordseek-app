@@ -192,6 +192,7 @@ export function Zotero() {
         title={values.title}
         links={[{ href: zoteroItemUrl(login.username || login.userId, savedKey), label: 'View in Zotero' }]}
         onEdit={() => setSavedKey('')}
+        newsletterSource="zotero"
       />
     );
   }

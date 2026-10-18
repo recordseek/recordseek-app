@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  accountHash,
   fsDistinctId,
   sanitizeEvent,
   sanitizeUrl,
@@ -84,6 +85,16 @@ describe('fsDistinctId', () => {
     expect(a).not.toContain('MMMM');
     expect(await fsDistinctId('cis.user.MMMM-ABCD')).toBe(a);
     expect(await fsDistinctId('cis.user.OTHER-USER')).not.toBe(a);
+  });
+});
+
+describe('accountHash', () => {
+  it('matches fsDistinctId for FamilySearch and is prefixed and separated per provider', async () => {
+    expect(await accountHash('fs', 'cis.user.MMMM-ABCD')).toBe(await fsDistinctId('cis.user.MMMM-ABCD'));
+    const geni = await accountHash('geni', '123');
+    expect(geni).toMatch(/^geni_[0-9a-f]{32}$/);
+    expect(await accountHash('zotero', '123')).toMatch(/^zotero_[0-9a-f]{32}$/);
+    expect(geni.slice(5)).not.toBe((await accountHash('zotero', '123')).slice(7));
   });
 });
 

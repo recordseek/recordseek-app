@@ -4,6 +4,7 @@ import { createFsClient, getFsConfig } from './auth/fsClient';
 
 const VERIFIER_KEY = 'fs_pkce_verifier';
 const RETURN_ROUTE_KEY = 'fs_return_route';
+const UID_KEY = 'rs_fs_uid';
 
 function session(): Storage | null {
   try {
@@ -44,6 +45,15 @@ export async function beginFsLogin(returnRoute: string): Promise<void> {
   window.location.href = client.buildAuthorizationUrl({ codeChallenge, state: 'recordseek' });
 }
 
+/** The signed-in user's FamilySearch id cached by fetchFsUser, or null. */
+export function getFsUserId(): string | null {
+  try {
+    return session()?.getItem(UID_KEY) || null;
+  } catch {
+    return null;
+  }
+}
+
 export interface FsDisplayUser {
   displayName?: string;
   givenName?: string;
@@ -58,6 +68,12 @@ export async function fetchFsUser(): Promise<FsDisplayUser | null> {
     }
     if (typeof user.id === 'string') {
       void identifyFsUser(user.id);
+      // Kept for this tab only, so the newsletter invite can hash it without another call.
+      try {
+        session()?.setItem(UID_KEY, user.id);
+      } catch {
+        /* storage unavailable */
+      }
     }
     const givenName = typeof user.givenName === 'string' ? user.givenName : undefined;
     return { displayName: user.displayName, givenName };
@@ -81,6 +97,11 @@ export async function logoutFs(): Promise<void> {
     await createFsClient().logout();
   } catch {
     // logout() clears the local token even if the network call fails.
+  }
+  try {
+    session()?.removeItem(UID_KEY);
+  } catch {
+    /* storage unavailable */
   }
   resetAnalytics();
 }

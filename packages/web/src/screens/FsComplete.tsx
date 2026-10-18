@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { useSession } from '../session/SessionContext';
 import { track } from '../analytics';
+import { NewsletterInvite } from '../components/NewsletterInvite';
 
 const SOURCE_BOX_URL = 'https://www.familysearch.org/search/sourcebox';
 
@@ -43,6 +44,7 @@ export function FsComplete() {
             View your source box on FamilySearch
           </a>
         </p>
+        <NewsletterInvite source="fs" />
         <button type="button" onClick={attachAnother}>
           Attach to a Person
         </button>
@@ -61,6 +63,7 @@ export function FsComplete() {
             View Profile on FamilySearch
           </a>
         </p>
+        <NewsletterInvite source="fs" />
         <button type="button" onClick={attachAnother}>
           Attach to Another Person
         </button>

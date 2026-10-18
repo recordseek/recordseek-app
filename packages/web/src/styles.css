@@ -1087,6 +1087,38 @@ main.home {
 main.home .feedback-cta {
   margin-top: auto;
 }
+.newsletter-invite {
+  margin: 16px 0;
+  padding: 12px 14px;
+  border: 1px solid var(--input-border);
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+.newsletter-invite h4 {
+  margin: 0 0 4px;
+}
+.newsletter-invite p {
+  margin: 0 0 8px;
+}
+.newsletter-invite form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+}
+.newsletter-invite label {
+  flex: 1 1 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.newsletter-invite .newsletter-hp {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
 .service-tile-wide {
   grid-column: 1 / -1;
 }

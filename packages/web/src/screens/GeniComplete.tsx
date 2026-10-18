@@ -30,6 +30,7 @@ export function GeniComplete() {
       heading={`Congratulations! Your source was attached to ${people[0]?.name ?? 'the profile'}.`}
       title={state.source?.title}
       links={links}
+      newsletterSource="geni"
       onEdit={() => {
         setSaved(null);
         select(null);

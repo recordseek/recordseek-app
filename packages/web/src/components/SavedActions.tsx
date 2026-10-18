@@ -2,6 +2,7 @@ import { type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { clearLastService } from '../prefs';
 import { BackButton } from './BackButton';
+import { NewsletterInvite } from './NewsletterInvite';
 
 export interface SavedLink {
   href: string;
@@ -19,6 +20,8 @@ interface Props {
   children?: ReactNode;
   /** "Go Back": return to the editable form to change something and save again. */
   onEdit: () => void;
+  /** Where the newsletter invite was shown ("zotero", "geni"); the invite is skipped without it. */
+  newsletterSource?: string;
 }
 
 /**
@@ -26,7 +29,7 @@ interface Props {
  * view link(s), Go Back (edit and save again) and Save to Another Location (back to the
  * picker; the capture stays, because it lives in the provider and sessionStorage).
  */
-export function SavedActions({ heading, title, links, children, onEdit }: Props) {
+export function SavedActions({ heading, title, links, children, onEdit, newsletterSource }: Props) {
   const navigate = useNavigate();
   function another(): void {
     clearLastService(); // so the picker doesn't jump straight back here
@@ -44,6 +47,7 @@ export function SavedActions({ heading, title, links, children, onEdit }: Props)
           </a>
         </p>
       ))}
+      {newsletterSource && <NewsletterInvite source={newsletterSource} />}
       <button type="button" onClick={another}>
         Save to Another Location
       </button>
