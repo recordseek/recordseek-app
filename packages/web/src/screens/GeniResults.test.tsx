@@ -87,7 +87,17 @@ describe('GeniResults', () => {
     const report = vi.spyOn(sentry, 'reportError').mockImplementation(() => {});
     vi.spyOn(geni, 'searchPeople').mockRejectedValue(new geni.GeniError('Boom'));
     renderGeni('/geni-results', { search });
-    expect(await screen.findByRole('alert')).toHaveTextContent("Geni couldn't complete the request");
+    expect(await screen.findByRole('alert')).toHaveTextContent('Geni said: Boom');
+    expect(report).toHaveBeenCalledTimes(1);
+  });
+
+  it('a refusal that mentions access is not mistaken for an expired sign-in', async () => {
+    const report = vi.spyOn(sentry, 'reportError').mockImplementation(() => {});
+    vi.spyOn(geni, 'searchPeople').mockRejectedValue(
+      new geni.GeniError('Access denied: upgrade to Geni Pro', 'ApiException'),
+    );
+    renderGeni('/geni-results', { search });
+    expect(await screen.findByRole('alert')).toHaveTextContent('Geni said: Access denied: upgrade to Geni Pro');
     expect(report).toHaveBeenCalledTimes(1);
   });
 

@@ -36,7 +36,7 @@ export function FsComplete() {
 
   if (complete === 'noAttachment') {
     return (
-      <main>
+      <main className="saved">
         <h3>Congratulations! Your source was created and added to your FamilySearch source box.</h3>
         {title && <p>“{title}”</p>}
         <p>
@@ -48,14 +48,14 @@ export function FsComplete() {
         <button type="button" onClick={attachAnother}>
           Attach to a Person
         </button>
-        <p>You may now close this window.</p>
+        <p className="close-note">You may now close this window.</p>
       </main>
     );
   }
 
   if (complete) {
     return (
-      <main>
+      <main className="saved">
         <h3>Congratulations! Your source was attached to {complete.name}.</h3>
         {title && <p>“{title}”</p>}
         <p>
@@ -67,7 +67,7 @@ export function FsComplete() {
         <button type="button" onClick={attachAnother}>
           Attach to Another Person
         </button>
-        <p>You may now close this window.</p>
+        <p className="close-note">You may now close this window.</p>
       </main>
     );
   }

@@ -36,7 +36,7 @@ export function SavedActions({ heading, title, links, children, onEdit, newslett
     navigate('/');
   }
   return (
-    <main>
+    <main className="saved">
       <h3>{heading}</h3>
       {title && <p>“{title}”</p>}
       {children}
@@ -48,13 +48,15 @@ export function SavedActions({ heading, title, links, children, onEdit, newslett
         </p>
       ))}
       {newsletterSource && <NewsletterInvite source={newsletterSource} />}
-      <button type="button" onClick={another}>
-        Save to Another Location
-      </button>
       <div className="form-footer">
         <BackButton onClick={onEdit} />
+        <div className="footer-right">
+          <button type="button" className="primary" onClick={another}>
+            Save to Another Location
+          </button>
+        </div>
       </div>
-      <p>You may now close this window.</p>
+      <p className="close-note">You may now close this window.</p>
     </main>
   );
 }

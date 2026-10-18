@@ -99,12 +99,32 @@ export class GeniBusyError extends Error {
     super('Geni rate limit exceeded');
   }
 }
-export class GeniError extends Error {}
+export class GeniError extends Error {
+  /** Geni's error type, like "OAuthException" or "ApiException". */
+  constructor(
+    message: string,
+    readonly type = '',
+  ) {
+    super(message);
+  }
+}
 
 function failure(data: unknown): Error | null {
-  const message = (data as { error?: { message?: string } } | null)?.error?.message;
-  if (!message) return null;
-  return /rate limit/i.test(message) ? new GeniBusyError() : new GeniError(message);
+  const error = (data as { error?: { message?: string; type?: string } } | null)?.error;
+  if (!error?.message) return null;
+  return /rate limit/i.test(error.message) ? new GeniBusyError() : new GeniError(error.message, error.type ?? '');
+}
+
+/**
+ * Only a dead token counts as an expired sign-in: Geni answers those with an
+ * OAuthException ("Invalid access token"). Other refusals (a Pro-only feature,
+ * a private profile) keep Geni's own wording.
+ */
+function isExpiredSignIn(err: unknown): boolean {
+  return (
+    err instanceof GeniError &&
+    (err.type === 'OAuthException' || /invalid access token|token (has )?expired/i.test(err.message))
+  );
 }
 
 let jsonpCount = 0;
@@ -535,17 +555,13 @@ export async function addDocument(
 
 /** A sign-in that ran out, or Geni being busy: expected, so not worth a Sentry event. */
 export function isExpectedGeniError(err: unknown): boolean {
-  return (
-    err instanceof GeniBusyError ||
-    (err instanceof GeniError && /invalid|expired|token|unauthor|denied|access/i.test(err.message))
-  );
+  return err instanceof GeniBusyError || isExpiredSignIn(err);
 }
 
 /** Plain-language copy for a Geni failure, in the style of the FamilySearch screens. */
 export function describeGeniError(err: unknown): string {
   if (err instanceof GeniBusyError) return 'Geni is busy right now. Wait a minute and try again.';
-  if (err instanceof GeniError && /invalid|expired|token|unauthor|denied|access/i.test(err.message)) {
-    return 'Your Geni sign-in has expired. Please sign in again.';
-  }
+  if (isExpiredSignIn(err)) return 'Your Geni sign-in has expired. Please sign in again.';
+  if (err instanceof GeniError) return `Geni said: ${err.message}`;
   return "Geni couldn't complete the request. Check your internet connection and try again.";
 }

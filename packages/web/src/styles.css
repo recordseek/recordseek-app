@@ -1087,6 +1087,26 @@ main.home {
 main.home .feedback-cta {
   margin-top: auto;
 }
+/* Saved screens: "You may now close this window." sits bottom centre, like the home page's feedback line. */
+main.saved {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 120px);
+}
+main.saved > * {
+  align-self: stretch;
+}
+main.saved > button {
+  align-self: flex-start;
+}
+.close-note {
+  margin: auto 0 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--input-border);
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--gray);
+}
 .newsletter-invite {
   margin: 16px 0;
   padding: 12px 14px;
