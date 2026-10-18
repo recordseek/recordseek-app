@@ -83,7 +83,7 @@ describe('Zotero', () => {
     await screen.findByRole('link', { name: 'View in Zotero' });
   });
 
-  it('shows only the FamilySearch-style fields, with Accessed as plain text', async () => {
+  it('shows only the FamilySearch-style fields, with no Accessed line', async () => {
     connect();
     mockApi({ ok: true, status: 200, body: {} });
     renderScreen();
@@ -99,7 +99,7 @@ describe('Zotero', () => {
       expect(screen.getByLabelText(l)).toBeInTheDocument();
     }
     expect(screen.queryByLabelText(/accessed/i)).toBeNull();
-    expect(screen.getByText(/^Accessed \d{1,2} \w+ \d{4}$/)).toBeInTheDocument();
+    expect(screen.queryByText(/^Accessed /)).not.toBeInTheDocument();
     for (const l of [/item type/i, /author/i, /more/i, /language/i]) expect(screen.queryByLabelText(l)).toBeNull();
     expect(screen.queryByRole('button', { name: /more/i })).toBeNull();
     expect(screen.getByRole('option', { name: 'My Library' })).toBeInTheDocument();

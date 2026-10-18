@@ -228,7 +228,6 @@ export function Zotero() {
           ))}
         </select>
       </div>
-      <p className="field-hint">Accessed {capture.accessedDate}</p>
 
       {status === 'error' && <p role="alert">{errorText}</p>}
       {existingKey && (
