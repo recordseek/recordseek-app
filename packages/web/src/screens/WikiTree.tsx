@@ -111,15 +111,6 @@ export function WikiTree() {
 
   const auth = useAutoSignIn('wikitree', Boolean(session), signIn, confirming);
 
-  function signOut(): void {
-    auth.hold();
-    clearWikiTreeSession();
-    setSession(null);
-    setWatchlist(null);
-    setFound(null);
-    setPicked(null);
-  }
-
   function pick(p: WikiTreePerson): void {
     setPicked(p);
     track('wikitree_picked');
@@ -228,10 +219,7 @@ export function WikiTree() {
       ) : (
         <>
           <p>
-            Signed in as <strong>{session.userName}</strong>{' '}
-            <button type="button" className="link-button" onClick={signOut}>
-              Sign out
-            </button>
+            Signed in as <strong>{session.userName}</strong>
           </p>
           <label className="field-label" htmlFor="wt-filter">
             Your profiles{watchlist ? ` (${watchlist.length})` : ''}

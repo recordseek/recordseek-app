@@ -105,15 +105,6 @@ export function Zotero() {
 
   const auth = useAutoSignIn('zotero', Boolean(login), connect);
 
-  function disconnect(): void {
-    clearZoteroLogin();
-    setLogin(null);
-    setCollections([]);
-    setCollectionsLoaded(false);
-    auth.hold();
-    track('zotero_disconnected');
-  }
-
   async function save(): Promise<void> {
     if (!login || status === 'saving') return;
     const problems = validateZoteroForm(current);
@@ -195,10 +186,7 @@ export function Zotero() {
         />
       </div>
       <p>
-        Library: <strong>{login.username || `user ${login.userId}`}</strong>{' '}
-        <button type="button" className="link-button" onClick={disconnect}>
-          Disconnect
-        </button>
+        Library: <strong>{login.username || `user ${login.userId}`}</strong>
       </p>
 
       <SourceFields values={values} style={style} onChange={onChange} onStyleChange={setStyle} idPrefix="zotero" />

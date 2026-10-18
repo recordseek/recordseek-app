@@ -705,51 +705,45 @@ button.btn-save-later:hover:not(:disabled) {
 
 /* Service picker (Main) */
 .service-grid {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 16px;
   margin-top: 16px;
 }
 
 .service-tile {
-  flex: 1 1 160px;
+  /* Identical tiles: same width and height, content centred. */
   margin: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 10px;
+  height: 120px;
   padding: 20px 14px;
   background: #fff;
   border: 1px solid var(--input-border);
   color: var(--ink);
   font-weight: 700;
 }
-
 .service-tile:hover:not(:disabled) {
   background: #f8fafb;
   border-color: var(--accent);
   color: var(--ink);
 }
 
-.service-tile {
-  min-height: 120px;
-  justify-content: center;
-}
-
+/* Every logo shares one box: cropped artwork, contained, same height. */
 .service-tile img {
-  max-width: 100%;
-  max-height: 42px;
-  width: auto;
-  height: auto;
-}
-
-.service-tile img.logo-fit {
-  /* Small source logos (Zotero, Geni, WikiTree) fill the same 42px band as the larger ones. */
-  height: 42px;
+  display: block;
+  height: 40px;
+  width: 100%;
+  max-width: 150px;
+  object-fit: contain;
 }
 
 .service-tile .tile-icon {
   display: block;
+  flex: none;
   width: 40px;
   height: 40px;
   color: var(--ink);
@@ -1205,3 +1199,31 @@ a.donate-button:hover {
 .zt-tags { display: flex; flex-wrap: wrap; gap: 4px; max-height: 8rem; overflow-y: auto; margin-top: 4px; }
 .zt-tag { font-size: 0.85rem; padding: 1px 8px; border: 1px solid #ced4da; border-radius: 12px; background: #fff; cursor: pointer; }
 .zt-tag[aria-pressed='true'] { background: #2c3e50; border-color: #2c3e50; color: #fff; }
+
+.logout-list {
+  list-style: none;
+  margin: 8px 0 12px;
+  padding: 0;
+}
+.logout-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--input-border);
+}
+.logout-list img {
+  height: 24px;
+  width: 90px;
+  object-fit: contain;
+  object-position: left center;
+}
+.logout-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+}

@@ -46,13 +46,6 @@ export function Geni() {
 
   const auth = useAutoSignIn('geni', Boolean(token), signIn);
 
-  function signOut(): void {
-    clearGeniToken();
-    clearAll();
-    setToken(null);
-    auth.hold();
-  }
-
   function back(): void {
     clearLastService();
     navigate('/');
@@ -84,11 +77,6 @@ export function Geni() {
   return (
     <main>
       <h3>Attach a Source</h3>
-      <p>
-        <button type="button" className="link-button" onClick={signOut}>
-          Sign out
-        </button>
-      </p>
       <form onSubmit={next}>
         <SourceFields idPrefix="geni" values={values} style={style} onChange={onChange} onStyleChange={setStyle} />
         <div className="form-footer">

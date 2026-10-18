@@ -65,16 +65,6 @@ describe('Geni source step', () => {
     expect(screen.getByDisplayValue('Edited notes')).toBeInTheDocument();
   });
 
-  it('signs out and forgets the wizard state', async () => {
-    signIn();
-    renderGeni('/geni', { search: { ...emptyCriteria(), surname: 'Burke' } });
-    const assign = stubRedirect();
-    await userEvent.click(screen.getByRole('button', { name: 'Sign out' }));
-    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
-    expect(assign).not.toHaveBeenCalled();
-    expect(sessionStorage.getItem('rs_geni_token')).toBeNull();
-  });
-
   it('later steps send you back here without a token', () => {
     renderGeni('/geni-search');
     expect(screen.getByTestId('where')).toHaveTextContent('/geni');

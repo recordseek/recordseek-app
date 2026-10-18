@@ -1,11 +1,16 @@
-import { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router';
-import { clearLastService } from '../prefs';
-import { isFsAuthenticated, fetchFsUser, logoutFs } from '../fsAuth';
-import { FeedbackDialog } from '../components/FeedbackBox';
-import { track } from '../analytics';
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router";
+import { clearLastService } from "../prefs";
+import { Modal } from "../components/Modal";
+import { FeedbackDialog } from "../components/FeedbackBox";
+import {
+  AUTH_PROVIDERS,
+  providerForPath,
+  type AuthProvider,
+} from "../auth/providers";
+import { track } from "../analytics";
 
-const WEBSITE_URL = 'https://recordseek.com/';
+const WEBSITE_URL = "https://recordseek.com/";
 
 interface ServiceCrumb {
   name: string;
@@ -16,20 +21,30 @@ interface ServiceCrumb {
 
 /** Map the current route to the service whose flow we're in. */
 function serviceForPath(pathname: string): ServiceCrumb | null {
-  if (pathname.startsWith('/fs-')) {
-    return { name: 'FamilySearch', icon: `${import.meta.env.BASE_URL}images/familysearch-tree.svg` };
+  if (pathname.startsWith("/fs-")) {
+    return {
+      name: "FamilySearch",
+      icon: `${import.meta.env.BASE_URL}images/familysearch-tree.svg`,
+    };
   }
-  if (pathname.startsWith('/geni')) {
-    return { name: 'Geni', icon: `${import.meta.env.BASE_URL}images/geni-logo.svg`, white: true };
+  if (pathname.startsWith("/geni")) {
+    return {
+      name: "Geni",
+      icon: `${import.meta.env.BASE_URL}images/geni-logo.svg`,
+      white: true,
+    };
   }
-  if (pathname.startsWith('/a-source')) {
-    return { name: 'Ancestry', icon: `${import.meta.env.BASE_URL}images/ancestry-icon.svg` };
+  if (pathname.startsWith("/a-source")) {
+    return {
+      name: "Ancestry",
+      icon: `${import.meta.env.BASE_URL}images/ancestry-icon.svg`,
+    };
   }
-  if (pathname.startsWith('/donate')) {
-    return { name: 'Donate' };
+  if (pathname.startsWith("/donate")) {
+    return { name: "Donate" };
   }
-  if (pathname.startsWith('/citation')) {
-    return { name: 'Save to Somewhere Else' };
+  if (pathname.startsWith("/citation")) {
+    return { name: "Save to Somewhere Else" };
   }
   return null;
 }
@@ -40,46 +55,75 @@ export function Header() {
   const navigate = useNavigate();
   const service = serviceForPath(pathname);
 
-  // The signed-in FamilySearch user (only while in the FS flow + authenticated).
-  const inFsFlow = pathname.startsWith('/fs-');
-  const fsAuthed = inFsFlow && isFsAuthenticated();
-  const [userName, setUserName] = useState<string | null>(null);
+  // Everything the user is signed in to, read on each render: a sign-in completes on a
+  // callback page and then routes here. The current flow's service is listed first.
+  const current = providerForPath(pathname);
+  const signedIn = AUTH_PROVIDERS.filter((p) => p.isSignedIn()).sort(
+    (x, y) => Number(y === current) - Number(x === current),
+  );
+  const signedKey = signedIn.map((p) => p.id).join(",");
+  const [names, setNames] = useState<Record<string, string | null>>({});
   const [supportOpen, setSupportOpen] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
-    if (fsAuthed) {
-      void fetchFsUser().then((user) => {
-        if (active && user) {
-          setUserName(user.displayName ?? user.givenName ?? null);
-        }
+    for (const p of signedIn) {
+      void p.displayName(p === current).then((name) => {
+        if (active)
+          setNames((prev) =>
+            prev[p.id] === name ? prev : { ...prev, [p.id]: name },
+          );
       });
-    } else {
-      setUserName(null);
     }
     return () => {
       active = false;
     };
-  }, [fsAuthed]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signedKey, current]);
+
+  const greeting =
+    current && signedIn.includes(current) ? names[current.id] : null;
 
   function goHome(): void {
     // Clear the remembered service so Main shows the picker instead of
     // auto-advancing straight back into a flow.
     clearLastService();
-    navigate('/');
+    navigate("/");
   }
 
-  async function logout(): Promise<void> {
-    await logoutFs();
+  async function logoutOf(
+    list: AuthProvider[],
+    event: "logout_single" | "logout_all",
+  ): Promise<void> {
+    track(event, { count: list.length });
+    for (const p of list) await p.logout();
     clearLastService();
-    setUserName(null);
-    navigate('/');
+    setNames({});
+    if (signedIn.every((p) => list.includes(p))) {
+      setLogoutOpen(false);
+      navigate("/");
+    }
+  }
+
+  function onLogoutClick(): void {
+    if (signedIn.length > 1) setLogoutOpen(true);
+    else void logoutOf(signedIn, "logout_single");
   }
 
   return (
     <header className="app-header">
-      <button type="button" className="brand-link" onClick={goHome} aria-label="RecordSeek home">
-        <img className="brand-icon" src={`${import.meta.env.BASE_URL}images/recordseek-icon.svg`} alt="" />
+      <button
+        type="button"
+        className="brand-link"
+        onClick={goHome}
+        aria-label="RecordSeek home"
+      >
+        <img
+          className="brand-icon"
+          src={`${import.meta.env.BASE_URL}images/recordseek-icon.svg`}
+          alt=""
+        />
         <span className="brand">
           Record<span className="brand-accent">Seek</span>
         </span>
@@ -91,7 +135,9 @@ export function Header() {
           </span>
           {service.icon ? (
             <img
-              className={service.white ? 'crumb-logo crumb-logo-white' : 'crumb-logo'}
+              className={
+                service.white ? "crumb-logo crumb-logo-white" : "crumb-logo"
+              }
               src={service.icon}
               alt={service.name}
             />
@@ -101,18 +147,23 @@ export function Header() {
         </>
       )}
       <nav className="header-menu" aria-label="RecordSeek">
-        <a href={WEBSITE_URL} target="_blank" rel="noopener noreferrer" onClick={() => track('menu_about')}>
+        <a
+          href={WEBSITE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => track("menu_about")}
+        >
           <MenuIcon name="about" />
           About
         </a>
-        <button type="button" onClick={() => navigate('/donate')}>
+        <button type="button" onClick={() => navigate("/donate")}>
           <MenuIcon name="donate" />
           Donate
         </button>
         <button
           type="button"
           onClick={() => {
-            track('menu_help');
+            track("menu_help");
             setSupportOpen(true);
           }}
         >
@@ -120,21 +171,56 @@ export function Header() {
           Help
         </button>
       </nav>
-      {fsAuthed && (
+      {signedIn.length > 0 && (
         <div className="header-user">
-          {userName && <span className="header-hello">Hello {userName}!</span>}
-          <button type="button" className="header-logout" onClick={() => void logout()}>
+          {greeting && <span className="header-hello">Hello {greeting}!</span>}
+          <button
+            type="button"
+            className="header-logout"
+            onClick={onLogoutClick}
+          >
             Log out
           </button>
         </div>
       )}
-      {supportOpen && <FeedbackDialog source="share" onClose={() => setSupportOpen(false)} />}
+      {logoutOpen && (
+        <Modal title="Log out" onClose={() => setLogoutOpen(false)}>
+          <ul className="logout-list">
+            {signedIn.map((p) => (
+              <li key={p.id}>
+                <img src={p.logo} alt={p.label} />
+                <span className="logout-name">{names[p.id] ?? ""}</span>
+                <button
+                  type="button"
+                  className="btn-sm"
+                  aria-label={`Log out of ${p.label}`}
+                  onClick={() => void logoutOf([p], "logout_single")}
+                >
+                  Log out
+                </button>
+              </li>
+            ))}
+          </ul>
+          <div className="modal-actions">
+            <button
+              type="button"
+              className="primary"
+              onClick={() => void logoutOf(signedIn, "logout_all")}
+            >
+              Log out of all
+            </button>
+          </div>
+        </Modal>
+      )}
+      {supportOpen && (
+        <FeedbackDialog source="share" onClose={() => setSupportOpen(false)} />
+      )}
     </header>
   );
 }
 
 /** Inline line icons (Lucide shapes) for the header menu: graduation cap, heart, life ring. */
-function MenuIcon({ name }: { name: 'about' | 'donate' | 'help' }) {
+function MenuIcon({ name }: { name: "about" | "donate" | "help" }) {
   return (
     <svg
       className="menu-icon"
@@ -148,17 +234,17 @@ function MenuIcon({ name }: { name: 'about' | 'donate' | 'help' }) {
       strokeLinejoin="round"
       aria-hidden="true"
     >
-      {name === 'about' && (
+      {name === "about" && (
         <>
           <path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z" />
           <path d="M22 10v6" />
           <path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5" />
         </>
       )}
-      {name === 'donate' && (
+      {name === "donate" && (
         <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
       )}
-      {name === 'help' && (
+      {name === "help" && (
         <>
           <circle cx="12" cy="12" r="10" />
           <path d="m4.93 4.93 4.24 4.24" />

@@ -7,6 +7,7 @@ import {
   immediateFamily,
   isValidGeniId,
   myProfile,
+  setGeniName,
   normalizeGeniId,
   type GeniProfile,
 } from '../geni';
@@ -43,6 +44,7 @@ export function GeniSearch() {
     (async () => {
       try {
         const me = await myProfile(token);
+        if (me.name) setGeniName(me.name);
         if (!active) return;
         setQuick([{ label: 'Me', person: me }]);
         const family = await immediateFamily(token, 'profile');

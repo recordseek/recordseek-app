@@ -4,6 +4,7 @@ import { zoteroAuthUrl } from './zotero';
 const GENI_APP_ID = '2301';
 const API = 'https://www.geni.com/api/';
 const TOKEN_KEY = 'rs_geni_token';
+const NAME_KEY = 'rs_geni_me';
 /** Waits between tries when Geni answers "Rate limit exceeded." (it allows ~10 calls per 10 s). */
 export const GENI_RETRY_DELAYS_MS = [2000, 5000, 10000];
 
@@ -38,6 +39,25 @@ export function getGeniToken(now: number = Date.now()): string | null {
 export function clearGeniToken(): void {
   try {
     sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(NAME_KEY);
+    sessionStorage.removeItem('rs_geni_flow');
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+/** The signed-in user's name, cached with the token so Geni is asked at most once. */
+export function getGeniName(): string | null {
+  try {
+    return sessionStorage.getItem(NAME_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setGeniName(name: string): void {
+  try {
+    sessionStorage.setItem(NAME_KEY, name);
   } catch {
     /* storage unavailable */
   }

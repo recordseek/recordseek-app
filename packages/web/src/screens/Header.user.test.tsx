@@ -33,14 +33,14 @@ describe('Header user / logout', () => {
     expect(screen.getByRole('button', { name: 'Log out' })).toBeInTheDocument();
   });
 
-  it('shows no greeting or logout outside the FamilySearch flow', () => {
+  it('shows no greeting outside the FamilySearch flow, but still offers Log out', () => {
     render(
       <MemoryRouter initialEntries={['/a-source']}>
         <Header />
       </MemoryRouter>,
     );
     expect(screen.queryByText('Hello Dōvy!')).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Log out' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Log out' })).toBeInTheDocument();
   });
 
   it('logs out and returns to the picker', async () => {

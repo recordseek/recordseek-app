@@ -181,15 +181,4 @@ describe('Zotero', () => {
     expect(stubbed).toHaveBeenCalledTimes(1); // a revoked key signs in again
     expect(localStorage.getItem('rs_zotero')).toBeNull();
   });
-
-  it('disconnects', async () => {
-    connect();
-    mockApi({ ok: true, status: 200, body: {} });
-    const stubbed = stubRedirect();
-    renderScreen();
-    await userEvent.click(await screen.findByRole('button', { name: 'Disconnect' }));
-    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
-    expect(stubbed).not.toHaveBeenCalled();
-    expect(localStorage.getItem('rs_zotero')).toBeNull();
-  });
 });

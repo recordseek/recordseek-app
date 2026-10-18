@@ -79,4 +79,14 @@ describe('Main', () => {
     await userEvent.click(screen.getByRole('button', { name: 'WikiTree' }));
     expect(screen.getByText('WIKITREE SCREEN')).toBeInTheDocument();
   });
+
+  it('orders tiles alphabetically with Save to Somewhere Else last', () => {
+    const order = () => screen.getAllByRole('button').filter((b) => b.className.includes('service-tile')).map((b) => b.textContent || b.querySelector('img')?.getAttribute('alt'));
+    const first = renderMain();
+    expect(order()).toEqual(['Ancestry', 'FamilySearch', 'Save to Somewhere Else']);
+    first.unmount();
+    window.history.replaceState(null, '', '/?dev=1');
+    renderMain();
+    expect(order()).toEqual(['Ancestry', 'FamilySearch', 'Geni', 'WikiTree', 'Zotero', 'Save to Somewhere Else']);
+  });
 });
