@@ -25,10 +25,11 @@ function connect(): void {
   localStorage.setItem('rs_zotero', JSON.stringify({ key: 'KEY', userId: '42', username: 'jane' }));
 }
 
-/** Routes api.zotero.org calls: collections on GET, item creation on POST. */
-function mockApi(post: { ok: boolean; status: number; body: unknown }) {
+/** Routes api.zotero.org calls: collections and the duplicate search on GET, item creation on POST. */
+function mockApi(post: { ok: boolean; status: number; body: unknown }, existing: unknown[] = []) {
   const f = vi.fn(async (url: string, init?: RequestInit) => {
     if (init?.method === 'POST') return { ok: post.ok, status: post.status, json: async () => post.body };
+    if (url.includes('/items/top')) return { ok: true, status: 200, json: async () => existing };
     expect(url).toContain('/collections');
     return { ok: true, status: 200, json: async () => [{ key: 'C1', data: { name: 'Research' } }] };
   });
@@ -187,6 +188,24 @@ describe('Zotero', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Save to Zotero' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('couldn’t save');
     expect(screen.getByRole('button', { name: 'Save to Zotero' })).toBeEnabled();
+  });
+
+  it('asks before saving a page already in the library, then saves a copy on request', async () => {
+    connect();
+    const f = mockApi(
+      { ok: true, status: 200, body: { successful: { '0': { key: 'ITEM1', version: 3 } } } },
+      [{ key: 'OLD1', data: { url: 'https://dp.la/' } }],
+    );
+    renderScreen();
+    await userEvent.click(await screen.findByRole('button', { name: 'Save to Zotero' }));
+    expect(await screen.findByText('This page is already in your Zotero library.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'View it in Zotero' })).toHaveAttribute(
+      'href',
+      'https://www.zotero.org/jane/items/OLD1',
+    );
+    expect(f.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false);
+    await userEvent.click(screen.getByRole('button', { name: 'Save another copy' }));
+    expect(await screen.findByText('Saved to Zotero.')).toBeInTheDocument();
   });
 
   it('drops a revoked key back to Connect', async () => {

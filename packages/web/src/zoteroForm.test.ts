@@ -38,6 +38,7 @@ describe('buildZoteroItem', () => {
     expect(buildZoteroItem(form({ collectionKey: 'C1', tags: ['a', 'b'] }), 'KEY12345')).toEqual({
       itemType: 'webpage',
       key: 'KEY12345',
+      version: 0,
       title: 'Mike Ditka',
       url: 'https://www.findagrave.com/memorial/1/x',
       websiteTitle: 'Find a Grave',

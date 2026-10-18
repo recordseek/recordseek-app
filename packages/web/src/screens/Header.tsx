@@ -33,7 +33,7 @@ function serviceForPath(pathname: string): ServiceCrumb | null {
   if (pathname.startsWith('/zotero')) {
     return {
       name: 'Zotero',
-      icon: `${import.meta.env.BASE_URL}images/zotero-icon.svg`,
+      icon: `${import.meta.env.BASE_URL}images/zotero-icon.png`,
     };
   }
   if (pathname.startsWith('/a-source')) {

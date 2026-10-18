@@ -58,6 +58,10 @@ export function buildZoteroItem(form: ZoteroForm, key?: string): ZoteroItem {
   item.creators = [];
   item.tags = (form.tags ?? []).map((tag) => ({ tag }));
   item.collections = form.collectionKey ? [form.collectionKey] : [];
-  if (key) item.key = key;
+  // Zotero refuses a client-keyed write without a version; 0 means "new item".
+  if (key) {
+    item.key = key;
+    item.version = 0;
+  }
   return item;
 }

@@ -142,6 +142,40 @@ export async function createItem(
   return { key: made.key, version: made.version };
 }
 
+/** Compares page URLs loosely: case-insensitive host, no trailing slash or fragment. */
+function sameUrl(a: string, b: string): boolean {
+  const norm = (u: string) => {
+    try {
+      const url = new URL(u.trim());
+      url.hash = '';
+      return url.toString().replace(/\/$/, '').toLowerCase();
+    } catch {
+      return u.trim().replace(/\/$/, '').toLowerCase();
+    }
+  };
+  return norm(a) === norm(b);
+}
+
+/**
+ * The key of a top-level item in the library already saved from this URL, or
+ * null. Zotero's "everything" search matches the url field; only an exact URL
+ * match counts as the same page.
+ */
+export async function findItemByUrl(
+  login: ZoteroLogin,
+  url: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<string | null> {
+  if (!url.trim()) return null;
+  const query = new URLSearchParams({ q: url.trim(), qmode: 'everything', limit: '25' });
+  const res = await fetchImpl(`${API}/users/${encodeURIComponent(login.userId)}/items/top?${query}`, {
+    headers: headers(login),
+  });
+  if (!res.ok) throw new ZoteroError(`Zotero search ${res.status}`, res.status);
+  const rows = (await res.json()) as Array<{ key: string; data?: { url?: string } }>;
+  return rows.find((r) => r.data?.url && sameUrl(r.data.url, url))?.key ?? null;
+}
+
 export function zoteroItemUrl(username: string, itemKey: string): string {
   return `https://www.zotero.org/${encodeURIComponent(username)}/items/${itemKey}`;
 }

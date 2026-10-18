@@ -9,6 +9,7 @@ import {
   newItemKey,
   clearZoteroLogin,
   createItem,
+  findItemByUrl,
   getZoteroLogin,
   listCollections,
   newWriteToken,
@@ -56,7 +57,10 @@ export function Zotero() {
   const [status, setStatus] = useState<Status>('idle');
   const [errorText, setErrorText] = useState('');
   const [savedKey, setSavedKey] = useState('');
-  // One token per save attempt: a retry after a dropped response can't duplicate the item.
+  // An item already in the library from this URL, found before saving; '' when none.
+  const [existingKey, setExistingKey] = useState('');
+  // One token per save: a request re-sent after a dropped response can't duplicate the
+  // item. Zotero refuses a token it has already accepted, so each new save gets a fresh one.
   const writeToken = useRef(newWriteToken());
 
   useEffect(() => {
@@ -114,12 +118,23 @@ export function Zotero() {
 
   const auth = useAutoSignIn('zotero', Boolean(login), connect);
 
-  async function save(): Promise<void> {
+  async function save(allowDuplicate = false): Promise<void> {
     if (!login || status === 'saving') return;
     const problems = validateZoteroForm(current);
     setErrors(problems);
     if (Object.keys(problems).length) return;
     setStatus('saving');
+    setExistingKey('');
+    if (!allowDuplicate) {
+      // Zotero happily stores the same page twice, so ask first. A failed lookup just saves.
+      const found = await findItemByUrl(login, values.url).catch(() => null);
+      if (found) {
+        track('zotero_duplicate_found');
+        setExistingKey(found);
+        setStatus('idle');
+        return;
+      }
+    }
     try {
       const key = newItemKey();
       const item = buildZoteroItem(current, key);
@@ -130,6 +145,7 @@ export function Zotero() {
       // Parent and child note go in one request, so the note can name the client-made key.
       const made = await createItem(login, items, writeToken.current);
       track('zotero_saved', { has_collection: Boolean(collection) });
+      writeToken.current = newWriteToken();
       setSavedKey(made.key);
       setStatus('idle');
     } catch (err) {
@@ -142,6 +158,8 @@ export function Zotero() {
       }
       track('zotero_failed', { step: 'save', status: err instanceof ZoteroError ? err.status : 0 });
       reportError(err, { screen: 'zotero', step: 'save' });
+      // 412: Zotero already accepted this exact save, so a fresh token is needed to try again.
+      if (err instanceof ZoteroError && err.status === 412) writeToken.current = newWriteToken();
       setErrorText('Zotero couldn’t save this page. Please try again.');
       setStatus('error');
     }
@@ -177,10 +195,7 @@ export function Zotero() {
         heading="Saved to Zotero."
         title={values.title}
         links={[{ href: zoteroItemUrl(login.username || login.userId, savedKey), label: 'View in Zotero' }]}
-        onEdit={() => {
-          writeToken.current = newWriteToken(); // saving again is a new item
-          setSavedKey('');
-        }}
+        onEdit={() => setSavedKey('')}
       />
     );
   }
@@ -219,9 +234,25 @@ export function Zotero() {
       <p className="field-hint">Accessed {capture.accessedDate}</p>
 
       {status === 'error' && <p role="alert">{errorText}</p>}
-      <button type="button" className="primary" onClick={() => void save()}>
-        Save to Zotero
-      </button>
+      {existingKey ? (
+        <div className="zotero-duplicate" role="alert">
+          <p>
+            <strong>This page is already in your Zotero library.</strong>
+          </p>
+          <p>
+            <a href={zoteroItemUrl(login.username || login.userId, existingKey)} target="_blank" rel="noreferrer">
+              View it in Zotero
+            </a>
+          </p>
+          <button type="button" className="primary" onClick={() => void save(true)}>
+            Save another copy
+          </button>
+        </div>
+      ) : (
+        <button type="button" className="primary" onClick={() => void save()}>
+          Save to Zotero
+        </button>
+      )}
 
       <div className="form-footer">
         <BackButton onClick={back} />
