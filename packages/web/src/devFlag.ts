@@ -1,19 +1,27 @@
 const DEV_KEY = 'rs_dev';
 
+// Per-tab (sessionStorage): it survives the same-tab sign-in redirects but never
+// leaks into another visit, such as the extension popup or a new capture.
 function readFlag(): string | null {
   try {
-    return localStorage.getItem(DEV_KEY);
+    return sessionStorage.getItem(DEV_KEY);
   } catch {
     return null;
   }
 }
 function writeFlag(on: boolean): void {
   try {
-    if (on) localStorage.setItem(DEV_KEY, '1');
-    else localStorage.removeItem(DEV_KEY);
+    if (on) sessionStorage.setItem(DEV_KEY, '1');
+    else sessionStorage.removeItem(DEV_KEY);
   } catch {
     /* storage unavailable */
   }
+}
+// Earlier builds remembered the flag site-wide in localStorage; drop it.
+try {
+  localStorage.removeItem(DEV_KEY);
+} catch {
+  /* storage unavailable */
 }
 
 /** `dev` from the query string or from the hash route's query (`#/?dev=1`). */
@@ -26,7 +34,7 @@ function requestedFlag(): string | null {
 }
 
 /**
- * Hidden-feature switch. `dev=1` in the URL turns it on and remembers it (so it
+ * Hidden-feature switch. `dev=1` in the URL turns it on for this tab (so it
  * survives the Geni/Zotero sign-in round-trips, which drop the query); `dev=0`
  * turns it off.
  */
