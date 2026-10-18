@@ -53,6 +53,20 @@ export function JustCitation() {
       <h3>Your Citation</h3>
       <p>Copy the citation below, or grab any of the captured details.</p>
 
+      <p>
+        <strong>Title:</strong> {capture.title || '—'}
+      </p>
+      <p>
+        <strong>URL:</strong>{' '}
+        {capture.url ? (
+          <a href={capture.url} target="_blank" rel="noreferrer">
+            {capture.url}
+          </a>
+        ) : (
+          '—'
+        )}
+      </p>
+
       <div className="citation-label-row">
         <label className="field-label" htmlFor="jc-citation">
           Citation
@@ -73,27 +87,6 @@ export function JustCitation() {
         {copied ? 'Copied!' : 'Copy citation'}
       </button>
       {copyHint && <p role="status">Couldn’t copy automatically. The citation is selected; press Ctrl+C (⌘C on a Mac).</p>}
-
-      <hr />
-
-      <p>
-        <strong>Title:</strong> {capture.title || '—'}
-      </p>
-      <p>
-        <strong>URL:</strong>{' '}
-        {capture.url ? (
-          <a href={capture.url} target="_blank" rel="noreferrer">
-            {capture.url}
-          </a>
-        ) : (
-          '—'
-        )}
-      </p>
-      {capture.notes && (
-        <p>
-          <strong>Notes:</strong> {capture.notes}
-        </p>
-      )}
 
       <div className="form-footer">
         <BackButton

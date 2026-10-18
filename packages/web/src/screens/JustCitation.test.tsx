@@ -49,4 +49,13 @@ describe('JustCitation', () => {
     expect(writeText).toHaveBeenCalledTimes(1);
     expect(await screen.findByRole('button', { name: 'Copied!' })).toBeInTheDocument();
   });
+
+  it('shows Title, URL, then Citation, and no notes', () => {
+    renderJustCitation();
+    const text = document.querySelector('main')!.textContent!;
+    expect(text.indexOf('Title:')).toBeLessThan(text.indexOf('URL:'));
+    expect(text.indexOf('URL:')).toBeLessThan(text.indexOf('Citation'));
+    expect(screen.queryByText(/Notes:/)).not.toBeInTheDocument();
+    expect(screen.queryByText('A note')).not.toBeInTheDocument();
+  });
 });
