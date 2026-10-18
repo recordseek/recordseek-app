@@ -65,13 +65,16 @@ describe('Zotero', () => {
     connect();
     let release: () => void = () => {};
     const gate = new Promise<void>((r) => (release = r));
-    vi.stubGlobal('fetch', vi.fn(async (_url: string, init?: RequestInit) => {
-      if (init?.method === 'POST') {
-        await gate;
-        return { ok: true, status: 200, json: async () => ({ successful: { '0': { key: 'ITEM1', version: 3 } } }) };
-      }
-      return { ok: true, status: 200, json: async () => [] };
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: string, init?: RequestInit) => {
+        if (init?.method === 'POST') {
+          await gate;
+          return { ok: true, status: 200, json: async () => ({ successful: { '0': { key: 'ITEM1', version: 3 } } }) };
+        }
+        return { ok: true, status: 200, json: async () => [] };
+      }),
+    );
     renderScreen();
     expect(screen.getByRole('status')).toHaveTextContent('Loading your Zotero collections…');
     await userEvent.click(await screen.findByRole('button', { name: 'Save to Zotero' }));
@@ -85,7 +88,14 @@ describe('Zotero', () => {
     mockApi({ ok: true, status: 200, body: {} });
     renderScreen();
     await screen.findByRole('option', { name: 'Research' });
-    for (const l of ['Source Title', 'Source (URL)', 'Citation', 'Citation format', 'Describe the Record (Notes)', 'Collection']) {
+    for (const l of [
+      'Source Title',
+      'Source (URL)',
+      'Citation',
+      'Citation format',
+      'Describe the Record (Notes)',
+      'Collection',
+    ]) {
       expect(screen.getByLabelText(l)).toBeInTheDocument();
     }
     expect(screen.queryByLabelText(/accessed/i)).toBeNull();
@@ -107,7 +117,14 @@ describe('Zotero', () => {
     expect(link).toHaveAttribute('href', 'https://www.zotero.org/jane/items/ITEM1');
     const { post, items } = posted(f);
     const [item, note] = items as [Record<string, any>, Record<string, any>];
-    expect(item).toMatchObject({ itemType: 'webpage', title: 'DPLA', url: 'https://dp.la/', websiteTitle: 'Dp', collections: ['C1'], tags: [] });
+    expect(item).toMatchObject({
+      itemType: 'webpage',
+      title: 'DPLA',
+      url: 'https://dp.la/',
+      websiteTitle: 'Dp',
+      collections: ['C1'],
+      tags: [],
+    });
     expect(item.accessDate).toBe('2026-06-16T00:00:00Z');
     expect(item.key).toMatch(/^[2-9A-NP-Z]{8}$/);
     expect(note).toMatchObject({ itemType: 'note', parentItem: item.key });

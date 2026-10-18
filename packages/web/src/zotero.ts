@@ -5,7 +5,9 @@ const STORE_KEY = 'rs_zotero';
 
 export function zoteroAuthUrl(): string {
   const env = import.meta.env as Record<string, string | boolean | undefined>;
-  return typeof env.VITE_ZOTERO_AUTH_URL === 'string' && env.VITE_ZOTERO_AUTH_URL ? env.VITE_ZOTERO_AUTH_URL : DEFAULT_AUTH_URL;
+  return typeof env.VITE_ZOTERO_AUTH_URL === 'string' && env.VITE_ZOTERO_AUTH_URL
+    ? env.VITE_ZOTERO_AUTH_URL
+    : DEFAULT_AUTH_URL;
 }
 
 /** What the OAuth round-trip leaves behind. The key is the user's Zotero API key. */
@@ -18,7 +20,13 @@ export interface ZoteroLogin {
 export function getZoteroLogin(): ZoteroLogin | null {
   try {
     const parsed = JSON.parse(localStorage.getItem(STORE_KEY) ?? 'null') as Partial<ZoteroLogin> | null;
-    return parsed && parsed.key && parsed.userId ? { key: parsed.key, userId: parsed.userId, username: parsed.username ?? '' } : null;
+    return parsed && parsed.key && parsed.userId
+      ? {
+          key: parsed.key,
+          userId: parsed.userId,
+          username: parsed.username ?? '',
+        }
+      : null;
   } catch {
     return null;
   }
@@ -33,6 +41,19 @@ export function clearZoteroLogin(): void {
 }
 
 /** Where the helper function starts the OAuth dance; it sends the user back to `returnTo`. */
+/**
+ * Deletes the API key the OAuth round-trip created (documented: DELETE /keys/<key>,
+ * "generally done only by a client that created the key originally using OAuth").
+ * api.zotero.org allows this cross-origin with the Zotero-API-Key header.
+ */
+export async function revokeZoteroKey(login: ZoteroLogin, fetchImpl: typeof fetch = fetch): Promise<void> {
+  await fetchImpl(`https://api.zotero.org/keys/${encodeURIComponent(login.key)}`, {
+    method: 'DELETE',
+    headers: { 'Zotero-API-Key': login.key },
+    signal: AbortSignal.timeout(5000),
+  });
+}
+
 export function zoteroStartUrl(returnTo: string): string {
   return `${zoteroAuthUrl()}?${new URLSearchParams({ action: 'start', return: returnTo })}`;
 }
@@ -55,10 +76,18 @@ function headers(login: ZoteroLogin, extra?: Record<string, string>): Record<str
   return { 'Zotero-API-Key': login.key, 'Zotero-API-Version': '3', ...extra };
 }
 
-export async function listCollections(login: ZoteroLogin, fetchImpl: typeof fetch = fetch): Promise<ZoteroCollection[]> {
-  const res = await fetchImpl(`${API}/users/${encodeURIComponent(login.userId)}/collections?limit=100`, { headers: headers(login) });
+export async function listCollections(
+  login: ZoteroLogin,
+  fetchImpl: typeof fetch = fetch,
+): Promise<ZoteroCollection[]> {
+  const res = await fetchImpl(`${API}/users/${encodeURIComponent(login.userId)}/collections?limit=100`, {
+    headers: headers(login),
+  });
   if (!res.ok) throw new ZoteroError(`Zotero collections ${res.status}`, res.status);
-  const rows = (await res.json()) as Array<{ key: string; data?: { name?: string } }>;
+  const rows = (await res.json()) as Array<{
+    key: string;
+    data?: { name?: string };
+  }>;
   return rows.map((r) => ({ key: r.key, name: r.data?.name ?? r.key })).sort((a, b) => a.name.localeCompare(b.name));
 }
 
@@ -97,7 +126,10 @@ export async function createItem(
 ): Promise<CreatedItem> {
   const res = await fetchImpl(`${API}/users/${encodeURIComponent(login.userId)}/items`, {
     method: 'POST',
-    headers: headers(login, { 'Content-Type': 'application/json', 'Zotero-Write-Token': writeToken }),
+    headers: headers(login, {
+      'Content-Type': 'application/json',
+      'Zotero-Write-Token': writeToken,
+    }),
     body: JSON.stringify(items),
   });
   if (!res.ok) throw new ZoteroError(`Zotero save ${res.status}`, res.status);

@@ -52,14 +52,18 @@ describe('Geni source step', () => {
     await userEvent.type(screen.getByLabelText(/Describe the Record/), 'my notes');
     await userEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(screen.getByTestId('where')).toHaveTextContent('/geni-search');
-    const saved = JSON.parse(sessionStorage.getItem('rs_geni_flow') ?? '{}') as { source: { title: string; notes: string; url: string } };
+    const saved = JSON.parse(sessionStorage.getItem('rs_geni_flow') ?? '{}') as {
+      source: { title: string; notes: string; url: string };
+    };
     expect(saved.source).toMatchObject({ title: 'DPLA', url: 'https://dp.la/' });
     expect(saved.source.notes).toContain('my notes');
   });
 
   it('restores earlier edits when coming back to modify the source', () => {
     signIn();
-    renderGeni('/geni', { source: { title: 'Edited title', url: 'https://dp.la/x', citation: 'Edited cite', notes: 'Edited notes' } });
+    renderGeni('/geni', {
+      source: { title: 'Edited title', url: 'https://dp.la/x', citation: 'Edited cite', notes: 'Edited notes' },
+    });
     expect(screen.getByLabelText('Source Title')).toHaveValue('Edited title');
     expect(screen.getByDisplayValue('Edited cite')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Edited notes')).toBeInTheDocument();

@@ -81,7 +81,11 @@ describe('Main', () => {
   });
 
   it('orders tiles alphabetically with Save to Somewhere Else last', () => {
-    const order = () => screen.getAllByRole('button').filter((b) => b.className.includes('service-tile')).map((b) => b.textContent || b.querySelector('img')?.getAttribute('alt'));
+    const order = () =>
+      screen
+        .getAllByRole('button')
+        .filter((b) => b.className.includes('service-tile'))
+        .map((b) => b.textContent || b.querySelector('img')?.getAttribute('alt'));
     const first = renderMain();
     expect(order()).toEqual(['Ancestry', 'FamilySearch', 'Save to Somewhere Else']);
     first.unmount();

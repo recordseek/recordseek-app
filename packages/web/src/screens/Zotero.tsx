@@ -49,7 +49,9 @@ export function Zotero() {
   const [collections, setCollections] = useState<ZoteroCollection[]>([]);
   const [collectionsLoaded, setCollectionsLoaded] = useState(false);
   const [collection, setCollection] = useState('');
-  const [eventTags, setEventTags] = useState<Record<EventTag, boolean>>(() => Object.fromEntries(EVENT_TAGS.map((t) => [t, false])) as Record<EventTag, boolean>);
+  const [eventTags, setEventTags] = useState<Record<EventTag, boolean>>(
+    () => Object.fromEntries(EVENT_TAGS.map((t) => [t, false])) as Record<EventTag, boolean>,
+  );
   const tags = EVENT_TAGS.filter((t) => eventTags[t]).map((t) => TAG_LABELS[t]);
   const [status, setStatus] = useState<Status>('idle');
   const [errorText, setErrorText] = useState('');
@@ -69,7 +71,14 @@ export function Zotero() {
     }
   }, []);
 
-  const current = { title: values.title, url: values.url, publisher: capture.publisher, accessed, collectionKey: collection || undefined, tags };
+  const current = {
+    title: values.title,
+    url: values.url,
+    publisher: capture.publisher,
+    accessed,
+    collectionKey: collection || undefined,
+    tags,
+  };
 
   useEffect(() => {
     if (!login) return;
@@ -116,7 +125,8 @@ export function Zotero() {
       const item = buildZoteroItem(current, key);
       const items = [item];
       // The citation and the user's notes travel as a child note (Extra stays the user's).
-      if (values.citation.trim() || values.notes.trim()) items.push(buildZoteroNote(key, values.citation, values.notes));
+      if (values.citation.trim() || values.notes.trim())
+        items.push(buildZoteroNote(key, values.citation, values.notes));
       // Parent and child note go in one request, so the note can name the client-made key.
       const made = await createItem(login, items, writeToken.current);
       track('zotero_saved', { has_collection: Boolean(collection) });
@@ -194,17 +204,17 @@ export function Zotero() {
       {errors.url && <p role="alert">{errors.url}</p>}
 
       <div className="field">
-      <label className="field-label" htmlFor="zotero-collection">
-        Collection
-      </label>
-      <select id="zotero-collection" value={collection} onChange={(e) => setCollection(e.target.value)}>
-        <option value="">My Library</option>
-        {collections.map((c) => (
-          <option key={c.key} value={c.key}>
-            {c.name}
-          </option>
-        ))}
-      </select>
+        <label className="field-label" htmlFor="zotero-collection">
+          Collection
+        </label>
+        <select id="zotero-collection" value={collection} onChange={(e) => setCollection(e.target.value)}>
+          <option value="">My Library</option>
+          {collections.map((c) => (
+            <option key={c.key} value={c.key}>
+              {c.name}
+            </option>
+          ))}
+        </select>
       </div>
       <p className="field-hint">Accessed {capture.accessedDate}</p>
 

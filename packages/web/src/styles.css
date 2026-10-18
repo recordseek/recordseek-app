@@ -1227,3 +1227,8 @@ a.donate-button:hover {
   display: flex;
   justify-content: flex-end;
 }
+.logout-note {
+  color: #6c757d;
+  font-size: 0.85rem;
+  margin: 0 0 12px;
+}

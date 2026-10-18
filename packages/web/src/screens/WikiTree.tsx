@@ -184,7 +184,10 @@ export function WikiTree() {
   return (
     <main>
       <h3>Add to WikiTree</h3>
-      <p>WikiTree can’t take a source automatically. Pick a person, copy the reference below, then paste it into the Sources section of their profile.</p>
+      <p>
+        WikiTree can’t take a source automatically. Pick a person, copy the reference below, then paste it into the
+        Sources section of their profile.
+      </p>
 
       <div className="citation-label-row">
         <label className="field-label" htmlFor="wt-ref">
@@ -192,7 +195,11 @@ export function WikiTree() {
         </label>
         <span className="format-inline">
           <span className="field-hint">Format</span>
-          <select aria-label="Citation format" value={style} onChange={(e) => setStyle(e.target.value as CitationStyle)}>
+          <select
+            aria-label="Citation format"
+            value={style}
+            onChange={(e) => setStyle(e.target.value as CitationStyle)}
+          >
             {CITATION_STYLES.map((s) => (
               <option key={s} value={s}>
                 {CITATION_STYLE_LABELS[s]}
@@ -205,7 +212,9 @@ export function WikiTree() {
       <button type="button" className="primary" onClick={() => void copy()}>
         {copied ? 'Copied!' : 'Copy reference'}
       </button>
-      {copyHint && <p role="status">Couldn’t copy automatically. The reference is selected; press Ctrl+C (⌘C on a Mac).</p>}
+      {copyHint && (
+        <p role="status">Couldn’t copy automatically. The reference is selected; press Ctrl+C (⌘C on a Mac).</p>
+      )}
 
       <hr />
 
@@ -231,21 +240,35 @@ export function WikiTree() {
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
           />
-          {watchlist && visible.length === 0 && <p>{watchlist.length ? 'No one on your watchlist matches.' : 'Your watchlist is empty.'}</p>}
-          {visible.length > 0 && (
-            <PersonList label="Your profiles" people={visible} picked={picked} onPick={pick} />
+          {watchlist && visible.length === 0 && (
+            <p>{watchlist.length ? 'No one on your watchlist matches.' : 'Your watchlist is empty.'}</p>
           )}
+          {visible.length > 0 && <PersonList label="Your profiles" people={visible} picked={picked} onPick={pick} />}
 
           <form onSubmit={search}>
             <span className="field-label">Search all of WikiTree</span>
-            <input type="text" aria-label="First name" placeholder="First name" value={first} onChange={(e) => setFirst(e.target.value)} />
-            <input type="text" aria-label="Last name" placeholder="Last name" value={last} onChange={(e) => setLast(e.target.value)} />
+            <input
+              type="text"
+              aria-label="First name"
+              placeholder="First name"
+              value={first}
+              onChange={(e) => setFirst(e.target.value)}
+            />
+            <input
+              type="text"
+              aria-label="Last name"
+              placeholder="Last name"
+              value={last}
+              onChange={(e) => setLast(e.target.value)}
+            />
             <button type="submit" disabled={busy || (!first.trim() && !last.trim())}>
               Search
             </button>
           </form>
           {found && found.length === 0 && <p>No profiles found.</p>}
-          {found && found.length > 0 && <PersonList label="Search results" people={found} picked={picked} onPick={pick} />}
+          {found && found.length > 0 && (
+            <PersonList label="Search results" people={found} picked={picked} onPick={pick} />
+          )}
         </>
       )}
       {session && error && <p role="alert">{error}</p>}
@@ -253,7 +276,8 @@ export function WikiTree() {
       {picked && (
         <>
           <p>
-            <strong>{picked.display}</strong> ({picked.name}) is chosen. Copy the reference above, then open their edit page and paste it into the Sources section.
+            <strong>{picked.display}</strong> ({picked.name}) is chosen. Copy the reference above, then open their edit
+            page and paste it into the Sources section.
           </p>
           <button type="button" className="primary" onClick={openPicked}>
             Open {picked.name} to paste
@@ -278,9 +302,7 @@ export function WikiTree() {
         }}
         onKeyDown={(e) => e.key === 'Enter' && openEditor()}
       />
-      {idError && (
-        <p role="alert">A WikiTree ID looks like Smith-123: the surname, a hyphen, then a number.</p>
-      )}
+      {idError && <p role="alert">A WikiTree ID looks like Smith-123: the surname, a hyphen, then a number.</p>}
       <button type="button" onClick={openEditor}>
         Open the edit page
       </button>
@@ -297,13 +319,19 @@ export function WikiTree() {
   );
 }
 
-function PersonList(props: { label: string; people: WikiTreePerson[]; picked: WikiTreePerson | null; onPick: (p: WikiTreePerson) => void }) {
+function PersonList(props: {
+  label: string;
+  people: WikiTreePerson[];
+  picked: WikiTreePerson | null;
+  onPick: (p: WikiTreePerson) => void;
+}) {
   return (
     <ul className="plain-list wt-list" aria-label={props.label}>
       {props.people.map((p) => (
         <li key={p.id}>
           <label>
-            <input type="radio" name="wt-person" checked={props.picked?.id === p.id} onChange={() => props.onPick(p)} /> {p.display}
+            <input type="radio" name="wt-person" checked={props.picked?.id === p.id} onChange={() => props.onPick(p)} />{' '}
+            {p.display}
             {p.years ? ` (${p.years})` : ''} <span className="field-hint">{p.name}</span>
           </label>
         </li>

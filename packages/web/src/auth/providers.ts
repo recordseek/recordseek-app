@@ -1,13 +1,7 @@
-import {
-  clearGeniToken,
-  getGeniName,
-  getGeniToken,
-  myProfile,
-  setGeniName,
-} from "../geni";
-import { clearZoteroLogin, getZoteroLogin } from "../zotero";
-import { clearWikiTreeSession, getWikiTreeSession } from "../wikitree";
-import { fetchFsUser, isFsAuthenticated, logoutFs } from "../fsAuth";
+import { clearGeniToken, getGeniName, getGeniToken, myProfile, revokeGeniToken, setGeniName } from '../geni';
+import { clearZoteroLogin, getZoteroLogin, revokeZoteroKey } from '../zotero';
+import { clearWikiTreeSession, getWikiTreeSession, revokeWikiTreeSession } from '../wikitree';
+import { fetchFsUser, isFsAuthenticated, logoutFs } from '../fsAuth';
 
 /** A service whose sign-in the header owns (Hello name + Log out). */
 export interface AuthProvider {
@@ -34,27 +28,41 @@ function forget(id: string, ...keys: string[]): void {
   }
 }
 
+/**
+ * Best-effort server-side revoke: never longer than 5 s, never throws, so the caller
+ * always goes on to clear local state. These calls end RecordSeek's access only. The
+ * user's own login on geni.com, zotero.org or wikitree.com is a separate browser session
+ * we cannot end. FamilySearch is the exception: its logout call ends the FS session.
+ */
+async function bestEffort(revoke: () => Promise<unknown>): Promise<void> {
+  try {
+    await Promise.race([revoke(), new Promise((resolve) => setTimeout(resolve, 5000))]);
+  } catch {
+    /* offline, CORS or an already-dead token: carry on and clear locally */
+  }
+}
+
 export const AUTH_PROVIDERS: AuthProvider[] = [
   {
-    id: "fs",
-    label: "FamilySearch",
-    logo: img("familysearch-logo.svg"),
-    match: (p) => p.startsWith("/fs-"),
+    id: 'fs',
+    label: 'FamilySearch',
+    logo: img('familysearch-logo.svg'),
+    match: (p) => p.startsWith('/fs-'),
     isSignedIn: isFsAuthenticated,
     async displayName() {
       const user = await fetchFsUser();
       return user?.displayName ?? user?.givenName ?? null;
     },
     async logout() {
-      await logoutFs();
-      forget("fs", "fs_pkce_verifier", "fs_return_route");
+      await bestEffort(logoutFs);
+      forget('fs', 'fs_pkce_verifier', 'fs_return_route');
     },
   },
   {
-    id: "geni",
-    label: "Geni",
-    logo: img("geni-logo.svg"),
-    match: (p) => p.startsWith("/geni"),
+    id: 'geni',
+    label: 'Geni',
+    logo: img('geni-logo.svg'),
+    match: (p) => p.startsWith('/geni'),
     isSignedIn: () => getGeniToken() !== null,
     async displayName(network = true) {
       const cached = getGeniName();
@@ -70,32 +78,38 @@ export const AUTH_PROVIDERS: AuthProvider[] = [
       }
     },
     async logout() {
+      const token = getGeniToken();
+      if (token) await bestEffort(() => revokeGeniToken(token));
       clearGeniToken(); // token, cached name and wizard state
-      forget("geni");
+      forget('geni');
     },
   },
   {
-    id: "zotero",
-    label: "Zotero",
-    logo: img("zotero-logo.svg"),
-    match: (p) => p.startsWith("/zotero"),
+    id: 'zotero',
+    label: 'Zotero',
+    logo: img('zotero-logo.svg'),
+    match: (p) => p.startsWith('/zotero'),
     isSignedIn: () => getZoteroLogin() !== null,
     displayName: async () => getZoteroLogin()?.username || null,
     async logout() {
+      const login = getZoteroLogin();
+      if (login) await bestEffort(() => revokeZoteroKey(login));
       clearZoteroLogin();
-      forget("zotero", "rs_zotero_new");
+      forget('zotero', 'rs_zotero_new');
     },
   },
   {
-    id: "wikitree",
-    label: "WikiTree",
-    logo: img("wikitree-logo.png"),
-    match: (p) => p.startsWith("/wikitree"),
+    id: 'wikitree',
+    label: 'WikiTree',
+    logo: img('wikitree-logo.png'),
+    match: (p) => p.startsWith('/wikitree'),
     isSignedIn: () => getWikiTreeSession() !== null,
     displayName: async () => getWikiTreeSession()?.userName ?? null,
     async logout() {
+      const s = getWikiTreeSession();
+      if (s) await bestEffort(() => revokeWikiTreeSession(s.session));
       clearWikiTreeSession();
-      forget("wikitree");
+      forget('wikitree');
     },
   },
 ];

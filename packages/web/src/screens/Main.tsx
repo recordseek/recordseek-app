@@ -1,26 +1,22 @@
-import type { ReactNode } from "react";
-import { useNavigate } from "react-router";
-import { useCapture } from "../capture/CaptureContext";
-import { track } from "../analytics";
-import { saveLastService, type Service } from "../prefs";
-import { isDevMode } from "../devFlag";
-import { FeedbackBox } from "../components/FeedbackBox";
+import type { ReactNode } from 'react';
+import { useNavigate } from 'react-router';
+import { useCapture } from '../capture/CaptureContext';
+import { track } from '../analytics';
+import { saveLastService, type Service } from '../prefs';
+import { isDevMode } from '../devFlag';
+import { FeedbackBox } from '../components/FeedbackBox';
 
 const ROUTES: Record<Service, string> = {
-  FamilySearch: "/fs-source",
-  Ancestry: "/a-source",
-  Citation: "/citation",
-  Zotero: "/zotero",
-  Geni: "/geni",
-  WikiTree: "/wikitree",
+  FamilySearch: '/fs-source',
+  Ancestry: '/a-source',
+  Citation: '/citation',
+  Zotero: '/zotero',
+  Geni: '/geni',
+  WikiTree: '/wikitree',
 };
 
 const img = (file: string, alt: string, fit = false) => (
-  <img
-    className={fit ? "logo-fit" : undefined}
-    src={`${import.meta.env.BASE_URL}images/${file}`}
-    alt={alt}
-  />
+  <img className={fit ? 'logo-fit' : undefined} src={`${import.meta.env.BASE_URL}images/${file}`} alt={alt} />
 );
 
 /** Every tile except "Save to Somewhere Else", which always goes last. */
@@ -31,38 +27,38 @@ const TILES: {
   content: ReactNode;
 }[] = [
   {
-    service: "Ancestry",
-    label: "Ancestry",
-    content: img("ancestry-logo.svg", "Ancestry"),
+    service: 'Ancestry',
+    label: 'Ancestry',
+    content: img('ancestry-logo.svg', 'Ancestry'),
   },
   {
-    service: "FamilySearch",
-    label: "FamilySearch",
-    content: img("familysearch-logo.svg", "FamilySearch"),
+    service: 'FamilySearch',
+    label: 'FamilySearch',
+    content: img('familysearch-logo.svg', 'FamilySearch'),
   },
   {
-    service: "Geni",
-    label: "Geni",
+    service: 'Geni',
+    label: 'Geni',
     dev: true,
-    content: img("geni-logo.svg", "Geni"),
+    content: img('geni-logo.svg', 'Geni'),
   },
   {
-    service: "WikiTree",
-    label: "WikiTree",
+    service: 'WikiTree',
+    label: 'WikiTree',
     dev: true,
-    content: img("wikitree-logo.png", "WikiTree"),
+    content: img('wikitree-logo.png', 'WikiTree'),
   },
   {
-    service: "Zotero",
-    label: "Zotero",
+    service: 'Zotero',
+    label: 'Zotero',
     dev: true,
-    content: img("zotero-logo.svg", "Zotero"),
+    content: img('zotero-logo.svg', 'Zotero'),
   },
 ];
 
 const CITATION_TILE = {
-  service: "Citation" as Service,
-  label: "Save to Somewhere Else",
+  service: 'Citation' as Service,
+  label: 'Save to Somewhere Else',
   content: (
     <>
       {/* Inline SVG, not an emoji: emoji glyphs are missing on some devices. */}
@@ -92,19 +88,14 @@ export function Main() {
   const capture = useCapture();
   // Zotero, Geni and WikiTree are hidden in production until `?dev=1` turns them on.
   const dev = isDevMode();
-  const tiles = [
-    ...TILES.filter((t) => dev || !t.dev).sort((x, y) =>
-      x.label.localeCompare(y.label),
-    ),
-    CITATION_TILE,
-  ];
+  const tiles = [...TILES.filter((t) => dev || !t.dev).sort((x, y) => x.label.localeCompare(y.label)), CITATION_TILE];
   const captured = capture.title || capture.url;
 
   // Always show the picker: auto-advancing to the remembered service hid the
   // choice and could drop a user into a sign-in they never asked for.
   function choose(service: Service): void {
     saveLastService(service);
-    track("service_selected", { service });
+    track('service_selected', { service });
     navigate(ROUTES[service]);
   }
 
@@ -114,7 +105,7 @@ export function Main() {
       {captured ? (
         <p>
           For <strong>{capture.title || capture.url}</strong>
-          {capture.publisher ? ` · ${capture.publisher}` : ""}
+          {capture.publisher ? ` · ${capture.publisher}` : ''}
         </p>
       ) : (
         <p>Capture a page with the RecordSeek extension to get started.</p>
@@ -123,12 +114,7 @@ export function Main() {
 
       <div className="service-grid">
         {tiles.map((t) => (
-          <button
-            key={t.service}
-            type="button"
-            className="service-tile"
-            onClick={() => choose(t.service)}
-          >
+          <button key={t.service} type="button" className="service-tile" onClick={() => choose(t.service)}>
             {t.content}
           </button>
         ))}

@@ -127,8 +127,8 @@ export function GeniSearch() {
           />
           {pidInvalid && (
             <span id="geni-pid-error" className="field-hint" role="alert">
-              A Geni profile ID looks like profile-123, a long number starting 6000000, or a geni.com/people link. To search
-              by name, clear this box.
+              A Geni profile ID looks like profile-123, a long number starting 6000000, or a geni.com/people link. To
+              search by name, clear this box.
             </span>
           )}
         </div>
@@ -154,7 +154,11 @@ export function GeniSearch() {
           <span />
           <label>
             Birth Year
-            <input inputMode="numeric" value={s.birthYear} onChange={(e) => updateSearch({ birthYear: e.target.value })} />
+            <input
+              inputMode="numeric"
+              value={s.birthYear}
+              onChange={(e) => updateSearch({ birthYear: e.target.value })}
+            />
           </label>
           <label>
             Birth Place
@@ -162,7 +166,11 @@ export function GeniSearch() {
           </label>
           <label>
             Death Year
-            <input inputMode="numeric" value={s.deathYear} onChange={(e) => updateSearch({ deathYear: e.target.value })} />
+            <input
+              inputMode="numeric"
+              value={s.deathYear}
+              onChange={(e) => updateSearch({ deathYear: e.target.value })}
+            />
           </label>
           <label>
             Death Place

@@ -94,6 +94,22 @@ function saveSession(s: WikiTreeSession): void {
   }
 }
 
+/** Ends the WikiTree session server-side (clientLogin with doLogout=1) through the relay. */
+export async function revokeWikiTreeSession(session: string, fetchImpl: typeof fetch = fetch): Promise<void> {
+  const body = new URLSearchParams({
+    appId: WIKITREE_APP_ID,
+    action: 'clientLogin',
+    doLogout: '1',
+    session,
+  });
+  await fetchImpl(`${zoteroAuthUrl()}?action=wikitree`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body,
+    signal: AbortSignal.timeout(5000),
+  });
+}
+
 export function clearWikiTreeSession(): void {
   try {
     sessionStorage.removeItem(SESSION_KEY);
@@ -107,8 +123,15 @@ export class WikiTreeError extends Error {}
 /** The session is gone or not accepted: sign in again. */
 export class WikiTreeAuthError extends WikiTreeError {}
 
-async function call(params: Record<string, string | number>, session: string | null, fetchImpl: typeof fetch): Promise<unknown> {
-  const body = new URLSearchParams({ appId: WIKITREE_APP_ID, ...Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])) });
+async function call(
+  params: Record<string, string | number>,
+  session: string | null,
+  fetchImpl: typeof fetch,
+): Promise<unknown> {
+  const body = new URLSearchParams({
+    appId: WIKITREE_APP_ID,
+    ...Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])),
+  });
   if (session) body.set('session', session);
   const res = await fetchImpl(`${zoteroAuthUrl()}?action=wikitree`, {
     method: 'POST',
@@ -117,7 +140,9 @@ async function call(params: Record<string, string | number>, session: string | n
   });
   const data = (await res.json().catch(() => null)) as unknown;
   if (!res.ok) throw new WikiTreeError(`WikiTree ${res.status}`);
-  const first = Array.isArray(data) ? (data[0] as { status?: unknown } | undefined) : (data as { status?: unknown } | null);
+  const first = Array.isArray(data)
+    ? (data[0] as { status?: unknown } | undefined)
+    : (data as { status?: unknown } | null);
   const status = first?.status;
   if (typeof status === 'string' && status && status !== '0') {
     throw /login|auth|access|permission/i.test(status) ? new WikiTreeAuthError(status) : new WikiTreeError(status);
@@ -128,12 +153,21 @@ async function call(params: Record<string, string | number>, session: string | n
 /** Confirms the authcode WikiTree returned; stores and returns the signed-in session. */
 export async function confirmAuthcode(authcode: string, fetchImpl: typeof fetch = fetch): Promise<WikiTreeSession> {
   const data = (await call({ action: 'clientLogin', authcode }, null, fetchImpl)) as {
-    clientLogin?: { result?: string; username?: string; userid?: number | string };
+    clientLogin?: {
+      result?: string;
+      username?: string;
+      userid?: number | string;
+    };
     session?: string;
   };
   const login = data?.clientLogin;
-  if (login?.result !== 'Success' || !login.username || !data.session) throw new WikiTreeAuthError('login not confirmed');
-  const s = { session: data.session, userName: login.username, userId: Number(login.userid) || 0 };
+  if (login?.result !== 'Success' || !login.username || !data.session)
+    throw new WikiTreeAuthError('login not confirmed');
+  const s = {
+    session: data.session,
+    userName: login.username,
+    userId: Number(login.userid) || 0,
+  };
   saveSession(s);
   return s;
 }
@@ -156,7 +190,12 @@ export function toPerson(raw: RawPerson): WikiTreePerson | null {
   const display = [raw.FirstName, last].filter(Boolean).join(' ') || raw.Name;
   const b = year(raw.BirthDate);
   const d = year(raw.DeathDate);
-  return { id: raw.Id, name: raw.Name, display, years: b || d ? `${b || '?'}–${d}` : '' };
+  return {
+    id: raw.Id,
+    name: raw.Name,
+    display,
+    years: b || d ? `${b || '?'}–${d}` : '',
+  };
 }
 
 /** Every person on the user's watchlist (profiles they manage or follow), paged 1000 at a time. */
@@ -164,10 +203,22 @@ export async function fetchWatchlist(session: string, fetchImpl: typeof fetch = 
   const people: WikiTreePerson[] = [];
   for (let offset = 0; ; offset += PAGE) {
     const data = (await call(
-      { action: 'getWatchlist', getPerson: 1, getSpace: 0, fields: FIELDS, limit: PAGE, offset, order: 'user_last_name_current' },
+      {
+        action: 'getWatchlist',
+        getPerson: 1,
+        getSpace: 0,
+        fields: FIELDS,
+        limit: PAGE,
+        offset,
+        order: 'user_last_name_current',
+      },
       session,
       fetchImpl,
-    )) as { watchlist?: RawPerson[]; items?: RawPerson[]; watchlistCount?: number };
+    )) as {
+      watchlist?: RawPerson[];
+      items?: RawPerson[];
+      watchlistCount?: number;
+    };
     const rows = data?.watchlist ?? data?.items ?? [];
     for (const row of rows) {
       const p = toPerson(row);
@@ -179,11 +230,22 @@ export async function fetchWatchlist(session: string, fetchImpl: typeof fetch = 
 }
 
 /** Search all of WikiTree by name (public data; no extra rights needed). */
-export async function searchWikiTree(session: string | null, first: string, last: string, fetchImpl: typeof fetch = fetch): Promise<WikiTreePerson[]> {
-  const params: Record<string, string | number> = { action: 'searchPerson', fields: FIELDS, limit: 25 };
+export async function searchWikiTree(
+  session: string | null,
+  first: string,
+  last: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<WikiTreePerson[]> {
+  const params: Record<string, string | number> = {
+    action: 'searchPerson',
+    fields: FIELDS,
+    limit: 25,
+  };
   if (first.trim()) params.FirstName = first.trim();
   if (last.trim()) params.LastName = last.trim();
-  const data = (await call(params, session, fetchImpl)) as { matches?: RawPerson[] };
+  const data = (await call(params, session, fetchImpl)) as {
+    matches?: RawPerson[];
+  };
   return (data?.matches ?? []).map(toPerson).filter((p): p is WikiTreePerson => p !== null);
 }
 

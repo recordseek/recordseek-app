@@ -29,7 +29,10 @@ export function geniLoginUrl(): string {
 /** The token stored by geni-callback.html, or null when absent or expired. */
 export function getGeniToken(now: number = Date.now()): string | null {
   try {
-    const parsed = JSON.parse(sessionStorage.getItem(TOKEN_KEY) ?? 'null') as { token?: string; expiresAt?: number } | null;
+    const parsed = JSON.parse(sessionStorage.getItem(TOKEN_KEY) ?? 'null') as {
+      token?: string;
+      expiresAt?: number;
+    } | null;
     return parsed?.token && (!parsed.expiresAt || parsed.expiresAt > now) ? parsed.token : null;
   } catch {
     return null;
@@ -63,6 +66,15 @@ export function setGeniName(name: string): void {
   }
 }
 
+/**
+ * Ends this app's Geni access token on the server (GET /platform/oauth/invalidate_token,
+ * answered {"result":"OK"}). Geni sends no CORS headers for us but honours `callback`, so JSONP.
+ * It revokes RecordSeek's token only, not the user's own session on geni.com.
+ */
+export async function revokeGeniToken(token: string): Promise<void> {
+  await jsonp('oauth/invalidate_token', { access_token: token }, 5000, 'https://www.geni.com/platform/');
+}
+
 export class GeniBusyError extends Error {
   constructor() {
     super('Geni rate limit exceeded');
@@ -83,7 +95,7 @@ let jsonpCount = 0;
  * fails to load (Geni answers 429 or 401 without a callback) rejects as busy,
  * so it is retried, then surfaces as an error.
  */
-function jsonp(path: string, params: Record<string, string>, timeoutMs = 15000): Promise<unknown> {
+function jsonp(path: string, params: Record<string, string>, timeoutMs = 15000, base = API): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const name = `__rsGeni${(jsonpCount += 1)}`;
     const script = document.createElement('script');
@@ -97,7 +109,7 @@ function jsonp(path: string, params: Record<string, string>, timeoutMs = 15000):
     const timer = window.setTimeout(() => done(() => reject(new GeniBusyError())), timeoutMs);
     win[name] = (data: unknown) => done(() => resolve(data));
     script.onerror = () => done(() => reject(new GeniBusyError()));
-    script.src = `${API}${path}?${new URLSearchParams({ ...params, callback: name })}`;
+    script.src = `${base}${path}?${new URLSearchParams({ ...params, callback: name })}`;
     document.head.appendChild(script);
   });
 }
@@ -136,7 +148,12 @@ export interface GeniProfile {
 
 interface RawEvent {
   date?: { year?: number; formatted_date?: string };
-  location?: { formatted_location?: string; city?: string; state?: string; country?: string };
+  location?: {
+    formatted_location?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+  };
 }
 
 interface RawProfile {
@@ -194,17 +211,32 @@ export interface GeniCriteria {
 }
 
 export function emptyCriteria(): GeniCriteria {
-  return { givenName: '', surname: '', gender: '', birthYear: '', birthPlace: '', deathYear: '', deathPlace: '', pid: '' };
+  return {
+    givenName: '',
+    surname: '',
+    gender: '',
+    birthYear: '',
+    birthPlace: '',
+    deathYear: '',
+    deathPlace: '',
+    pid: '',
+  };
 }
 
 /** The `names` query term: Geni takes a free-text name and nothing else. */
 export function buildNames(c: GeniCriteria): string {
-  return [c.givenName, c.surname].map((t) => t.trim()).filter(Boolean).join(' ');
+  return [c.givenName, c.surname]
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .join(' ');
 }
 
 /** Exactly what goes to profile/search for page `page` (1-based). */
 export function buildSearchParams(c: GeniCriteria, page = 1): Record<string, string> {
-  const params: Record<string, string> = { names: buildNames(c), fields: FIELDS };
+  const params: Record<string, string> = {
+    names: buildNames(c),
+    fields: FIELDS,
+  };
   if (page > 1) params.page = String(page);
   return params;
 }
@@ -285,7 +317,15 @@ export async function searchPeople(
 }
 
 export async function searchProfiles(token: string, names: string, onBusy?: () => void): Promise<GeniProfile[]> {
-  const data = await withRetry(() => jsonp('profile/search', { names, fields: FIELDS, access_token: token }).then(check), onBusy);
+  const data = await withRetry(
+    () =>
+      jsonp('profile/search', {
+        names,
+        fields: FIELDS,
+        access_token: token,
+      }).then(check),
+    onBusy,
+  );
   return ((data as { results?: RawProfile[] }).results ?? []).map(toProfile);
 }
 
@@ -329,7 +369,10 @@ export function isValidGeniId(raw: string): boolean {
 
 /** One person by id or guid; null when Geni has no such (or no visible) profile. */
 export async function getProfile(token: string, ref: string, onBusy?: () => void): Promise<GeniProfile | null> {
-  const data = (await withRetry(() => jsonp(ref, { fields: FIELDS, access_token: token }).then(check), onBusy)) as RawProfile & {
+  const data = (await withRetry(
+    () => jsonp(ref, { fields: FIELDS, access_token: token }).then(check),
+    onBusy,
+  )) as RawProfile & {
     results?: unknown[];
   };
   return data && typeof data.id === 'string' ? toProfile(data) : null;
@@ -350,7 +393,12 @@ interface RawNode extends RawProfile {
 export function parseFamily(data: { focus?: RawProfile; nodes?: Record<string, RawNode> }): GeniFamily {
   const nodes = data.nodes ?? {};
   const focusId = data.focus?.id ?? '';
-  const out: GeniFamily = { parents: [], spouses: [], children: [], siblings: [] };
+  const out: GeniFamily = {
+    parents: [],
+    spouses: [],
+    children: [],
+    siblings: [],
+  };
   const seen = new Set<string>([focusId]);
   const add = (list: GeniProfile[], id: string): void => {
     const node = nodes[id];
@@ -374,7 +422,11 @@ export function parseFamily(data: { focus?: RawProfile; nodes?: Record<string, R
 /** A person's immediate family; `ref` is an API path segment, or omit for the signed-in user. */
 export async function immediateFamily(token: string, ref = 'profile', onBusy?: () => void): Promise<GeniFamily> {
   const data = await withRetry(
-    () => jsonp(`${ref}/immediate-family`, { fields: FIELDS, access_token: token }).then(check),
+    () =>
+      jsonp(`${ref}/immediate-family`, {
+        fields: FIELDS,
+        access_token: token,
+      }).then(check),
     onBusy,
   );
   return parseFamily(data as { focus?: RawProfile; nodes?: Record<string, RawNode> });
@@ -432,7 +484,12 @@ export async function addDocument(
     () =>
       relay(
         'document/add',
-        { access_token: input.token, title: input.title, text: input.text, source_url: input.sourceUrl },
+        {
+          access_token: input.token,
+          title: input.title,
+          text: input.text,
+          source_url: input.sourceUrl,
+        },
         fetchImpl,
       ),
     onBusy,
@@ -459,7 +516,10 @@ export async function addDocument(
 
 /** A sign-in that ran out, or Geni being busy: expected, so not worth a Sentry event. */
 export function isExpectedGeniError(err: unknown): boolean {
-  return err instanceof GeniBusyError || (err instanceof GeniError && /invalid|expired|token|unauthor|denied|access/i.test(err.message));
+  return (
+    err instanceof GeniBusyError ||
+    (err instanceof GeniError && /invalid|expired|token|unauthor|denied|access/i.test(err.message))
+  );
 }
 
 /** Plain-language copy for a Geni failure, in the style of the FamilySearch screens. */
