@@ -28,13 +28,16 @@ function connect(): void {
 function mockApi(post: { ok: boolean; status: number; body: unknown }) {
   const f = vi.fn(async (url: string, init?: RequestInit) => {
     if (init?.method === 'POST') return { ok: post.ok, status: post.status, json: async () => post.body };
-    // Schema lookups fail here, so the embedded schema is used.
-    if (url.includes('itemType')) return { ok: false, status: 500, json: async () => ({}) };
     expect(url).toContain('/collections');
     return { ok: true, status: 200, json: async () => [{ key: 'C1', data: { name: 'Research' } }] };
   });
   vi.stubGlobal('fetch', f);
   return f;
+}
+
+function posted(f: ReturnType<typeof mockApi>) {
+  const post = f.mock.calls.find(([, init]) => init?.method === 'POST')![1] as RequestInit;
+  return { post, items: JSON.parse(post.body as string) as Array<Record<string, any>> };
 }
 
 afterEach(() => vi.unstubAllGlobals());
@@ -45,68 +48,75 @@ describe('Zotero', () => {
     expect(screen.getByRole('button', { name: 'Connect Zotero' })).toBeInTheDocument();
   });
 
-  it('saves to the chosen collection and links to the item', async () => {
+  it('shows only the FamilySearch-style fields, with Accessed as plain text', async () => {
+    connect();
+    mockApi({ ok: true, status: 200, body: {} });
+    renderScreen();
+    await screen.findByRole('option', { name: 'Research' });
+    for (const l of ['Source Title', 'Source (URL)', 'Citation', 'Citation format', 'Describe the Record (Notes)', 'Collection']) {
+      expect(screen.getByLabelText(l)).toBeInTheDocument();
+    }
+    expect(screen.queryByLabelText(/accessed/i)).toBeNull();
+    expect(screen.getByText(/^Accessed \d{1,2} \w+ \d{4}$/)).toBeInTheDocument();
+    for (const l of [/item type/i, /author/i, /more/i, /language/i]) expect(screen.queryByLabelText(l)).toBeNull();
+    expect(screen.queryByRole('button', { name: /more/i })).toBeNull();
+    expect(screen.getByRole('option', { name: 'My Library' })).toBeInTheDocument();
+  });
+
+  it('saves a webpage to the chosen collection with the note and a parsed accessDate', async () => {
     connect();
     const f = mockApi({ ok: true, status: 200, body: { successful: { '0': { key: 'ITEM1', version: 3 } } } });
     renderScreen();
     await screen.findByRole('option', { name: 'Research' });
     await userEvent.selectOptions(screen.getByLabelText('Collection'), 'C1');
+    await userEvent.type(screen.getByLabelText('Describe the Record (Notes)'), 'my notes');
     await userEvent.click(screen.getByRole('button', { name: 'Save to Zotero' }));
     const link = await screen.findByRole('link', { name: 'View in Zotero' });
     expect(link).toHaveAttribute('href', 'https://www.zotero.org/jane/items/ITEM1');
-    const post = f.mock.calls.find(([, init]) => init?.method === 'POST')![1] as RequestInit;
-    const [item, note] = JSON.parse(post.body as string);
-    expect(item).toMatchObject({ itemType: 'webpage', url: 'https://dp.la/', collections: ['C1'] });
+    const { post, items } = posted(f);
+    const [item, note] = items as [Record<string, any>, Record<string, any>];
+    expect(item).toMatchObject({ itemType: 'webpage', title: 'DPLA', url: 'https://dp.la/', websiteTitle: 'Dp', collections: ['C1'], tags: [] });
+    expect(item.accessDate).toBe('2026-06-16T00:00:00Z');
     expect(item.key).toMatch(/^[2-9A-NP-Z]{8}$/);
     expect(note).toMatchObject({ itemType: 'note', parentItem: item.key });
     expect(note.note).toContain('DPLA');
+    expect(note.note).toContain('my notes');
     expect((post.headers as Record<string, string>)['Zotero-Write-Token']).toMatch(/^[0-9a-f]{32}$/);
   });
 
-  it('saves the edited fields as the chosen item type, with the citation in a child note', async () => {
+  it('has the FamilySearch event-tag control, sending checked events as tags', async () => {
     connect();
     const f = mockApi({ ok: true, status: 200, body: { successful: { '0': { key: 'ITEM1', version: 3 } } } });
     renderScreen();
     await screen.findByRole('option', { name: 'Research' });
-    const title = screen.getByLabelText('Title');
-    await userEvent.clear(title);
-    await userEvent.type(title, 'Edited');
-    expect((screen.getByLabelText('Citation note') as HTMLTextAreaElement).value).toContain('Edited');
-    await userEvent.type(screen.getByLabelText('Notes'), 'my notes');
-    await userEvent.type(screen.getByLabelText('Tags'), 'a, b');
-    await userEvent.click(screen.getByRole('button', { name: '+ Add creator' }));
-    await userEvent.type(screen.getByLabelText('Creator 1 last name'), 'Ditka');
-    await userEvent.selectOptions(screen.getByLabelText('Item Type'), 'newspaperArticle');
+    await userEvent.click(screen.getByRole('button', { name: /Tag this Source to Events/ }));
+    await userEvent.click(screen.getByLabelText('Birth'));
+    await userEvent.click(screen.getByLabelText('Death'));
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(screen.getByRole('button', { name: /Tag this Source to Events/ })).toHaveTextContent('2');
     await userEvent.click(screen.getByRole('button', { name: 'Save to Zotero' }));
     await screen.findByRole('link', { name: 'View in Zotero' });
-    const post = f.mock.calls.find(([, init]) => init?.method === 'POST')![1] as RequestInit;
-    const [item, note] = JSON.parse(post.body as string);
-    expect(item).toMatchObject({ itemType: 'newspaperArticle', title: 'Edited', tags: [{ tag: 'a' }, { tag: 'b' }] });
-    expect(item).not.toHaveProperty('extra');
-    expect(item.creators).toEqual([{ creatorType: 'author', lastName: 'Ditka', firstName: '' }]);
-    expect(note.note).toContain('my notes');
-    expect(note.note).toContain('Edited');
+    expect(posted(f).items[0]!.tags).toEqual([{ tag: 'Birth' }, { tag: 'Death' }]);
   });
 
-  it('blocks a save with an invalid field and names the problem', async () => {
+  it('sends no tags when no event is checked', async () => {
+    connect();
+    const f = mockApi({ ok: true, status: 200, body: { successful: { '0': { key: 'ITEM1', version: 3 } } } });
+    renderScreen();
+    await userEvent.click(await screen.findByRole('button', { name: 'Save to Zotero' }));
+    await screen.findByRole('link', { name: 'View in Zotero' });
+    expect(posted(f).items[0]!.tags).toEqual([]);
+  });
+
+  it('blocks a save with an empty title and names the problem', async () => {
     connect();
     const f = mockApi({ ok: true, status: 200, body: {} });
     renderScreen();
     await screen.findByRole('option', { name: 'Research' });
-    await userEvent.clear(screen.getByLabelText('Title'));
+    await userEvent.clear(screen.getByLabelText('Source Title'));
     await userEvent.click(screen.getByRole('button', { name: 'Save to Zotero' }));
     expect(await screen.findByText('A title is required.')).toBeInTheDocument();
     expect(f.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false);
-  });
-
-  it('keeps More fields collapsed until asked', async () => {
-    connect();
-    mockApi({ ok: true, status: 200, body: {} });
-    renderScreen();
-    expect(screen.queryByLabelText('DOI')).toBeNull();
-    await userEvent.click(screen.getByRole('button', { name: 'More fields' }));
-    expect(screen.getByLabelText('DOI')).toBeInTheDocument();
-    expect(screen.getByLabelText('Extra')).toHaveValue('');
   });
 
   it('offers Go Back to edit and Save to Another Location after saving', async () => {
@@ -115,7 +125,7 @@ describe('Zotero', () => {
     renderScreen();
     await userEvent.click(await screen.findByRole('button', { name: 'Save to Zotero' }));
     await userEvent.click(await screen.findByRole('button', { name: 'Go Back' }));
-    expect(screen.getByLabelText('Title')).toHaveValue('DPLA');
+    expect(screen.getByLabelText('Source Title')).toHaveValue('DPLA');
     await userEvent.click(screen.getByRole('button', { name: 'Save to Zotero' }));
     await userEvent.click(await screen.findByRole('button', { name: 'Save to Another Location' }));
     expect(screen.getByText('MAIN')).toBeInTheDocument();

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSession, EVENT_TAGS, type EventTag } from '../session/SessionContext';
 
-const TAG_LABELS: Record<EventTag, string> = {
+export const TAG_LABELS: Record<EventTag, string> = {
   name: 'Name',
   gender: 'Gender',
   birth: 'Birth',
@@ -36,6 +36,17 @@ function useIsMobile(): boolean {
  */
 export function TagEventsButton() {
   const { state, toggleTag, tagCount } = useSession();
+  return <TagEventsPicker selected={state.tags} onToggle={toggleTag} count={tagCount} />;
+}
+
+interface PickerProps {
+  selected: Record<EventTag, boolean>;
+  onToggle: (tag: EventTag) => void;
+  count: number;
+}
+
+/** Presentational tag control: the same pill and modal, driven by props (used by FamilySearch via session state and by Zotero via local state). */
+export function TagEventsPicker({ selected, onToggle, count }: PickerProps) {
   const [open, setOpen] = useState(false);
   const isMobile = useIsMobile();
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -69,7 +80,7 @@ export function TagEventsButton() {
       <div className="tag-modal-grid">
         {EVENT_TAGS.map((tag) => (
           <label key={tag} className="tag-option">
-            <input type="checkbox" checked={state.tags[tag]} onChange={() => toggleTag(tag)} /> {TAG_LABELS[tag]}
+            <input type="checkbox" checked={selected[tag]} onChange={() => onToggle(tag)} /> {TAG_LABELS[tag]}
           </label>
         ))}
       </div>
@@ -95,7 +106,7 @@ export function TagEventsButton() {
           />
         </svg>
         Tag this Source to Events
-        {tagCount > 0 && <span className="tag-badge">{tagCount}</span>}
+        {count > 0 && <span className="tag-badge">{count}</span>}
       </button>
 
       {isMobile ? (

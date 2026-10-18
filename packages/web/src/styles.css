@@ -1174,20 +1174,7 @@ a.donate-button:hover {
   overflow-y: auto;
 }
 
-/* Zotero item editor: Zotero info-pane label/value rows; stacked until there is room. */
-.zt-grid { margin: 10px 0 0; }
-.zt-row { display: block; margin: 0 0 10px; }
-.zt-label { display: block; margin: 0 0 3px; font-weight: 700; font-size: 0.88rem; color: #4a5859; }
-.zt-label select { display: block; margin-top: 4px; max-width: 100%; font-weight: 400; }
-.zt-value input, .zt-value select, .zt-value textarea { width: 100%; box-sizing: border-box; }
-.zt-error { display: block; color: #b3261e; font-size: 0.85rem; margin-top: 2px; }
-.zt-creator { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0 0 8px; }
-.zt-creator select { flex: 1 1 100%; }
-.zt-creator input { flex: 1 1 120px; min-width: 0; width: auto; }
-.zt-more { display: block; margin: 0 0 10px; }
-@media (min-width: 560px) {
-  .zt-row { display: grid; grid-template-columns: 140px 1fr; gap: 10px; align-items: start; }
-  .zt-label { text-align: right; margin: 6px 0 0; }
-  .zt-creator select { flex: 0 0 150px; }
-  .zt-more { margin-left: 150px; }
-}
+/* Zotero tag picker: compact chips. */
+.zt-tags { display: flex; flex-wrap: wrap; gap: 4px; max-height: 8rem; overflow-y: auto; margin-top: 4px; }
+.zt-tag { font-size: 0.85rem; padding: 1px 8px; border: 1px solid #ced4da; border-radius: 12px; background: #fff; cursor: pointer; }
+.zt-tag[aria-pressed='true'] { background: #2c3e50; border-color: #2c3e50; color: #fff; }
