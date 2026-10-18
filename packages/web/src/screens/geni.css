@@ -1,0 +1,35 @@
+/* Geni flow: the person thumbnail and the family checklist on the attach screen. */
+.geni-thumb {
+  display: block;
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 4px;
+  margin-bottom: 6px;
+}
+
+.geni-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0 12px;
+}
+
+.geni-quick button {
+  margin: 0;
+}
+
+.geni-family {
+  margin: 8px 0 16px;
+}
+
+.geni-family h4 {
+  margin: 12px 0 4px;
+  font-size: 0.92rem;
+}
+
+.geni-family ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}

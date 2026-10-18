@@ -20,6 +20,11 @@ import { JustCitation } from './screens/JustCitation';
 import { Donate } from './screens/Donate';
 import { Zotero } from './screens/Zotero';
 import { Geni } from './screens/Geni';
+import { GeniSearch } from './screens/GeniSearch';
+import { GeniResults } from './screens/GeniResults';
+import { GeniAttach } from './screens/GeniAttach';
+import { GeniComplete } from './screens/GeniComplete';
+import { GeniFlowProvider } from './session/GeniContext';
 import { WikiTree } from './screens/WikiTree';
 import { isDevMode } from './devFlag';
 import { Header } from './screens/Header';
@@ -35,6 +40,7 @@ export function App() {
   return (
     <CaptureProvider>
       <SessionProvider>
+        <GeniFlowProvider>
         <HashRouter>
           <Announcement />
           <Header />
@@ -58,11 +64,16 @@ export function App() {
             <Route path="/fs-addattach" element={<FsAddAttach />} />
             <Route path="/zotero" element={<DevOnly><Zotero /></DevOnly>} />
             <Route path="/geni" element={<DevOnly><Geni /></DevOnly>} />
+            <Route path="/geni-search" element={<DevOnly><GeniSearch /></DevOnly>} />
+            <Route path="/geni-results" element={<DevOnly><GeniResults /></DevOnly>} />
+            <Route path="/geni-attach" element={<DevOnly><GeniAttach /></DevOnly>} />
+            <Route path="/geni-complete" element={<DevOnly><GeniComplete /></DevOnly>} />
             <Route path="/wikitree" element={<DevOnly><WikiTree /></DevOnly>} />
             <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </OAuthGate>
         </HashRouter>
+        </GeniFlowProvider>
       </SessionProvider>
     </CaptureProvider>
   );

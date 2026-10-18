@@ -17,6 +17,9 @@ function serviceForPath(pathname: string): ServiceCrumb | null {
   if (pathname.startsWith('/fs-')) {
     return { name: 'FamilySearch', icon: `${import.meta.env.BASE_URL}images/familysearch-tree.svg` };
   }
+  if (pathname.startsWith('/geni')) {
+    return { name: 'Geni', icon: `${import.meta.env.BASE_URL}images/geni-logo.svg` };
+  }
   if (pathname.startsWith('/a-source')) {
     return { name: 'Ancestry', icon: `${import.meta.env.BASE_URL}images/ancestry-icon.svg` };
   }

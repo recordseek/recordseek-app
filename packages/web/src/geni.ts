@@ -105,26 +105,162 @@ export interface GeniProfile {
   /** Short "b. 1712 – d. 1770" style line. */
   years: string;
   url: string;
+  gender?: 'male' | 'female';
+  birthYear?: number;
+  deathYear?: number;
+  birthPlace?: string;
+  deathPlace?: string;
+  /** Small mugshot, when the profile has one. */
+  thumb?: string;
+}
+
+interface RawEvent {
+  date?: { year?: number; formatted_date?: string };
+  location?: { formatted_location?: string; city?: string; state?: string; country?: string };
 }
 
 interface RawProfile {
   id: string;
   name?: string;
+  first_name?: string;
+  last_name?: string;
+  gender?: string;
   profile_url?: string;
-  birth?: { date?: { year?: number } };
-  death?: { date?: { year?: number } };
+  birth?: RawEvent;
+  death?: RawEvent;
+  mugshot_urls?: { thumb?: string; small?: string };
+  edges?: Record<string, { rel?: string }>;
 }
 
-const FIELDS = 'id,name,profile_url,birth,death';
+const FIELDS = 'id,name,first_name,last_name,gender,profile_url,birth,death,mugshot_urls';
 
-function toProfile(raw: RawProfile): GeniProfile {
+function placeOf(event?: RawEvent): string | undefined {
+  const loc = event?.location;
+  return loc?.formatted_location || [loc?.city, loc?.state, loc?.country].filter(Boolean).join(', ') || undefined;
+}
+
+export function toProfile(raw: RawProfile): GeniProfile {
   const born = raw.birth?.date?.year;
   const died = raw.death?.date?.year;
-  return {
+  const profile: GeniProfile = {
     id: raw.id,
-    name: raw.name || raw.id,
+    name: raw.name || [raw.first_name, raw.last_name].filter(Boolean).join(' ') || raw.id,
     years: born || died ? `${born ?? '?'} – ${died ?? ''}`.trim() : '',
     url: raw.profile_url ?? '',
+  };
+  if (raw.gender === 'male' || raw.gender === 'female') profile.gender = raw.gender;
+  if (born) profile.birthYear = born;
+  if (died) profile.deathYear = died;
+  const birthPlace = placeOf(raw.birth);
+  const deathPlace = placeOf(raw.death);
+  if (birthPlace) profile.birthPlace = birthPlace;
+  if (deathPlace) profile.deathPlace = deathPlace;
+  const thumb = raw.mugshot_urls?.thumb ?? raw.mugshot_urls?.small;
+  if (thumb) profile.thumb = thumb;
+  return profile;
+}
+
+/** What the search form collects. Geni's search only takes `names`; the rest is filtered here. */
+export interface GeniCriteria {
+  givenName: string;
+  surname: string;
+  gender: '' | 'male' | 'female';
+  birthYear: string;
+  birthPlace: string;
+  deathYear: string;
+  deathPlace: string;
+  /** A pasted profile id, guid or geni.com link; skips the search. */
+  pid: string;
+}
+
+export function emptyCriteria(): GeniCriteria {
+  return { givenName: '', surname: '', gender: '', birthYear: '', birthPlace: '', deathYear: '', deathPlace: '', pid: '' };
+}
+
+/** The `names` query term: Geni takes a free-text name and nothing else. */
+export function buildNames(c: GeniCriteria): string {
+  return [c.givenName, c.surname].map((t) => t.trim()).filter(Boolean).join(' ');
+}
+
+/** Exactly what goes to profile/search for page `page` (1-based). */
+export function buildSearchParams(c: GeniCriteria, page = 1): Record<string, string> {
+  const params: Record<string, string> = { names: buildNames(c), fields: FIELDS };
+  if (page > 1) params.page = String(page);
+  return params;
+}
+
+/** A search needs a name; birth, death and gender only narrow what comes back. */
+export function canSearch(c: GeniCriteria): boolean {
+  return buildNames(c) !== '';
+}
+
+/** True when anything beyond the name was entered (so the filter note applies). */
+export function hasClientFilters(c: GeniCriteria): boolean {
+  return Boolean(c.gender || c.birthYear.trim() || c.birthPlace.trim() || c.deathYear.trim() || c.deathPlace.trim());
+}
+
+const YEAR_SLACK = 2;
+
+function yearOk(want: string, have?: number): boolean {
+  const y = parseInt(want, 10);
+  if (!Number.isFinite(y) || have === undefined) return true;
+  return Math.abs(have - y) <= YEAR_SLACK;
+}
+
+function placeOk(want: string, have?: string): boolean {
+  const w = want.trim().toLowerCase();
+  if (!w || !have) return true;
+  return have.toLowerCase().includes(w);
+}
+
+/**
+ * Client-side narrowing of one page of results. A profile is dropped only when it
+ * has the data and the data disagrees (years within 2, places by substring); a
+ * profile with no birth or death on record stays, since Geni often has none.
+ */
+export function filterProfiles(profiles: GeniProfile[], c: GeniCriteria): GeniProfile[] {
+  return profiles.filter(
+    (p) =>
+      (!c.gender || !p.gender || p.gender === c.gender) &&
+      yearOk(c.birthYear, p.birthYear) &&
+      yearOk(c.deathYear, p.deathYear) &&
+      placeOk(c.birthPlace, p.birthPlace) &&
+      placeOk(c.deathPlace, p.deathPlace),
+  );
+}
+
+/** Geni API size of one search page. */
+export const GENI_PAGE_SIZE = 50;
+
+export interface GeniSearchPage {
+  /** Profiles after the client-side filter. */
+  profiles: GeniProfile[];
+  /** How many Geni returned on this page, before filtering. */
+  returned: number;
+  total: number;
+  page: number;
+  hasNext: boolean;
+}
+
+export async function searchPeople(
+  token: string,
+  criteria: GeniCriteria,
+  page = 1,
+  onBusy?: () => void,
+): Promise<GeniSearchPage> {
+  const params = { ...buildSearchParams(criteria, page), access_token: token };
+  const data = (await withRetry(() => jsonp('profile/search', params).then(check), onBusy)) as {
+    results?: RawProfile[];
+    total_count?: number;
+    next_page?: string;
+  };
+  const all = (data.results ?? []).map(toProfile);
+  return {
+    profiles: filterProfiles(all, criteria),
+    returned: all.length,
+    total: data.total_count ?? all.length,
+    page,
+    hasNext: Boolean(data.next_page),
   };
 }
 
@@ -136,6 +272,92 @@ export async function searchProfiles(token: string, names: string, onBusy?: () =
 export async function myProfile(token: string, onBusy?: () => void): Promise<GeniProfile> {
   const data = await withRetry(() => jsonp('profile', { fields: FIELDS, access_token: token }).then(check), onBusy);
   return toProfile(data as RawProfile);
+}
+
+/** A profile id (profile-123) or guid (6000000…) as the API path segment, or null. */
+export function parseGeniId(raw: string): string | null {
+  const text = (raw ?? '').trim();
+  if (!text) return null;
+  const direct = text.match(/^(?:profile-)?(g?)(\d+)$/i);
+  if (direct) {
+    const [, g, digits] = direct;
+    if (g || /^6000000\d+$/.test(digits ?? '')) return `profile-g${digits}`;
+    return `profile-${digits}`;
+  }
+  if (/geni\.com\//i.test(text)) {
+    const guid = text.match(/\/(6000000\d{6,})(?:[/?#]|$)/);
+    if (guid) return `profile-g${guid[1]}`;
+    const id = text.match(/profile-(\d+)/i) ?? text.match(/[?&](?:profile|id)=(\d+)/i);
+    if (id) return `profile-${id[1]}`;
+  }
+  return null;
+}
+
+/**
+ * What the ID box shows: a recognised id, guid or link collapses to `profile-123`
+ * or the bare guid (like FsSearch's normalizePid); anything else is kept as typed.
+ */
+export function normalizeGeniId(raw: string): string {
+  const ref = parseGeniId(raw);
+  if (!ref) return raw ?? '';
+  return ref.startsWith('profile-g') ? ref.slice('profile-g'.length) : ref;
+}
+
+export function isValidGeniId(raw: string): boolean {
+  return parseGeniId(raw) !== null;
+}
+
+/** One person by id or guid; null when Geni has no such (or no visible) profile. */
+export async function getProfile(token: string, ref: string, onBusy?: () => void): Promise<GeniProfile | null> {
+  const data = (await withRetry(() => jsonp(ref, { fields: FIELDS, access_token: token }).then(check), onBusy)) as RawProfile & {
+    results?: unknown[];
+  };
+  return data && typeof data.id === 'string' ? toProfile(data) : null;
+}
+
+export interface GeniFamily {
+  parents: GeniProfile[];
+  spouses: GeniProfile[];
+  children: GeniProfile[];
+  siblings: GeniProfile[];
+}
+
+interface RawNode extends RawProfile {
+  edges?: Record<string, { rel?: string }>;
+}
+
+/** Splits a profile/immediate-family graph (profile and union nodes) into relatives of the focus. */
+export function parseFamily(data: { focus?: RawProfile; nodes?: Record<string, RawNode> }): GeniFamily {
+  const nodes = data.nodes ?? {};
+  const focusId = data.focus?.id ?? '';
+  const out: GeniFamily = { parents: [], spouses: [], children: [], siblings: [] };
+  const seen = new Set<string>([focusId]);
+  const add = (list: GeniProfile[], id: string): void => {
+    const node = nodes[id];
+    if (!id.startsWith('profile-') || !node || seen.has(id)) return;
+    seen.add(id);
+    list.push(toProfile(node));
+  };
+  for (const [unionId, edge] of Object.entries(nodes[focusId]?.edges ?? {})) {
+    const union = nodes[unionId];
+    if (!union?.edges) continue;
+    const members = Object.entries(union.edges);
+    if (edge.rel === 'child') {
+      for (const [id, e] of members) add(e.rel === 'partner' ? out.parents : out.siblings, id);
+    } else {
+      for (const [id, e] of members) add(e.rel === 'partner' ? out.spouses : out.children, id);
+    }
+  }
+  return out;
+}
+
+/** A person's immediate family; `ref` is an API path segment, or omit for the signed-in user. */
+export async function immediateFamily(token: string, ref = 'profile', onBusy?: () => void): Promise<GeniFamily> {
+  const data = await withRetry(
+    () => jsonp(`${ref}/immediate-family`, { fields: FIELDS, access_token: token }).then(check),
+    onBusy,
+  );
+  return parseFamily(data as { focus?: RawProfile; nodes?: Record<string, RawNode> });
 }
 
 function check(data: unknown): unknown {
@@ -161,7 +383,10 @@ export interface GeniDocument {
   id: string;
   /** Page on geni.com showing the document. */
   url: string;
+  /** True when every requested profile was tagged. */
   tagged: boolean;
+  taggedIds: string[];
+  failedIds: string[];
 }
 
 export interface GeniDocumentInput {
@@ -169,12 +394,14 @@ export interface GeniDocumentInput {
   title: string;
   text: string;
   sourceUrl: string;
-  profileId: string;
+  /** Profiles to tag, in order; the first is the main person. */
+  profileIds: string[];
 }
 
 /**
- * Creates the document, then tags the profile in it. Geni's document/add has no
- * privacy field (documents follow Geni's own default); tagging is a separate call.
+ * Creates the document, then tags each profile in it, one call at a time (Geni
+ * allows about 10 calls per 10 s). Geni's document/add has no privacy field
+ * (documents follow Geni's own default). A tag that fails is reported, not fatal.
  */
 export async function addDocument(
   input: GeniDocumentInput,
@@ -191,11 +418,35 @@ export async function addDocument(
     onBusy,
   )) as { id?: string };
   if (!doc.id) throw new GeniError('Geni returned no document');
-  let tagged = true;
-  try {
-    await withRetry(() => relay(`${doc.id}/tag/${input.profileId}`, { access_token: input.token }, fetchImpl), onBusy);
-  } catch {
-    tagged = false;
+  const taggedIds: string[] = [];
+  const failedIds: string[] = [];
+  for (const profileId of input.profileIds) {
+    try {
+      await withRetry(() => relay(`${doc.id}/tag/${profileId}`, { access_token: input.token }, fetchImpl), onBusy);
+      taggedIds.push(profileId);
+    } catch {
+      failedIds.push(profileId);
+    }
   }
-  return { id: doc.id, url: `https://www.geni.com/documents/view?doc_id=${doc.id.replace(/^document-/, '')}`, tagged };
+  return {
+    id: doc.id,
+    url: `https://www.geni.com/documents/view?doc_id=${doc.id.replace(/^document-/, '')}`,
+    tagged: failedIds.length === 0,
+    taggedIds,
+    failedIds,
+  };
+}
+
+/** A sign-in that ran out, or Geni being busy: expected, so not worth a Sentry event. */
+export function isExpectedGeniError(err: unknown): boolean {
+  return err instanceof GeniBusyError || (err instanceof GeniError && /invalid|expired|token|unauthor|denied|access/i.test(err.message));
+}
+
+/** Plain-language copy for a Geni failure, in the style of the FamilySearch screens. */
+export function describeGeniError(err: unknown): string {
+  if (err instanceof GeniBusyError) return 'Geni is busy right now. Wait a minute and try again.';
+  if (err instanceof GeniError && /invalid|expired|token|unauthor|denied|access/i.test(err.message)) {
+    return 'Your Geni sign-in has expired. Please sign in again.';
+  }
+  return "Geni couldn't complete the request. Check your internet connection and try again.";
 }
