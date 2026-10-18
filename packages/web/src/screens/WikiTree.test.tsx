@@ -55,6 +55,20 @@ describe('WikiTree', () => {
     open.mockRestore();
   });
 
+  it('shows the follow-up actions after opening the edit page', async () => {
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    renderScreen();
+    await userEvent.type(screen.getByLabelText('WikiTree ID'), 'Smith-123');
+    await userEvent.click(screen.getByRole('button', { name: 'Open the edit page' }));
+    expect(screen.getByRole('link', { name: 'View in WikiTree' })).toHaveAttribute('href', expect.stringContaining('w=Smith-123'));
+    await userEvent.click(screen.getByRole('button', { name: 'Go Back' }));
+    expect(screen.getByLabelText('WikiTree ID')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Open the edit page' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Save to Another Location' }));
+    expect(screen.getByText('MAIN')).toBeInTheDocument();
+    open.mockRestore();
+  });
+
   it('goes back to the picker', async () => {
     renderScreen();
     await userEvent.click(screen.getByRole('button', { name: /Go Back/ }));

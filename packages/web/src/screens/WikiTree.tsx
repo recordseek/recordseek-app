@@ -23,6 +23,7 @@ import {
   type WikiTreeSession,
 } from '../wikitree';
 import { BackButton } from '../components/BackButton';
+import { SavedActions } from '../components/SavedActions';
 
 /**
  * WikiTree has no write API: format the citation as a `<ref>` block to paste,
@@ -48,6 +49,7 @@ export function WikiTree() {
   const [picked, setPicked] = useState<WikiTreePerson | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [opened, setOpened] = useState('');
 
   useEffect(() => {
     track('wikitree_viewed');
@@ -148,6 +150,7 @@ export function WikiTree() {
     if (!picked) return;
     track('wikitree_opened');
     window.open(wikiTreeEditUrl(picked.name), '_blank', 'noopener');
+    setOpened(picked.name);
   }
 
   function openEditor(): void {
@@ -159,6 +162,20 @@ export function WikiTree() {
     setIdError(false);
     track('wikitree_opened');
     window.open(wikiTreeEditUrl(wikiId), '_blank', 'noopener');
+    setOpened(wikiId.trim());
+  }
+
+  if (opened) {
+    return (
+      <SavedActions
+        heading={`The WikiTree edit page for ${opened} is open.`}
+        title={capture.title}
+        links={[{ href: wikiTreeEditUrl(opened), label: 'View in WikiTree' }]}
+        onEdit={() => setOpened('')}
+      >
+        <p>Paste the reference into the Sources section there, then save the profile.</p>
+      </SavedActions>
+    );
   }
 
   return (

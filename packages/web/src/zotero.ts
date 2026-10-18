@@ -62,53 +62,7 @@ export async function listCollections(login: ZoteroLogin, fetchImpl: typeof fetc
   return rows.map((r) => ({ key: r.key, name: r.data?.name ?? r.key })).sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export type ZoteroItemType = 'webpage' | 'document' | 'newspaperArticle' | 'book' | 'manuscript' | 'letter';
-
-export const ZOTERO_ITEM_TYPES: Array<{ value: ZoteroItemType; label: string }> = [
-  { value: 'webpage', label: 'Web Page' },
-  { value: 'document', label: 'Document' },
-  { value: 'newspaperArticle', label: 'Newspaper Article' },
-  { value: 'book', label: 'Book' },
-  { value: 'manuscript', label: 'Manuscript' },
-  { value: 'letter', label: 'Letter' },
-];
-
-/** Where each item type keeps the publisher; manuscripts and letters have no such field. */
-const PUBLISHER_FIELD: Partial<Record<ZoteroItemType, string>> = {
-  webpage: 'websiteTitle',
-  document: 'publisher',
-  newspaperArticle: 'publicationTitle',
-  book: 'publisher',
-};
-
-export interface ZoteroForm {
-  itemType: ZoteroItemType;
-  title: string;
-  url: string;
-  citation: string;
-  notes: string;
-  publisher: string;
-  collectionKey?: string;
-}
-
 export type ZoteroItem = Record<string, unknown> & { itemType: string };
-
-/** An item of the chosen type with only fields valid for it; the edited citation goes in Extra. */
-export function buildZoteroItem(form: ZoteroForm, now: Date = new Date(), key?: string): ZoteroItem {
-  const item: ZoteroItem = {
-    itemType: form.itemType,
-    title: form.title,
-    url: form.url,
-    // Zotero wants ISO 8601 UTC without milliseconds.
-    accessDate: now.toISOString().replace(/\.\d+Z$/, 'Z'),
-    extra: form.citation,
-    collections: form.collectionKey ? [form.collectionKey] : [],
-  };
-  const field = PUBLISHER_FIELD[form.itemType];
-  if (field && form.publisher) item[field] = form.publisher;
-  if (key) item.key = key;
-  return item;
-}
 
 const escapeHtml = (v: string): string => v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 

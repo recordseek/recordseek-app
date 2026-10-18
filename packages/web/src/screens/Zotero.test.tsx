@@ -28,6 +28,8 @@ function connect(): void {
 function mockApi(post: { ok: boolean; status: number; body: unknown }) {
   const f = vi.fn(async (url: string, init?: RequestInit) => {
     if (init?.method === 'POST') return { ok: post.ok, status: post.status, json: async () => post.body };
+    // Schema lookups fail here, so the embedded schema is used.
+    if (url.includes('itemType')) return { ok: false, status: 500, json: async () => ({}) };
     expect(url).toContain('/collections');
     return { ok: true, status: 200, json: async () => [{ key: 'C1', data: { name: 'Research' } }] };
   });
@@ -50,35 +52,73 @@ describe('Zotero', () => {
     await screen.findByRole('option', { name: 'Research' });
     await userEvent.selectOptions(screen.getByLabelText('Collection'), 'C1');
     await userEvent.click(screen.getByRole('button', { name: 'Save to Zotero' }));
-    const link = await screen.findByRole('link', { name: 'View it on zotero.org' });
+    const link = await screen.findByRole('link', { name: 'View in Zotero' });
     expect(link).toHaveAttribute('href', 'https://www.zotero.org/jane/items/ITEM1');
     const post = f.mock.calls.find(([, init]) => init?.method === 'POST')![1] as RequestInit;
     const [item, note] = JSON.parse(post.body as string);
     expect(item).toMatchObject({ itemType: 'webpage', url: 'https://dp.la/', collections: ['C1'] });
-    expect(item.key).toMatch(/^[2-9A-HJ-NP-Z]{8}$/);
+    expect(item.key).toMatch(/^[2-9A-NP-Z]{8}$/);
     expect(note).toMatchObject({ itemType: 'note', parentItem: item.key });
     expect(note.note).toContain('DPLA');
     expect((post.headers as Record<string, string>)['Zotero-Write-Token']).toMatch(/^[0-9a-f]{32}$/);
   });
 
-  it('saves the edited fields as the chosen item type', async () => {
+  it('saves the edited fields as the chosen item type, with the citation in a child note', async () => {
     connect();
     const f = mockApi({ ok: true, status: 200, body: { successful: { '0': { key: 'ITEM1', version: 3 } } } });
     renderScreen();
     await screen.findByRole('option', { name: 'Research' });
-    const title = screen.getByLabelText('Source Title');
+    const title = screen.getByLabelText('Title');
     await userEvent.clear(title);
     await userEvent.type(title, 'Edited');
-    expect((screen.getByLabelText('Citation') as HTMLTextAreaElement).value).toContain('Edited');
-    await userEvent.type(screen.getByLabelText(/Describe the Record/), 'my notes');
-    await userEvent.selectOptions(screen.getByLabelText('Item type'), 'newspaperArticle');
+    expect((screen.getByLabelText('Citation note') as HTMLTextAreaElement).value).toContain('Edited');
+    await userEvent.type(screen.getByLabelText('Notes'), 'my notes');
+    await userEvent.type(screen.getByLabelText('Tags'), 'a, b');
+    await userEvent.click(screen.getByRole('button', { name: '+ Add creator' }));
+    await userEvent.type(screen.getByLabelText('Creator 1 last name'), 'Ditka');
+    await userEvent.selectOptions(screen.getByLabelText('Item Type'), 'newspaperArticle');
     await userEvent.click(screen.getByRole('button', { name: 'Save to Zotero' }));
-    await screen.findByRole('link', { name: 'View it on zotero.org' });
+    await screen.findByRole('link', { name: 'View in Zotero' });
     const post = f.mock.calls.find(([, init]) => init?.method === 'POST')![1] as RequestInit;
     const [item, note] = JSON.parse(post.body as string);
-    expect(item).toMatchObject({ itemType: 'newspaperArticle', title: 'Edited' });
-    expect(item.extra).toContain('Edited');
+    expect(item).toMatchObject({ itemType: 'newspaperArticle', title: 'Edited', tags: [{ tag: 'a' }, { tag: 'b' }] });
+    expect(item).not.toHaveProperty('extra');
+    expect(item.creators).toEqual([{ creatorType: 'author', lastName: 'Ditka', firstName: '' }]);
     expect(note.note).toContain('my notes');
+    expect(note.note).toContain('Edited');
+  });
+
+  it('blocks a save with an invalid field and names the problem', async () => {
+    connect();
+    const f = mockApi({ ok: true, status: 200, body: {} });
+    renderScreen();
+    await screen.findByRole('option', { name: 'Research' });
+    await userEvent.clear(screen.getByLabelText('Title'));
+    await userEvent.click(screen.getByRole('button', { name: 'Save to Zotero' }));
+    expect(await screen.findByText('A title is required.')).toBeInTheDocument();
+    expect(f.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false);
+  });
+
+  it('keeps More fields collapsed until asked', async () => {
+    connect();
+    mockApi({ ok: true, status: 200, body: {} });
+    renderScreen();
+    expect(screen.queryByLabelText('DOI')).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'More fields' }));
+    expect(screen.getByLabelText('DOI')).toBeInTheDocument();
+    expect(screen.getByLabelText('Extra')).toHaveValue('');
+  });
+
+  it('offers Go Back to edit and Save to Another Location after saving', async () => {
+    connect();
+    mockApi({ ok: true, status: 200, body: { successful: { '0': { key: 'ITEM1', version: 3 } } } });
+    renderScreen();
+    await userEvent.click(await screen.findByRole('button', { name: 'Save to Zotero' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Go Back' }));
+    expect(screen.getByLabelText('Title')).toHaveValue('DPLA');
+    await userEvent.click(screen.getByRole('button', { name: 'Save to Zotero' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Save to Another Location' }));
+    expect(screen.getByText('MAIN')).toBeInTheDocument();
   });
 
   it('shows an error when the save fails and lets the user retry', async () => {

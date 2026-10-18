@@ -1,15 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { track } from '../analytics';
 import { useCapture } from '../capture/CaptureContext';
 import { clearLastService } from '../prefs';
 import { reportError } from '../sentry';
 import {
-  buildZoteroItem,
   buildZoteroNote,
   newItemKey,
-  ZOTERO_ITEM_TYPES,
-  type ZoteroItemType,
   clearZoteroLogin,
   createItem,
   getZoteroLogin,
@@ -22,9 +19,32 @@ import {
   type ZoteroLogin,
 } from '../zotero';
 import { BackButton } from '../components/BackButton';
-import { SourceFields, useSourceFields } from '../components/SourceFields';
+import { useSourceFields } from '../components/SourceFields';
+import { SavedActions } from '../components/SavedActions';
+import { ZoteroItemEditor } from '../components/ZoteroItemEditor';
+import {
+  applyPrefill,
+  buildZoteroItem,
+  fallbackSchema,
+  loadItemSchema,
+  metaFromCapture,
+  switchItemType,
+  validateZoteroForm,
+  type ItemSchema,
+  type ZoteroCreator,
+  type ZoteroForm,
+  type ZoteroItemType,
+} from '../zoteroForm';
 
 type Status = 'idle' | 'saving' | 'error';
+
+/** The capture's human "18 October 2026" as YYYY-MM-DD in local time; today if unparseable. */
+function accessedIso(human: string): string {
+  const ms = Date.parse(human);
+  const d = Number.isNaN(ms) ? new Date() : new Date(ms);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
 
 /** The share app's own page (no capture query), where the Zotero sign-in returns to. */
 function returnUrl(): string {
@@ -40,7 +60,23 @@ export function Zotero() {
   const capture = useCapture();
   const navigate = useNavigate();
   const { values, style, onChange, setStyle } = useSourceFields(capture);
-  const [itemType, setItemType] = useState<ZoteroItemType>('webpage');
+  const meta = useMemo(() => metaFromCapture(capture), [capture]);
+  const [schema, setSchema] = useState<ItemSchema>(() => fallbackSchema('webpage'));
+  const [form, setForm] = useState<ZoteroForm>(() =>
+    applyPrefill(
+      {
+        itemType: 'webpage',
+        fields: { title: capture.title, url: capture.url, accessDate: accessedIso(capture.accessedDate) },
+        creators: [],
+        tags: '',
+        citation: '',
+        notes: '',
+      },
+      meta,
+      fallbackSchema('webpage'),
+    ),
+  );
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [login, setLogin] = useState<ZoteroLogin | null>(getZoteroLogin);
   const [collections, setCollections] = useState<ZoteroCollection[]>([]);
   const [collection, setCollection] = useState('');
@@ -61,6 +97,40 @@ export function Zotero() {
       /* storage unavailable */
     }
   }, []);
+
+  // Swap the embedded schema for the live one once it arrives; only empty fields get prefilled.
+  useEffect(() => {
+    let live = true;
+    const t = form.itemType;
+    void loadItemSchema(t).then((s) => {
+      if (!live) return;
+      setSchema(s);
+      setForm((prev) => (prev.itemType === t ? applyPrefill(prev, meta, s) : prev));
+    });
+    return () => {
+      live = false;
+    };
+  }, [form.itemType, meta]);
+
+  function onType(t: ZoteroItemType): void {
+    const s = fallbackSchema(t);
+    setSchema(s);
+    setForm((prev) => applyPrefill(switchItemType(prev, t, s), meta, s));
+  }
+
+  function onField(name: string, value: string): void {
+    setForm((prev) => ({ ...prev, fields: { ...prev.fields, [name]: value } }));
+    if (name === 'title') onChange({ title: value }); // regenerates the citation note
+    if (name === 'url') onChange({ url: value });
+  }
+
+  function onPatch(p: Partial<ZoteroForm>): void {
+    const { citation, notes, ...rest } = p;
+    if (citation !== undefined || notes !== undefined) onChange({ ...(citation !== undefined && { citation }), ...(notes !== undefined && { notes }) });
+    if (Object.keys(rest).length) setForm((prev) => ({ ...prev, ...rest }));
+  }
+
+  const current: ZoteroForm = { ...form, citation: values.citation, notes: values.notes, collectionKey: collection || undefined };
 
   useEffect(() => {
     if (!login) return;
@@ -98,16 +168,18 @@ export function Zotero() {
 
   async function save(): Promise<void> {
     if (!login || status === 'saving') return;
+    const problems = validateZoteroForm(current, schema);
+    setErrors(problems);
+    if (Object.keys(problems).length) return;
     setStatus('saving');
     try {
       const key = newItemKey();
-      const item = buildZoteroItem(
-        { ...values, itemType, publisher: capture.publisher, collectionKey: collection || undefined },
-        new Date(),
-        key,
-      );
+      const item = buildZoteroItem(current, schema, key);
+      const items = [item];
+      // The citation and the user's notes travel as a child note (Extra stays the user's).
+      if (current.citation.trim() || current.notes.trim()) items.push(buildZoteroNote(key, current.citation, current.notes));
       // Parent and child note go in one request, so the note can name the client-made key.
-      const made = await createItem(login, [item, buildZoteroNote(key, values.citation, values.notes)], writeToken.current);
+      const made = await createItem(login, items, writeToken.current);
       track('zotero_saved', { has_collection: Boolean(collection) });
       setSavedKey(made.key);
       setStatus('idle');
@@ -148,16 +220,15 @@ export function Zotero() {
 
   if (savedKey) {
     return (
-      <main>
-        <h3>Saved to Zotero.</h3>
-        {capture.title && <p>“{capture.title}”</p>}
-        <p>
-          <a href={zoteroItemUrl(login.username || login.userId, savedKey)} target="_blank" rel="noreferrer">
-            View it on zotero.org
-          </a>
-        </p>
-        <p>You may now close this window.</p>
-      </main>
+      <SavedActions
+        heading="Saved to Zotero."
+        title={current.fields.title}
+        links={[{ href: zoteroItemUrl(login.username || login.userId, savedKey), label: 'View in Zotero' }]}
+        onEdit={() => {
+          writeToken.current = newWriteToken(); // saving again is a new item
+          setSavedKey('');
+        }}
+      />
     );
   }
 
@@ -171,20 +242,17 @@ export function Zotero() {
         </button>
       </p>
 
-      <SourceFields idPrefix="zotero" values={values} style={style} onChange={onChange} onStyleChange={setStyle} />
-
-      <div className="field">
-        <label className="field-label" htmlFor="zotero-item-type">
-          Item type
-        </label>
-        <select id="zotero-item-type" value={itemType} onChange={(e) => setItemType(e.target.value as ZoteroItemType)}>
-          {ZOTERO_ITEM_TYPES.map((t) => (
-            <option key={t.value} value={t.value}>
-              {t.label}
-            </option>
-          ))}
-        </select>
-      </div>
+      <ZoteroItemEditor
+        form={current}
+        schema={schema}
+        errors={errors}
+        style={style}
+        onField={onField}
+        onType={onType}
+        onCreators={(creators: ZoteroCreator[]) => setForm((prev) => ({ ...prev, creators }))}
+        onPatch={onPatch}
+        onStyle={setStyle}
+      />
 
       <label className="field-label" htmlFor="zotero-collection">
         Collection
@@ -199,7 +267,7 @@ export function Zotero() {
       </select>
 
       {status === 'error' && <p role="alert">{errorText}</p>}
-      <button type="button" className="primary" disabled={status === 'saving' || !values.title.trim() || !values.url.trim()} onClick={() => void save()}>
+      <button type="button" className="primary" disabled={status === 'saving'} onClick={() => void save()}>
         {status === 'saving' ? 'Saving…' : 'Save to Zotero'}
       </button>
 
