@@ -25,6 +25,10 @@ describe('normalizePid', () => {
     expect(normalizePid('GKLM9988')).toBe('GKLM-9988');
     expect(normalizePid('')).toBe('');
   });
+
+  it('pulls the ID out of a pasted FamilySearch person link', () => {
+    expect(normalizePid('https://www.familysearch.org/tree/person/details/kwcb-qs7')).toBe('KWCB-QS7');
+  });
 });
 
 describe('FsSearch', () => {
@@ -132,5 +136,12 @@ describe('FsSearch genscrape pre-fill', () => {
     expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
     await userEvent.type(screen.getByLabelText('Event Place'), 'Pittsburgh');
     expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled();
+  });
+
+  it('blocks Next and explains when the Person ID box holds pasted text (RECORDSEEK-F3)', async () => {
+    renderSearch();
+    await userEvent.type(screen.getByLabelText(/Person ID/), 'Wigan England baptism 1911');
+    expect(screen.getByRole('alert')).toHaveTextContent('like LZ12-345');
+    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
   });
 });

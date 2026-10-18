@@ -4,11 +4,19 @@ import { useSession, isSearchEmpty } from '../session/SessionContext';
 import { useOptionalCapture } from '../capture/CaptureContext';
 import { personToSearch } from '../session/prefill';
 import { BackButton } from '../components/BackButton';
-import { hasSearchCriteria, hasOnlySecondaryCriteria } from './FsResults';
+import { hasSearchCriteria, hasOnlySecondaryCriteria, isValidPid } from './FsResults';
 import { ForwardButton } from '../components/ForwardButton';
 
-/** Uppercase, strip to alphanumerics, and dash into groups of four (LZ12-345). */
+/** A familysearch.org link to a tree person, e.g. …/tree/person/details/KWCB-QS7. */
+const FS_PERSON_URL = /familysearch\.org\/.*?\b([A-Z0-9]{4}-[A-Z0-9]{3,4})\b/i;
+
+/**
+ * Uppercase, strip to alphanumerics, and dash into groups of four (LZ12-345).
+ * A pasted FamilySearch person link yields just its ID.
+ */
 export function normalizePid(raw: string): string {
+  const fromUrl = (raw ?? '').match(FS_PERSON_URL);
+  if (fromUrl?.[1]) return fromUrl[1].toUpperCase();
   const cleaned = (raw ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
   const groups = cleaned.match(/.{1,4}/g);
   return groups ? groups.join('-') : '';
@@ -42,11 +50,14 @@ export function FsSearch() {
     updateSearch(personToSearch(person));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [person]);
-  // An event type with no date or place adds no query term, so it can't search alone.
-  const canSubmit = s.pid.trim() !== '' || hasSearchCriteria(s);
-  const eventChosen = s.eventType !== '';
   // A Person ID goes straight to that person, so the search fields don't apply.
   const byPid = s.pid.trim() !== '';
+  // Pasted citation text lands here as a long dashed string (RECORDSEEK-F3/F4);
+  // only a real ID may go to FamilySearch.
+  const pidInvalid = byPid && !isValidPid(s.pid.trim());
+  // An event type with no date or place adds no query term, so it can't search alone.
+  const canSubmit = byPid ? !pidInvalid : hasSearchCriteria(s);
+  const eventChosen = s.eventType !== '';
 
   function submit(event: FormEvent): void {
     event.preventDefault();
@@ -67,8 +78,15 @@ export function FsSearch() {
             id="pid-input"
             placeholder="Person ID"
             value={s.pid}
+            aria-invalid={pidInvalid || undefined}
+            aria-describedby={pidInvalid ? 'pid-error' : undefined}
             onChange={(e) => updateSearch({ pid: normalizePid(e.target.value) })}
           />
+          {pidInvalid && (
+            <span id="pid-error" className="field-hint" role="alert">
+              A Person ID is 7 or 8 letters and numbers, like LZ12-345. To search by name, clear this box.
+            </span>
+          )}
         </div>
 
         <p className="field-hint search-or">Or search the Family Tree:</p>

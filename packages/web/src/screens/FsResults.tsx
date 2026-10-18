@@ -14,6 +14,11 @@ const PAGE_SIZE = 20;
 // cap how far the numbered pages go (the legacy app capped at 26 pages).
 const MAX_PAGES = 50;
 
+/** A Family Tree Person ID: four characters, a dash, then three or four (LZ12-345). */
+export function isValidPid(pid: string): boolean {
+  return /^[A-Z0-9]{4}-[A-Z0-9]{3,4}$/.test(pid);
+}
+
 /**
  * The sliding window of (1-based) page numbers to show around the current page,
  * up to `size` of them — e.g. current=8 of 196 → [6,7,8,9,10].
@@ -115,6 +120,11 @@ export function FsResults({ client: providedClient }: { client?: FsResultsClient
     }
     try {
       if (pid) {
+        if (!isValidPid(pid)) {
+          setError("That isn't a Family Tree Person ID. IDs look like LZ12-345. Go back to fix it or search by name.");
+          setResults([]);
+          return;
+        }
         let doc: unknown;
         try {
           doc = await client.getPerson(pid);
@@ -122,7 +132,8 @@ export function FsResults({ client: providedClient }: { client?: FsResultsClient
           if (stale()) return;
           // A mistyped, merged or deleted ID is the user's to fix, not a bug.
           const status = (err as { status?: unknown } | null)?.status;
-          if (status === 404 || status === 410) {
+          // FamilySearch answers a malformed ID with 400 "Unable to read Person".
+          if (status === 400 || status === 404 || status === 410) {
             setError(`No Family Tree person found with ID ${pid}. Check the ID and try again.`);
             setResults([]);
             return;

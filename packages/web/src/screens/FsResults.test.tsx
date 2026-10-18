@@ -19,11 +19,11 @@ function apiError(status: number, message: string): Error {
 }
 
 const PERSON = {
-  id: 'PRIMARY1',
+  id: 'PRIM-ARY1',
   display: { name: 'John Smith', gender: 'Male', lifespan: '1850–1910', birthDate: '1850', birthPlace: 'Ohio' },
 };
 const FEED = {
-  entries: [{ id: 'PRIMARY1', score: 3, content: { gedcomx: { persons: [PERSON], relationships: [] } } }],
+  entries: [{ id: 'PRIM-ARY1', score: 3, content: { gedcomx: { persons: [PERSON], relationships: [] } } }],
 };
 
 function AttachProbe() {
@@ -204,12 +204,37 @@ describe('FsResults', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent("FamilySearch won't show person P7LK-5KQ");
   });
 
+  it('treats a 400 for the Person ID as not found and does not report it', async () => {
+    const client: FsResultsClient = {
+      searchPersons: async () => ({ entries: [] }),
+      getPerson: async () => {
+        throw apiError(400, 'FamilySearch API 400: Failure in upstream call: Unable to read Person (upstream 400)');
+      },
+    };
+    renderResults(client, { pid: 'ZZZZ-999' });
+    expect(await screen.findByRole('alert')).toHaveTextContent('No Family Tree person found with ID ZZZZ-999');
+  });
+
+  it('never sends pasted text in the Person ID box to FamilySearch (RECORDSEEK-F3)', async () => {
+    let called = false;
+    const client: FsResultsClient = {
+      searchPersons: async () => ({ entries: [] }),
+      getPerson: async () => {
+        called = true;
+        return {};
+      },
+    };
+    renderResults(client, { pid: 'WIGA-NENG-LAND-BAPT-ISM1-911' });
+    expect(await screen.findByRole('alert')).toHaveTextContent("isn't a Family Tree Person ID");
+    expect(called).toBe(false);
+  });
+
   it('uses getPerson in direct-PID mode', async () => {
     const client: FsResultsClient = {
       searchPersons: async () => ({ entries: [] }),
       getPerson: async () => ({ persons: [PERSON] }),
     };
-    renderResults(client, { pid: 'PRIMARY1' });
+    renderResults(client, { pid: 'PRIM-ARY1' });
     expect(await screen.findByText(/John Smith/)).toBeInTheDocument();
   });
 
