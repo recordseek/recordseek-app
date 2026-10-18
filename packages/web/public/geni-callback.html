@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Signing in to Geni…</title>
+  </head>
+  <body>
+    <p>Signing in to Geni…</p>
+    <script>
+      // Geni's implicit flow returns #access_token=…&expires_in=… on this static page,
+      // because HashRouter would mistake the fragment for a route. Stash it for the
+      // app and replace this history entry so the token never stays in the back stack.
+      // Relative paths, so it works under any base path (/share/, /recordseek-app/).
+      (function () {
+        var params = new URLSearchParams(window.location.hash.slice(1));
+        var token = params.get('access_token');
+        if (token) {
+          var seconds = Number(params.get('expires_in')) || 3600;
+          try {
+            sessionStorage.setItem('rs_geni_token', JSON.stringify({ token: token, expiresAt: Date.now() + seconds * 1000 }));
+          } catch (e) {
+            /* storage blocked: the app will ask to sign in again */
+          }
+        }
+        window.location.replace('./#/geni');
+      })();
+    </script>
+  </body>
+</html>

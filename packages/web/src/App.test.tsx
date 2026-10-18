@@ -20,3 +20,17 @@ describe('App with an extension capture URL', () => {
     expect(screen.getByText('Digital Public Library of America')).toBeInTheDocument();
   });
 });
+
+describe('hidden destinations', () => {
+  it('redirects /geni to the home screen without dev mode', () => {
+    window.history.replaceState({}, '', DPLA_CAPTURE + '#/geni');
+    render(<App />);
+    expect(screen.getByRole('heading', { level: 1, name: 'Create a Source' })).toBeInTheDocument();
+  });
+
+  it('opens /geni with dev mode', () => {
+    window.history.replaceState({}, '', DPLA_CAPTURE + '&dev=1#/geni');
+    render(<App />);
+    expect(screen.getByRole('heading', { name: 'Save to Geni' })).toBeInTheDocument();
+  });
+});

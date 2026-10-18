@@ -2,17 +2,23 @@ import { useNavigate } from 'react-router';
 import { useCapture } from '../capture/CaptureContext';
 import { track } from '../analytics';
 import { saveLastService, type Service } from '../prefs';
+import { isDevMode } from '../devFlag';
 import { FeedbackBox } from '../components/FeedbackBox';
 
 const ROUTES: Record<Service, string> = {
   FamilySearch: '/fs-source',
   Ancestry: '/a-source',
   Citation: '/citation',
+  Zotero: '/zotero',
+  Geni: '/geni',
+  WikiTree: '/wikitree',
 };
 
 export function Main() {
   const navigate = useNavigate();
   const capture = useCapture();
+  // Zotero, Geni and WikiTree are hidden in production until `?dev=1` turns them on.
+  const dev = isDevMode();
   const captured = capture.title || capture.url;
 
   // Always show the picker: auto-advancing to the remembered service hid the
@@ -63,6 +69,19 @@ export function Main() {
           </svg>
           <span>Save to Somewhere Else</span>
         </button>
+        {dev && (
+          <>
+            <button type="button" className="service-tile" onClick={() => choose('Zotero')}>
+              <img src={`${import.meta.env.BASE_URL}images/zotero-logo.svg`} alt="Zotero" />
+            </button>
+            <button type="button" className="service-tile" onClick={() => choose('Geni')}>
+              <img src={`${import.meta.env.BASE_URL}images/geni-logo.svg`} alt="Geni" />
+            </button>
+            <button type="button" className="service-tile" onClick={() => choose('WikiTree')}>
+              <img className="logo-fit" src={`${import.meta.env.BASE_URL}images/wikitree-logo.png`} alt="WikiTree" />
+            </button>
+          </>
+        )}
       </div>
 
       <FeedbackBox source="share" />

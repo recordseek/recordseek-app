@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Connecting Zotero…</title>
+  </head>
+  <body>
+    <p>Connecting Zotero…</p>
+    <script>
+      // The zotero-auth function redirects here with #zk=<api key>&zu=<user id>&zn=<username>.
+      // A fragment is never sent to a server, and replace() drops this page from history.
+      // Relative paths, so it works under any base path (/share/, /recordseek-app/).
+      (function () {
+        var params = new URLSearchParams(window.location.hash.slice(1));
+        var key = params.get('zk');
+        var userId = params.get('zu');
+        if (key && userId) {
+          try {
+            localStorage.setItem('rs_zotero', JSON.stringify({ key: key, userId: userId, username: params.get('zn') || '' }));
+            sessionStorage.setItem('rs_zotero_new', '1');
+          } catch (e) {
+            /* storage blocked: the app will offer Connect again */
+          }
+        }
+        window.location.replace('./#/zotero');
+      })();
+    </script>
+  </body>
+</html>

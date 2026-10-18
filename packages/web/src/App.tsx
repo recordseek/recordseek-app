@@ -1,3 +1,4 @@
+import { type ReactNode } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router';
 import { CaptureProvider } from './capture/CaptureContext';
 import { SessionProvider } from './session/SessionContext';
@@ -16,9 +17,18 @@ import { FsComplete } from './screens/FsComplete';
 import { FsAddPerson } from './screens/FsAddPerson';
 import { FsAddAttach } from './screens/FsAddAttach';
 import { JustCitation } from './screens/JustCitation';
+import { Zotero } from './screens/Zotero';
+import { Geni } from './screens/Geni';
+import { WikiTree } from './screens/WikiTree';
+import { isDevMode } from './devFlag';
 import { Header } from './screens/Header';
 import { Announcement } from './components/Announcement';
 import { OAuthGate } from './auth/OAuthGate';
+
+/** Hidden destinations: without dev mode they bounce to the home screen. */
+function DevOnly({ children }: { children: ReactNode }) {
+  return isDevMode() ? children : <Navigate to="/" replace />;
+}
 
 export function App() {
   return (
@@ -44,6 +54,9 @@ export function App() {
             <Route path="/fs-complete" element={<FsComplete />} />
             <Route path="/fs-addperson" element={<FsAddPerson />} />
             <Route path="/fs-addattach" element={<FsAddAttach />} />
+            <Route path="/zotero" element={<DevOnly><Zotero /></DevOnly>} />
+            <Route path="/geni" element={<DevOnly><Geni /></DevOnly>} />
+            <Route path="/wikitree" element={<DevOnly><WikiTree /></DevOnly>} />
             <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </OAuthGate>

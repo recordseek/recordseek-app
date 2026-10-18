@@ -691,6 +691,11 @@ button.btn-save-later:hover:not(:disabled) {
   height: auto;
 }
 
+.service-tile img.logo-fit {
+  /* Small source logos (Zotero, Geni, WikiTree) fill the same 42px band as the larger ones. */
+  height: 42px;
+}
+
 .service-tile .tile-icon {
   display: block;
   width: 40px;

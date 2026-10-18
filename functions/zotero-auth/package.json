@@ -1,0 +1,16 @@
+{
+  "name": "recordseek-zotero-auth",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "description": "Cloud Run function: Zotero OAuth 1.0a helper (keeps the client secret server-side) and a small Geni write proxy for the share app.",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "functions-framework --target=zoteroAuth",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@google-cloud/functions-framework": "^3.4.0"
+  }
+}

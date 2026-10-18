@@ -6,7 +6,9 @@ const CITATION_STYLE_KEY = 'recordseek_source_format';
 const LAST_SERVICE_KEY = 'recordseek-last-service';
 const SOURCE_BOX_KEY = 'recordseek-save-to-sourcebox';
 
-export type Service = 'FamilySearch' | 'Ancestry' | 'Citation';
+export type Service = 'FamilySearch' | 'Ancestry' | 'Citation' | 'Zotero' | 'Geni' | 'WikiTree';
+
+const SERVICES: readonly Service[] = ['FamilySearch', 'Ancestry', 'Citation', 'Zotero', 'Geni', 'WikiTree'];
 
 function read(key: string): string | null {
   try {
@@ -47,7 +49,7 @@ export function usePersistedCitationStyle(): [CitationStyle, (style: CitationSty
 
 export function getLastService(): Service | null {
   const value = read(LAST_SERVICE_KEY);
-  return value === 'FamilySearch' || value === 'Ancestry' || value === 'Citation' ? value : null;
+  return (SERVICES as readonly (string | null)[]).includes(value) ? (value as Service) : null;
 }
 export function saveLastService(service: Service): void {
   write(LAST_SERVICE_KEY, service);
