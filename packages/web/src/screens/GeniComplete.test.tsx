@@ -20,7 +20,7 @@ afterEach(() => vi.restoreAllMocks());
 describe('GeniComplete', () => {
   it('confirms, links the document and each tagged profile', () => {
     renderGeni('/geni-complete', { saved: { doc: doc(), people: [BURKE, SPOUSE] } });
-    expect(screen.getByRole('heading', { name: /attached to Elizabeth Burke/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Saved to Geni as a document on Elizabeth Burke/ })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'View the document on Geni' })).toHaveAttribute('href', 'https://www.geni.com/documents/view?doc_id=5');
     expect(screen.getByRole('link', { name: 'View John Burke on Geni' })).toBeInTheDocument();
     expect(screen.getByText('“DPLA”')).toBeInTheDocument();

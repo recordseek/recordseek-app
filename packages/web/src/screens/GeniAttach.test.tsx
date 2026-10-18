@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderGeni, signIn, BURKE, SOURCE } from './geniTestUtil';
 import * as geni from '../geni';
@@ -41,7 +41,7 @@ describe('GeniAttach', () => {
     const add = vi.spyOn(geni, 'addDocument').mockResolvedValue(DOC());
     renderGeni('/geni-attach', { selected: BURKE });
     await screen.findByLabelText(/John Burke/);
-    await userEvent.click(screen.getByRole('button', { name: 'Save & Attach' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Save Document' }));
     expect(add).toHaveBeenCalledWith(
       expect.objectContaining({
         token: 'TOK',
@@ -51,7 +51,8 @@ describe('GeniAttach', () => {
         profileIds: ['profile-1'],
       }),
     );
-    expect(await screen.findByTestId('where')).toHaveTextContent('/geni-complete');
+    // The path line exists from the start; wait for the navigation, not the element.
+    await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent('/geni-complete'));
   });
 
   it('tags the person plus every checked relative, person first', async () => {
@@ -69,7 +70,7 @@ describe('GeniAttach', () => {
     const add = vi.spyOn(geni, 'addDocument').mockResolvedValue(DOC());
     renderGeni('/geni-attach', { selected: BURKE });
     expect(await screen.findByText(/Couldn’t load their family/)).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Save & Attach' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Save Document' }));
     expect(add).toHaveBeenCalled();
   });
 
@@ -77,9 +78,9 @@ describe('GeniAttach', () => {
     const report = vi.spyOn(sentry, 'reportError').mockImplementation(() => {});
     vi.spyOn(geni, 'addDocument').mockRejectedValue(new geni.GeniBusyError());
     renderGeni('/geni-attach', { selected: BURKE });
-    await userEvent.click(await screen.findByRole('button', { name: 'Save & Attach' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Save Document' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Geni is busy right now');
-    expect(screen.getByRole('button', { name: 'Save & Attach' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Save Document' })).toBeEnabled();
     expect(report).not.toHaveBeenCalled();
   });
 
@@ -87,7 +88,7 @@ describe('GeniAttach', () => {
     const report = vi.spyOn(sentry, 'reportError').mockImplementation(() => {});
     vi.spyOn(geni, 'addDocument').mockRejectedValue(new geni.GeniError('Geni returned no document'));
     renderGeni('/geni-attach', { selected: BURKE });
-    await userEvent.click(await screen.findByRole('button', { name: 'Save & Attach' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Save Document' }));
     await screen.findByRole('alert');
     expect(report).toHaveBeenCalledTimes(1);
   });

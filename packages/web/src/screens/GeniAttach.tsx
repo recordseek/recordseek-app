@@ -105,7 +105,7 @@ export function GeniAttach() {
     <main>
       <div className="attach-header">
         <h3 className="attach-title">
-          Attach Source to{' '}
+          Attach Document to{' '}
           {person.url ? (
             <a href={person.url} target="_blank" rel="noreferrer">
               {person.name}
@@ -159,7 +159,7 @@ export function GeniAttach() {
         <BackButton onClick={() => navigate('/geni-results')} />
         <div className="footer-right">
           <ForwardButton onClick={() => void save()} disabled={busy}>
-            {busy ? 'Saving…' : chosen.length ? `Save & Tag ${chosen.length + 1} People` : 'Save & Attach'}
+            {busy ? 'Saving…' : chosen.length ? `Save & Tag ${chosen.length + 1} People` : 'Save Document'}
           </ForwardButton>
         </div>
       </div>

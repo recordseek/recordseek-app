@@ -70,7 +70,7 @@ export function Geni() {
 
   return (
     <main>
-      <h3>Attach a Source</h3>
+      <h3>Save as a Geni Document</h3>
       <form onSubmit={next}>
         <SourceFields idPrefix="geni" values={values} style={style} onChange={onChange} onStyleChange={setStyle} />
         <div className="form-footer">

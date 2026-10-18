@@ -27,7 +27,7 @@ export function GeniComplete() {
 
   return (
     <SavedActions
-      heading={`Congratulations! Your source was attached to ${people[0]?.name ?? 'the profile'}.`}
+      heading={`Saved to Geni as a document on ${people[0]?.name ?? 'the profile'}.`}
       title={state.source?.title}
       links={links}
       newsletterSource="geni"
@@ -37,6 +37,9 @@ export function GeniComplete() {
         navigate('/geni');
       }}
     >
+      <p className="field-hint">
+        Find it on the profile under Media → Documents. Geni doesn’t let apps add to the Sources tab.
+      </p>
       {failed.length > 0 && (
         <p>
           The document was added, but Geni wouldn’t tag {failed.map((p) => p.name).join(', ')} in it. You can tag{' '}
