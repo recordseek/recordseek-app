@@ -13,6 +13,8 @@ interface ServiceCrumb {
   icon?: string;
   /** Recolor a dark/colored logo white so it reads on the dark navbar. */
   white?: boolean;
+  /** A single-letter mark (Geni's G, Zotero's Z): drawn at text height, never taller than "RecordSeek". */
+  letter?: boolean;
 }
 
 /** Map the current route to the service whose flow we're in. */
@@ -28,12 +30,14 @@ function serviceForPath(pathname: string): ServiceCrumb | null {
       name: 'Geni',
       icon: `${import.meta.env.BASE_URL}images/geni-icon.png`,
       white: true,
+      letter: true,
     };
   }
   if (pathname.startsWith('/zotero')) {
     return {
       name: 'Zotero',
       icon: `${import.meta.env.BASE_URL}images/zotero-icon.png`,
+      letter: true,
     };
   }
   if (pathname.startsWith('/a-source')) {
@@ -121,7 +125,9 @@ export function Header() {
           </span>
           {service.icon ? (
             <img
-              className={service.white ? 'crumb-logo crumb-logo-white' : 'crumb-logo'}
+              className={['crumb-logo', service.white && 'crumb-logo-white', service.letter && 'crumb-logo-letter']
+                .filter(Boolean)
+                .join(' ')}
               src={service.icon}
               alt={service.name}
             />

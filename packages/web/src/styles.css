@@ -96,6 +96,10 @@ body {
   display: block;
 }
 
+.app-header .crumb-logo-letter {
+  height: 15px;
+}
+
 .app-header .crumb-logo-white {
   filter: brightness(0) invert(1);
 }
