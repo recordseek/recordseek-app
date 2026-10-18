@@ -27,14 +27,13 @@ describe('Geni source step', () => {
     expect(assign).toHaveBeenCalledTimes(1);
   });
 
-  it('does not redirect again after a failed return: shows Try again', async () => {
+  it('after a failed return goes back to the picker, and the next visit signs in again', async () => {
     const assign = stubRedirect();
     sessionStorage.setItem('rs_auth_attempted_geni', '1');
     renderGeni('/geni', { source: null });
     expect(assign).not.toHaveBeenCalled();
-    expect(screen.getByRole('alert')).toHaveTextContent('Geni sign-in didn’t finish');
-    await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
-    expect(assign).toHaveBeenCalledTimes(1);
+    expect(await screen.findByTestId('where')).toHaveTextContent(/^\/$/);
+    expect(sessionStorage.getItem('rs_auth_attempted_geni')).toBeNull();
   });
 
   it('clears the attempt marker once signed in', () => {

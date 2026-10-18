@@ -118,6 +118,14 @@ export function Zotero() {
 
   const auth = useAutoSignIn('zotero', Boolean(login), connect);
 
+  useEffect(() => {
+    if (!auth.failed) return;
+    auth.reset();
+    clearLastService();
+    navigate('/', { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth.failed]);
+
   async function save(allowDuplicate = false): Promise<void> {
     if (!login || status === 'saving') return;
     const problems = validateZoteroForm(current);
@@ -170,21 +178,9 @@ export function Zotero() {
     navigate('/');
   }
 
-  if (!login && auth.redirecting) return <Loading status="Signing in to Zotero…" />;
-  if (!login) {
-    return (
-      <main>
-        <h3>Couldn’t connect to Zotero</h3>
-        <p role="alert">Zotero sign-in didn’t finish. Please try again.</p>
-        <button type="button" className="primary" onClick={auth.retry}>
-          Try again
-        </button>
-        <div className="form-footer">
-          <BackButton onClick={back} />
-        </div>
-      </main>
-    );
-  }
+  // A sign-in that came back without a key (cancelled or denied) returns to the picker;
+  // the attempt is forgotten, so clicking the Zotero tile signs in again.
+  if (!login) return <Loading status="Signing in to Zotero…" />;
 
   if (status === 'saving') return <Loading status="Saving to Zotero…" />;
   if (!collectionsLoaded && !savedKey) return <Loading status="Loading your Zotero collections…" />;

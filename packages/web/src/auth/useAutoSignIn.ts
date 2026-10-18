@@ -21,7 +21,7 @@ function write(provider: string, on: boolean): void {
 /**
  * Sends a signed-out visitor straight to the provider's sign-in, like the FamilySearch
  * tile. A sessionStorage marker is set before the redirect, so a return without a token
- * (denied, or an error) shows `failed` instead of redirecting again. `suspend` holds the
+ * (denied, or an error) reports `failed` instead of redirecting again. `suspend` holds the
  * redirect while a returning sign-in is being confirmed.
  */
 export function useAutoSignIn(provider: string, authed: boolean, start: () => void, suspend = false) {
@@ -51,6 +51,9 @@ export function useAutoSignIn(provider: string, authed: boolean, start: () => vo
     setStarted(false);
   }, [provider]);
 
+  /** Forget the used-up attempt, so the next visit redirects again (the page leaves first). */
+  const reset = useCallback(() => write(provider, false), [provider]);
+
   /** Try again: redirect now. */
   const retry = useCallback(() => {
     write(provider, true);
@@ -60,5 +63,5 @@ export function useAutoSignIn(provider: string, authed: boolean, start: () => vo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [provider]);
 
-  return { authed, redirecting: !authed && !suspend && (!attempted || started), failed: !authed && attempted && !started, hold, retry };
+  return { authed, redirecting: !authed && !suspend && (!attempted || started), failed: !authed && attempted && !started, hold, retry, reset };
 }

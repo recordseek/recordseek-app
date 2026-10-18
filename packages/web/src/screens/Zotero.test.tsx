@@ -52,14 +52,13 @@ describe('Zotero', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Signing in to Zotero…');
   });
 
-  it('does not redirect again after a failed return: shows Try again', async () => {
+  it('after a failed return goes back to the picker, and the next visit signs in again', async () => {
     const assign = stubRedirect();
     sessionStorage.setItem('rs_auth_attempted_zotero', '1');
     renderScreen();
     expect(assign).not.toHaveBeenCalled();
-    expect(screen.getByRole('alert')).toHaveTextContent('Zotero sign-in didn’t finish');
-    await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
-    expect(assign).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText('MAIN')).toBeInTheDocument();
+    expect(sessionStorage.getItem('rs_auth_attempted_zotero')).toBeNull();
   });
 
   it('shows Loading while collections load and while saving', async () => {

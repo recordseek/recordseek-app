@@ -44,6 +44,14 @@ export function Geni() {
 
   const auth = useAutoSignIn('geni', Boolean(token), signIn);
 
+  useEffect(() => {
+    if (!auth.failed) return;
+    auth.reset();
+    clearLastService();
+    navigate('/', { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth.failed]);
+
   function back(): void {
     clearLastService();
     navigate('/');
@@ -56,21 +64,9 @@ export function Geni() {
     navigate('/geni-search');
   }
 
-  if (!token && auth.redirecting) return <Loading status="Signing in to Geni…" />;
-  if (!token) {
-    return (
-      <main>
-        <h3>Couldn’t connect to Geni</h3>
-        <p role="alert">Geni sign-in didn’t finish. Please try again.</p>
-        <button type="button" className="primary" onClick={auth.retry}>
-          Try again
-        </button>
-        <div className="form-footer">
-          <BackButton onClick={back} />
-        </div>
-      </main>
-    );
-  }
+  // A sign-in that came back without a token (cancelled or denied) returns to the picker;
+  // the attempt is forgotten, so clicking the Geni tile signs in again.
+  if (!token) return <Loading status="Signing in to Geni…" />;
 
   return (
     <main>
