@@ -72,10 +72,10 @@ export function Main() {
         {dev && (
           <>
             <button type="button" className="service-tile" onClick={() => choose('Zotero')}>
-              <img src={`${import.meta.env.BASE_URL}images/zotero-logo.svg`} alt="Zotero" />
+              <img className="logo-fit" src={`${import.meta.env.BASE_URL}images/zotero-logo.svg`} alt="Zotero" />
             </button>
             <button type="button" className="service-tile" onClick={() => choose('Geni')}>
-              <img src={`${import.meta.env.BASE_URL}images/geni-logo.svg`} alt="Geni" />
+              <img className="logo-fit" src={`${import.meta.env.BASE_URL}images/geni-logo.svg`} alt="Geni" />
             </button>
             <button type="button" className="service-tile" onClick={() => choose('WikiTree')}>
               <img className="logo-fit" src={`${import.meta.env.BASE_URL}images/wikitree-logo.png`} alt="WikiTree" />
