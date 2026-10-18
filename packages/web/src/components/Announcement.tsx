@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 // Bump the key when the message changes so everyone sees the new one.
-const DISMISS_KEY = 'rs-announcement-chrome-back';
+const DISMISS_KEY = 'rs-announcement-browsers-back';
 
 function dismissed(): boolean {
   try {
@@ -28,7 +28,11 @@ export function Announcement() {
   return (
     <div className="announcement" role="status">
       <span>
-        <strong>RecordSeek is back on Chrome!</strong> Coming soon to Safari, Edge and mobile.
+        <strong>RecordSeek is back on Chrome, Edge, Firefox and more!</strong> Safari and mobile apps are coming
+        soon.{' '}
+        <a href="https://recordseek.com/" target="_blank" rel="noreferrer">
+          See our new website
+        </a>
       </span>
       <button type="button" className="announcement-close" aria-label="Dismiss" onClick={dismiss}>
         ×

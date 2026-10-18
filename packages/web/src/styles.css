@@ -981,7 +981,7 @@ button.btn-save-later:hover:not(:disabled) {
   gap: 8px;
   padding: 6px 36px;
   position: relative;
-  background: var(--accent);
+  background: #107a64; /* darker brand green: white text needs 4.5:1 */
   color: #fff;
   font-size: 13px;
   line-height: 1.35;
@@ -1004,4 +1004,10 @@ button.btn-save-later:hover:not(:disabled) {
 .announcement-close:hover,
 .announcement-close:focus-visible {
   opacity: 1;
+}
+.announcement a {
+  color: #fff;
+  font-weight: 700;
+  text-decoration: underline;
+  white-space: nowrap;
 }

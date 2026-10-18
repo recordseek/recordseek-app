@@ -8,8 +8,9 @@ describe('Announcement', () => {
 
   it('shows the Chrome news and stays dismissed once closed', async () => {
     const { unmount } = render(<Announcement />);
-    expect(screen.getByRole('status')).toHaveTextContent('RecordSeek is back on Chrome!');
-    expect(screen.getByRole('status')).toHaveTextContent('Safari, Edge and mobile');
+    expect(screen.getByRole('status')).toHaveTextContent('RecordSeek is back on Chrome, Edge, Firefox and more!');
+    expect(screen.getByRole('status')).toHaveTextContent('Safari and mobile apps are coming soon');
+    expect(screen.getByRole('link', { name: 'See our new website' })).toHaveAttribute('href', 'https://recordseek.com/');
     await userEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
     unmount();
