@@ -6,9 +6,9 @@ const CITATION_STYLE_KEY = 'recordseek_source_format';
 const LAST_SERVICE_KEY = 'recordseek-last-service';
 const SOURCE_BOX_KEY = 'recordseek-save-to-sourcebox';
 
-export type Service = 'FamilySearch' | 'Ancestry' | 'Citation' | 'Zotero' | 'Geni';
+export type Service = 'FamilySearch' | 'Ancestry' | 'Ancestry2' | 'Citation' | 'Zotero' | 'Geni';
 
-const SERVICES: readonly Service[] = ['FamilySearch', 'Ancestry', 'Citation', 'Zotero', 'Geni'];
+const SERVICES: readonly Service[] = ['FamilySearch', 'Ancestry', 'Ancestry2', 'Citation', 'Zotero', 'Geni'];
 
 function read(key: string): string | null {
   try {

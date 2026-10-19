@@ -46,6 +46,12 @@ function serviceForPath(pathname: string): ServiceCrumb | null {
       icon: `${import.meta.env.BASE_URL}images/ancestry-icon.svg`,
     };
   }
+  if (pathname.startsWith('/ancestry2')) {
+    return {
+      name: 'Ancestry2',
+      icon: `${import.meta.env.BASE_URL}images/ancestry-icon.svg`,
+    };
+  }
   if (pathname.startsWith('/donate')) {
     return { name: 'Donate' };
   }

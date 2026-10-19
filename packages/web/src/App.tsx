@@ -9,6 +9,7 @@ import { About } from './screens/About';
 import { Support } from './screens/Support';
 import { Loading } from './screens/Loading';
 import { ASource } from './screens/ASource';
+import { Ancestry2 } from './screens/Ancestry2';
 import { FsSearch } from './screens/FsSearch';
 import { FsResults } from './screens/FsResults';
 import { FsAttach } from './screens/FsAttach';
@@ -53,6 +54,7 @@ export function App() {
             <Route path="/donate" element={<Donate />} />
             <Route path="/loading" element={<Loading />} />
             <Route path="/a-source" element={<ASource />} />
+            <Route path="/ancestry2" element={<Ancestry2 />} />
             <Route path="/citation" element={<JustCitation />} />
             <Route path="/fs-search" element={<FsSearch />} />
             <Route path="/fs-results" element={<FsResults />} />

@@ -9,6 +9,7 @@ import { FeedbackBox } from '../components/FeedbackBox';
 const ROUTES: Record<Service, string> = {
   FamilySearch: '/fs-source',
   Ancestry: '/a-source',
+  Ancestry2: '/ancestry2',
   Citation: '/citation',
   Zotero: '/zotero',
   Geni: '/geni',
@@ -29,6 +30,16 @@ const TILES: {
     service: 'Ancestry',
     label: 'Ancestry',
     content: img('ancestry-logo.svg', 'Ancestry'),
+  },
+  {
+    service: 'Ancestry2',
+    label: 'Ancestry2',
+    content: (
+      <>
+        {img('ancestry-logo.svg', '')}
+        <span>Ancestry2</span>
+      </>
+    ),
   },
   {
     service: 'FamilySearch',

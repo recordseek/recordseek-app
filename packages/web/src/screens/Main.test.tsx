@@ -16,6 +16,7 @@ function renderMain() {
           <Route path="/" element={<Main />} />
           <Route path="/fs-source" element={<div>SOURCE SCREEN</div>} />
           <Route path="/a-source" element={<div>ANCESTRY SCREEN</div>} />
+          <Route path="/ancestry2" element={<div>ANCESTRY2 SCREEN</div>} />
           <Route path="/citation" element={<div>CITATION SCREEN</div>} />
           <Route path="/zotero" element={<div>ZOTERO SCREEN</div>} />
           <Route path="/geni" element={<div>GENI SCREEN</div>} />
@@ -33,11 +34,18 @@ describe('Main', () => {
     expect(screen.getByText('Digital Public Library of America')).toBeInTheDocument();
   });
 
-  it('offers all three services', () => {
+  it('offers all public services', () => {
     renderMain();
     expect(screen.getByRole('button', { name: 'FamilySearch' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Ancestry' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ancestry2' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Save Citation' })).toBeInTheDocument();
+  });
+
+  it('routes Ancestry2 separately from Ancestry', async () => {
+    renderMain();
+    await userEvent.click(screen.getByRole('button', { name: 'Ancestry2' }));
+    expect(screen.getByText('ANCESTRY2 SCREEN')).toBeInTheDocument();
   });
 
   it('navigates to the chosen service', async () => {
@@ -82,10 +90,10 @@ describe('Main', () => {
         .filter((b) => b.className.includes('service-tile'))
         .map((b) => b.textContent || b.querySelector('img')?.getAttribute('alt'));
     const first = renderMain();
-    expect(order()).toEqual(['Ancestry', 'FamilySearch', 'Save Citation']);
+    expect(order()).toEqual(['Ancestry', 'Ancestry2', 'FamilySearch', 'Save Citation']);
     first.unmount();
     window.history.replaceState(null, '', '/?dev=1');
     renderMain();
-    expect(order()).toEqual(['Ancestry', 'FamilySearch', 'Geni', 'Zotero', 'Save Citation']);
+    expect(order()).toEqual(['Ancestry', 'Ancestry2', 'FamilySearch', 'Geni', 'Zotero', 'Save Citation']);
   });
 });
