@@ -38,11 +38,12 @@ describe('Main', () => {
     renderMain();
     expect(screen.getByRole('button', { name: 'FamilySearch' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Ancestry' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Ancestry2' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Ancestry2' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Save Citation' })).toBeInTheDocument();
   });
 
-  it('routes Ancestry2 separately from Ancestry', async () => {
+  it('routes Ancestry2 separately from Ancestry with dev mode', async () => {
+    window.history.replaceState(null, '', '/?dev=1');
     renderMain();
     await userEvent.click(screen.getByRole('button', { name: 'Ancestry2' }));
     expect(screen.getByText('ANCESTRY2 SCREEN')).toBeInTheDocument();
@@ -61,9 +62,9 @@ describe('Main', () => {
     expect(screen.queryByText('SOURCE SCREEN')).not.toBeInTheDocument();
   });
 
-  it('hides Zotero and Geni by default', () => {
+  it('hides Ancestry2, Zotero, and Geni by default', () => {
     renderMain();
-    for (const name of ['Zotero', 'Geni']) {
+    for (const name of ['Ancestry2', 'Zotero', 'Geni']) {
       expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
     }
   });
@@ -90,7 +91,7 @@ describe('Main', () => {
         .filter((b) => b.className.includes('service-tile'))
         .map((b) => b.textContent || b.querySelector('img')?.getAttribute('alt'));
     const first = renderMain();
-    expect(order()).toEqual(['Ancestry', 'Ancestry2', 'FamilySearch', 'Save Citation']);
+    expect(order()).toEqual(['Ancestry', 'FamilySearch', 'Save Citation']);
     first.unmount();
     window.history.replaceState(null, '', '/?dev=1');
     renderMain();

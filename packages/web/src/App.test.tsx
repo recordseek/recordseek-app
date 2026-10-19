@@ -29,7 +29,7 @@ describe('hidden destinations', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Create a Source' })).toBeInTheDocument();
   });
 
-  it.each(['geni-search', 'geni-results', 'geni-attach', 'geni-complete'])('redirects /%s to the home screen without dev mode', (route) => {
+  it.each(['ancestry2', 'geni-search', 'geni-results', 'geni-attach', 'geni-complete'])('redirects /%s to the home screen without dev mode', (route) => {
     window.history.replaceState({}, '', DPLA_CAPTURE + '#/' + route);
     render(<App />);
     expect(screen.getByRole('heading', { level: 1, name: 'Create a Source' })).toBeInTheDocument();

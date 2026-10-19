@@ -34,6 +34,7 @@ const TILES: {
   {
     service: 'Ancestry2',
     label: 'Ancestry2',
+    dev: true,
     content: (
       <>
         {img('ancestry-logo.svg', '')}

@@ -54,7 +54,7 @@ export function App() {
             <Route path="/donate" element={<Donate />} />
             <Route path="/loading" element={<Loading />} />
             <Route path="/a-source" element={<ASource />} />
-            <Route path="/ancestry2" element={<Ancestry2 />} />
+            <Route path="/ancestry2" element={<DevOnly><Ancestry2 /></DevOnly>} />
             <Route path="/citation" element={<JustCitation />} />
             <Route path="/fs-search" element={<FsSearch />} />
             <Route path="/fs-results" element={<FsResults />} />
