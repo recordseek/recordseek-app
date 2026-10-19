@@ -16,12 +16,15 @@ import { ForwardButton } from '../components/ForwardButton';
 import { useGeniGuard } from './geniGuard';
 import { Loading } from './Loading';
 
-const GROUPS: { key: keyof GeniFamily; title: string }[] = [
+type Group = { key: keyof GeniFamily; title: string };
+const GROUPS: Group[] = [
   { key: 'parents', title: 'Parents' },
   { key: 'spouses', title: 'Spouse(s)' },
   { key: 'siblings', title: 'Siblings' },
   { key: 'children', title: 'Children' },
 ];
+// Two columns in the tag-family picker: Parents & Spouses, then Siblings & Children.
+const COLUMNS: Group[][] = [GROUPS.slice(0, 2), GROUPS.slice(2)];
 
 /** The text Geni stores on the document: citation, notes, then the page link. */
 export function documentText(source: { citation: string; notes: string; url: string }): string {
@@ -77,15 +80,13 @@ export function GeniAttach() {
     setBusy(true);
     setError('');
     try {
-      const doc = await addDocument(
-        {
-          token,
-          title: source.title.trim() || source.url,
-          text: documentText(source),
-          sourceUrl: source.url,
-          profileIds: people.map((p) => p.id),
-        },
-      );
+      const doc = await addDocument({
+        token,
+        title: source.title.trim() || source.url,
+        text: documentText(source),
+        sourceUrl: source.url,
+        profileIds: people.map((p) => p.id),
+      });
       track('geni_saved', { tagged: doc.tagged, people: doc.taggedIds.length });
       setSaved({ doc, people });
       navigate('/geni-complete');
@@ -99,7 +100,6 @@ export function GeniAttach() {
   }
 
   if (busy) return <Loading status="Saving to Geni…" />;
-  if (!family && !familyNote) return <Loading status="Loading their family from Geni…" />;
 
   return (
     <main>
@@ -118,6 +118,11 @@ export function GeniAttach() {
       {person.years && <p className="field-hint">{person.years}</p>}
       <p>Source: &quot;{source.title}&quot;</p>
 
+      {!family && !familyNote && (
+        <p className="field-hint" role="status">
+          Loading relatives you can also tag…
+        </p>
+      )}
       {familyNote && (
         <p className="field-hint" role="status">
           {familyNote}
@@ -126,29 +131,35 @@ export function GeniAttach() {
       {relatives.length > 0 && (
         <div className="geni-family">
           <strong>Also tag family in this document (optional)</strong>
-          {GROUPS.map(({ key, title }) =>
-            family && family[key].length > 0 ? (
-              <div key={key}>
-                <h4>{title}</h4>
-                <ul>
-                  {family[key].map((r) => (
-                    <li key={r.id}>
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={Boolean(extra[r.id])}
-                          disabled={busy}
-                          onChange={(e) => setExtra((prev) => ({ ...prev, [r.id]: e.target.checked }))}
-                        />
-                        {r.name}
-                        {r.years ? ` (${r.years})` : ''}
-                      </label>
-                    </li>
-                  ))}
-                </ul>
+          <div className="geni-family-cols">
+            {COLUMNS.map((column, i) => (
+              <div className="geni-family-col" key={i}>
+                {column.map(({ key, title }) =>
+                  family && family[key].length > 0 ? (
+                    <div key={key} className="geni-family-group">
+                      <h4>{title}</h4>
+                      <ul>
+                        {family[key].map((r) => (
+                          <li key={r.id}>
+                            <label>
+                              <input
+                                type="checkbox"
+                                checked={Boolean(extra[r.id])}
+                                disabled={busy}
+                                onChange={(e) => setExtra((prev) => ({ ...prev, [r.id]: e.target.checked }))}
+                              />
+                              {r.name}
+                              {r.years ? ` (${r.years})` : ''}
+                            </label>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null,
+                )}
               </div>
-            ) : null,
-          )}
+            ))}
+          </div>
         </div>
       )}
 

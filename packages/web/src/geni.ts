@@ -471,6 +471,24 @@ export async function immediateFamily(token: string, ref = 'profile', onBusy?: (
   return parseFamily(data as { focus?: RawProfile; nodes?: Record<string, RawNode> });
 }
 
+/**
+ * The signed-in user and their immediate family in one call: Geni's
+ * profile/immediate-family response already carries the focus ("me") profile in
+ * its nodes, so there is no need for a separate profile read before this one.
+ */
+export async function myFamily(
+  token: string,
+  onBusy?: () => void,
+): Promise<{ me: GeniProfile | null; family: GeniFamily }> {
+  const data = (await withRetry(
+    () => jsonp('profile/immediate-family', { fields: FIELDS, access_token: token }).then(check),
+    onBusy,
+  )) as { focus?: RawProfile; nodes?: Record<string, RawNode> };
+  const focusId = data.focus?.id ?? '';
+  const meNode = data.nodes?.[focusId] ?? data.focus;
+  return { me: meNode ? toProfile(meNode) : null, family: parseFamily(data) };
+}
+
 function check(data: unknown): unknown {
   const err = failure(data);
   if (err) throw err;

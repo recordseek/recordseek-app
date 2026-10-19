@@ -10,8 +10,7 @@ const EMPTY_FAMILY = { parents: [], spouses: [], children: [], siblings: [] };
 
 beforeEach(() => {
   signIn();
-  vi.spyOn(geni, 'myProfile').mockResolvedValue(ME);
-  vi.spyOn(geni, 'immediateFamily').mockResolvedValue({ ...EMPTY_FAMILY, children: [KID] });
+  vi.spyOn(geni, 'myFamily').mockResolvedValue({ me: ME, family: { ...EMPTY_FAMILY, children: [KID] } });
 });
 afterEach(() => vi.restoreAllMocks());
 
@@ -62,14 +61,14 @@ describe('GeniSearch', () => {
     expect(JSON.parse(sessionStorage.getItem('rs_geni_flow') ?? '{}').selected.id).toBe('profile-10');
   });
 
-  it('has a Me pick, loaded before the family call', async () => {
+  it('has a Me pick from the single family call', async () => {
     renderGeni('/geni-search');
     expect(await screen.findByRole('button', { name: 'Me' })).toBeInTheDocument();
-    expect(geni.myProfile).toHaveBeenCalledWith('TOK');
+    expect(geni.myFamily).toHaveBeenCalledWith('TOK');
   });
 
   it('still works when the quick picks cannot load', async () => {
-    vi.spyOn(geni, 'myProfile').mockRejectedValue(new geni.GeniBusyError());
+    vi.spyOn(geni, 'myFamily').mockRejectedValue(new geni.GeniBusyError());
     renderGeni('/geni-search');
     expect(await screen.findByText(/Couldn’t load your family/)).toBeInTheDocument();
     await userEvent.type(screen.getByLabelText('Last Names (Surname)'), 'Burke');

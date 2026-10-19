@@ -24,11 +24,13 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe('GeniAttach', () => {
-  it('shows the person and the source, and falls back to search without a person', async () => {
+  it('shows the person and source at once, with the family tagging loading inline', async () => {
     renderGeni('/geni-attach', { selected: BURKE });
-    expect(screen.getByRole('status')).toHaveTextContent('Loading their family from Geni…');
-    expect(await screen.findByRole('link', { name: 'Elizabeth Burke' })).toHaveAttribute('href', BURKE.url);
+    // The person, source and Save are available immediately — no blocking family load.
+    expect(screen.getByRole('link', { name: 'Elizabeth Burke' })).toHaveAttribute('href', BURKE.url);
     expect(screen.getByText(/Source: "DPLA"/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save Document' })).toBeEnabled();
+    expect(screen.getByRole('status')).toHaveTextContent('Loading relatives you can also tag…');
     await screen.findByLabelText(/John Burke/);
   });
 
@@ -56,7 +58,9 @@ describe('GeniAttach', () => {
   });
 
   it('tags the person plus every checked relative, person first', async () => {
-    const add = vi.spyOn(geni, 'addDocument').mockResolvedValue(DOC({ taggedIds: ['profile-1', 'profile-2', 'profile-3'] }));
+    const add = vi
+      .spyOn(geni, 'addDocument')
+      .mockResolvedValue(DOC({ taggedIds: ['profile-1', 'profile-2', 'profile-3'] }));
     renderGeni('/geni-attach', { selected: BURKE });
     await userEvent.click(await screen.findByLabelText(/Mary Burke/));
     await userEvent.click(screen.getByLabelText(/John Burke/));

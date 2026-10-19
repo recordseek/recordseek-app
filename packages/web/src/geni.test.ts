@@ -16,6 +16,7 @@ import {
   parseGeniId,
   normalizeGeniId,
   parseFamily,
+  myFamily,
   searchPeople,
   type GeniProfile,
 } from './geni';
@@ -85,13 +86,26 @@ describe('searchProfiles', () => {
   it('maps the results[] shape', async () => {
     const requested = answerJsonp({
       results: [
-        { id: 'profile-1', name: 'Elizabeth Burke', profile_url: 'https://www.geni.com/people/x/1', birth: { date: { year: 1712 } }, death: { date: { year: 1770 } } },
+        {
+          id: 'profile-1',
+          name: 'Elizabeth Burke',
+          profile_url: 'https://www.geni.com/people/x/1',
+          birth: { date: { year: 1712 } },
+          death: { date: { year: 1770 } },
+        },
         { id: 'profile-2', name: 'Smith' },
       ],
     });
     const rows = await searchProfiles('TOK', 'burke');
     expect(rows).toEqual([
-      { id: 'profile-1', name: 'Elizabeth Burke', years: '1712 – 1770', url: 'https://www.geni.com/people/x/1', birthYear: 1712, deathYear: 1770 },
+      {
+        id: 'profile-1',
+        name: 'Elizabeth Burke',
+        years: '1712 – 1770',
+        url: 'https://www.geni.com/people/x/1',
+        birthYear: 1712,
+        deathYear: 1770,
+      },
       { id: 'profile-2', name: 'Smith', years: '', url: '' },
     ]);
     const url = new URL(requested());
@@ -114,13 +128,28 @@ describe('searchProfiles', () => {
 });
 
 describe('addDocument', () => {
-  const input = { token: 'TOK', title: 'DPLA', text: 'Cite\n\nhttps://dp.la/', sourceUrl: 'https://dp.la/', profileIds: ['profile-9'] };
+  const input = {
+    token: 'TOK',
+    title: 'DPLA',
+    text: 'Cite\n\nhttps://dp.la/',
+    sourceUrl: 'https://dp.la/',
+    profileIds: ['profile-9'],
+  };
   const reply = (body: unknown, status = 200) => ({ ok: status < 400, status, json: async () => body });
 
   it('creates the document then tags the profile, through the helper', async () => {
-    const f = vi.fn().mockResolvedValueOnce(reply({ id: 'document-555', guid: '6000000228285160853' })).mockResolvedValueOnce(reply({ id: 'profile-9' }));
+    const f = vi
+      .fn()
+      .mockResolvedValueOnce(reply({ id: 'document-555', guid: '6000000228285160853' }))
+      .mockResolvedValueOnce(reply({ id: 'profile-9' }));
     const doc = await addDocument(input, undefined, f as unknown as typeof fetch);
-    expect(doc).toEqual({ id: 'document-555', url: 'https://www.geni.com/documents/view?doc_id=6000000228285160853', tagged: true, taggedIds: ['profile-9'], failedIds: [] });
+    expect(doc).toEqual({
+      id: 'document-555',
+      url: 'https://www.geni.com/documents/view?doc_id=6000000228285160853',
+      tagged: true,
+      taggedIds: ['profile-9'],
+      failedIds: [],
+    });
     const [addUrl, addInit] = f.mock.calls[0] as [string, RequestInit];
     expect(new URL(addUrl).searchParams.get('action')).toBe('geni');
     expect(new URL(addUrl).searchParams.get('path')).toBe('document/add');
@@ -132,7 +161,10 @@ describe('addDocument', () => {
   });
 
   it('still succeeds when only the tag fails, and fails when Geni rejects the document', async () => {
-    const f = vi.fn().mockResolvedValueOnce(reply({ id: 'document-1' })).mockResolvedValueOnce(reply({ error: { message: 'no' } }, 400));
+    const f = vi
+      .fn()
+      .mockResolvedValueOnce(reply({ id: 'document-1' }))
+      .mockResolvedValueOnce(reply({ error: { message: 'no' } }, 400));
     const partial = await addDocument(input, undefined, f as unknown as typeof fetch);
     expect(partial.tagged).toBe(false);
     expect(partial.failedIds).toEqual(['profile-9']);
@@ -143,13 +175,24 @@ describe('addDocument', () => {
 
 describe('addDocument with several people', () => {
   const reply = (body: unknown, status = 200) => ({ ok: status < 400, status, json: async () => body });
-  const input = { token: 'TOK', title: 'T', text: 'x', sourceUrl: 'https://x/', profileIds: ['profile-1', 'profile-2', 'profile-3'] };
+  const input = {
+    token: 'TOK',
+    title: 'T',
+    text: 'x',
+    sourceUrl: 'https://x/',
+    profileIds: ['profile-1', 'profile-2', 'profile-3'],
+  };
 
   it('makes one document and tags every profile, one call after another', async () => {
     const f = vi.fn().mockResolvedValue(reply({ id: 'document-7' }));
     const doc = await addDocument(input, undefined, f as unknown as typeof fetch);
     const paths = f.mock.calls.map((c) => new URL((c as [string])[0]).searchParams.get('path'));
-    expect(paths).toEqual(['document/add', 'document-7/tag/profile-1', 'document-7/tag/profile-2', 'document-7/tag/profile-3']);
+    expect(paths).toEqual([
+      'document/add',
+      'document-7/tag/profile-1',
+      'document-7/tag/profile-2',
+      'document-7/tag/profile-3',
+    ]);
     expect(doc.taggedIds).toEqual(['profile-1', 'profile-2', 'profile-3']);
     expect(doc.tagged).toBe(true);
   });
@@ -170,7 +213,13 @@ describe('addDocument with several people', () => {
 
 describe('search param building', () => {
   it('sends only names (given + surname), the field list and the page', () => {
-    const c = { ...emptyCriteria(), givenName: ' Elizabeth ', surname: 'Burke', birthYear: '1712', gender: 'female' as const };
+    const c = {
+      ...emptyCriteria(),
+      givenName: ' Elizabeth ',
+      surname: 'Burke',
+      birthYear: '1712',
+      gender: 'female' as const,
+    };
     expect(buildNames(c)).toBe('Elizabeth Burke');
     const p1 = buildSearchParams(c);
     expect(p1.names).toBe('Elizabeth Burke');
@@ -189,7 +238,12 @@ describe('search param building', () => {
       total_count: 120,
       next_page: 'https://www.geni.com/api/profile/search?page=3',
       results: [
-        { id: 'profile-1', name: 'A', gender: 'female', birth: { date: { year: 1712 }, location: { formatted_location: 'Norfolk, Virginia' } } },
+        {
+          id: 'profile-1',
+          name: 'A',
+          gender: 'female',
+          birth: { date: { year: 1712 }, location: { formatted_location: 'Norfolk, Virginia' } },
+        },
         { id: 'profile-2', name: 'B', gender: 'male', birth: { date: { year: 1712 } } },
         { id: 'profile-3', name: 'C', birth: { date: { year: 1800 } } },
         { id: 'profile-4', name: 'D' },
@@ -209,8 +263,18 @@ describe('search param building', () => {
   });
 
   it('filters by place substring and keeps profiles without data', () => {
-    const mk = (id: string, extra: Partial<GeniProfile>): GeniProfile => ({ id, name: id, years: '', url: '', ...extra });
-    const rows = [mk('a', { birthPlace: 'Norfolk, Virginia, United States' }), mk('b', { birthPlace: 'Boston' }), mk('c', {})];
+    const mk = (id: string, extra: Partial<GeniProfile>): GeniProfile => ({
+      id,
+      name: id,
+      years: '',
+      url: '',
+      ...extra,
+    });
+    const rows = [
+      mk('a', { birthPlace: 'Norfolk, Virginia, United States' }),
+      mk('b', { birthPlace: 'Boston' }),
+      mk('c', {}),
+    ];
     expect(filterProfiles(rows, { ...emptyCriteria(), birthPlace: 'virginia' }).map((p) => p.id)).toEqual(['a', 'c']);
     expect(filterProfiles(rows, { ...emptyCriteria(), deathYear: '1900' })).toHaveLength(3);
   });
@@ -222,8 +286,12 @@ describe('parseGeniId', () => {
     expect(parseGeniId(' PROFILE-123 ')).toBe('profile-123');
     expect(parseGeniId('34727630764')).toBe('profile-34727630764');
     expect(parseGeniId('6000000085123762838')).toBe('profile-g6000000085123762838');
-    expect(parseGeniId('https://www.geni.com/people/Col-Albert-Smith/6000000085123762838')).toBe('profile-g6000000085123762838');
-    expect(parseGeniId('https://www.geni.com/people/Col-Albert-Smith/6000000085123762838?through=1')).toBe('profile-g6000000085123762838');
+    expect(parseGeniId('https://www.geni.com/people/Col-Albert-Smith/6000000085123762838')).toBe(
+      'profile-g6000000085123762838',
+    );
+    expect(parseGeniId('https://www.geni.com/people/Col-Albert-Smith/6000000085123762838?through=1')).toBe(
+      'profile-g6000000085123762838',
+    );
     expect(parseGeniId('https://www.geni.com/api/profile-555')).toBe('profile-555');
   });
 
@@ -251,8 +319,23 @@ describe('parseFamily', () => {
       'profile-sib': node('profile-sib', { 'union-parents': { rel: 'child' } }),
       'profile-wife': node('profile-wife', { 'union-mine': { rel: 'partner' } }),
       'profile-kid': node('profile-kid', { 'union-mine': { rel: 'child' } }),
-      'union-parents': { id: 'union-parents', edges: { 'profile-dad': { rel: 'partner' }, 'profile-mom': { rel: 'partner' }, 'profile-me': { rel: 'child' }, 'profile-sib': { rel: 'child' } } },
-      'union-mine': { id: 'union-mine', edges: { 'profile-me': { rel: 'partner' }, 'profile-wife': { rel: 'partner' }, 'profile-kid': { rel: 'child' } } },
+      'union-parents': {
+        id: 'union-parents',
+        edges: {
+          'profile-dad': { rel: 'partner' },
+          'profile-mom': { rel: 'partner' },
+          'profile-me': { rel: 'child' },
+          'profile-sib': { rel: 'child' },
+        },
+      },
+      'union-mine': {
+        id: 'union-mine',
+        edges: {
+          'profile-me': { rel: 'partner' },
+          'profile-wife': { rel: 'partner' },
+          'profile-kid': { rel: 'child' },
+        },
+      },
     };
     const f = parseFamily({ focus: { id: 'profile-me' }, nodes });
     expect(f.parents.map((p) => p.id)).toEqual(['profile-dad', 'profile-mom']);
@@ -262,11 +345,36 @@ describe('parseFamily', () => {
   });
 
   it('is empty for a person with no family', () => {
-    expect(parseFamily({ focus: { id: 'profile-1' }, nodes: { 'profile-1': { id: 'profile-1', edges: {} } } })).toEqual({
-      parents: [],
-      spouses: [],
-      children: [],
-      siblings: [],
+    expect(parseFamily({ focus: { id: 'profile-1' }, nodes: { 'profile-1': { id: 'profile-1', edges: {} } } })).toEqual(
+      {
+        parents: [],
+        spouses: [],
+        children: [],
+        siblings: [],
+      },
+    );
+  });
+});
+
+describe('myFamily', () => {
+  it('returns me from the focus node and the parsed family in one call', async () => {
+    const requested = answerJsonp({
+      focus: { id: 'profile-me' },
+      nodes: {
+        'profile-me': { id: 'profile-me', name: 'Me P', edges: { 'union-mine': { rel: 'partner' } } },
+        'profile-wife': { id: 'profile-wife', name: 'Wife P', edges: { 'union-mine': { rel: 'partner' } } },
+        'union-mine': {
+          id: 'union-mine',
+          edges: { 'profile-me': { rel: 'partner' }, 'profile-wife': { rel: 'partner' } },
+        },
+      },
     });
+    const { me, family } = await myFamily('TOK');
+    expect(me?.id).toBe('profile-me');
+    expect(me?.name).toBe('Me P');
+    expect(family.spouses.map((p) => p.id)).toEqual(['profile-wife']);
+    const url = new URL(requested());
+    expect(url.origin + url.pathname).toBe('https://www.geni.com/api/profile/immediate-family');
+    vi.restoreAllMocks();
   });
 });

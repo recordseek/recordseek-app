@@ -4,9 +4,8 @@ import { track } from '../analytics';
 import {
   canSearch,
   hasClientFilters,
-  immediateFamily,
   isValidGeniId,
-  myProfile,
+  myFamily,
   setGeniId,
   setGeniName,
   normalizeGeniId,
@@ -38,21 +37,18 @@ export function GeniSearch() {
   const [quickNote, setQuickNote] = useState('');
   const [quickLoading, setQuickLoading] = useState(true);
 
-  // Load "me" and then my family, one call after the other (Geni allows ~10 calls per 10 s).
+  // "Me" and my immediate family come from a single Geni call (immediate-family carries both).
   useEffect(() => {
     if (!token) return;
     let active = true;
     (async () => {
       try {
-        const me = await myProfile(token);
-        if (me.name) setGeniName(me.name);
-        if (me.id) setGeniId(me.id);
+        const { me, family } = await myFamily(token);
         if (!active) return;
-        setQuick([{ label: 'Me', person: me }]);
-        const family = await immediateFamily(token, 'profile');
-        if (!active) return;
+        if (me?.name) setGeniName(me.name);
+        if (me?.id) setGeniId(me.id);
         setQuick([
-          { label: 'Me', person: me },
+          ...(me ? [{ label: 'Me', person: me }] : []),
           ...family.parents.map((person) => ({ label: 'Parent', person })),
           ...family.spouses.map((person) => ({ label: 'Spouse', person })),
           ...family.siblings.map((person) => ({ label: 'Sibling', person })),

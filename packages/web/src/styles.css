@@ -236,19 +236,34 @@ main.loading-screen h3 {
 }
 
 @keyframes la-jelly-jump {
-  12.5% { border-bottom-right-radius: 10%; }
-  25% { transform: translateY(25%) rotate(22.5deg); }
-  50% { border-bottom-right-radius: 100%; transform: translateY(50%) scale(1, 0.9) rotate(45deg); }
-  75% { transform: translateY(25%) rotate(67.5deg); }
-  100% { transform: translateY(0) rotate(90deg); }
+  12.5% {
+    border-bottom-right-radius: 10%;
+  }
+  25% {
+    transform: translateY(25%) rotate(22.5deg);
+  }
+  50% {
+    border-bottom-right-radius: 100%;
+    transform: translateY(50%) scale(1, 0.9) rotate(45deg);
+  }
+  75% {
+    transform: translateY(25%) rotate(67.5deg);
+  }
+  100% {
+    transform: translateY(0) rotate(90deg);
+  }
 }
 
 @keyframes la-jelly-shadow {
-  50% { transform: scale(1.25, 1); }
+  50% {
+    transform: scale(1.25, 1);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .la-square-jelly-box > div { animation: none; }
+  .la-square-jelly-box > div {
+    animation: none;
+  }
 }
 
 h1,
@@ -686,6 +701,37 @@ button.btn-save-later:hover:not(:disabled) {
 .year-range {
   display: flex;
   gap: 8px;
+}
+
+.geni-family {
+  margin: 14px 0;
+}
+
+.geni-family-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 24px;
+  margin-top: 8px;
+}
+
+.geni-family-group {
+  margin-bottom: 10px;
+}
+
+.geni-family-group h4 {
+  margin: 0 0 4px;
+}
+
+.geni-family-group ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (max-width: 480px) {
+  .geni-family-cols {
+    grid-template-columns: 1fr;
+  }
 }
 
 .form-footer {
@@ -1253,9 +1299,27 @@ a.donate-button:hover {
 }
 
 /* Zotero tag picker: compact chips. */
-.zt-tags { display: flex; flex-wrap: wrap; gap: 4px; max-height: 8rem; overflow-y: auto; margin-top: 4px; }
-.zt-tag { font-size: 0.85rem; padding: 1px 8px; border: 1px solid #ced4da; border-radius: 12px; background: #fff; cursor: pointer; }
-.zt-tag[aria-pressed='true'] { background: #2c3e50; border-color: #2c3e50; color: #fff; }
+.zt-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-height: 8rem;
+  overflow-y: auto;
+  margin-top: 4px;
+}
+.zt-tag {
+  font-size: 0.85rem;
+  padding: 1px 8px;
+  border: 1px solid #ced4da;
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+}
+.zt-tag[aria-pressed='true'] {
+  background: #2c3e50;
+  border-color: #2c3e50;
+  color: #fff;
+}
 
 .logout-list {
   list-style: none;
