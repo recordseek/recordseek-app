@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { formatCitation, CITATION_STYLES, CITATION_STYLE_LABELS, type CitationStyle } from '@recordseek/core';
 import { track } from '../analytics';
@@ -7,10 +7,7 @@ import { usePersistedCitationStyle, clearLastService } from '../prefs';
 import { BackButton } from '../components/BackButton';
 import { ForwardButton } from '../components/ForwardButton';
 
-import {
-  ANCESTRY_ACTION, ANCESTRY_FIELDS, startAncestrySave,
-  type AncestryPayload, type AncestrySave, type AncestrySaveStatus,
-} from '../lib/ancestry-save';
+const ANCESTRY_ACTION = 'https://www.ancestry.com/savetoancestry/';
 // Absolute URL: Ancestry fetches this image itself. Bundled with the app so it
 // works wherever /share/ is deployed.
 const DEFAULT_MEDIA = `${window.location.origin}${import.meta.env.BASE_URL}images/ancestry.jpg`;
@@ -29,8 +26,10 @@ function citationFor(capture: Capture, style: CitationStyle): string {
 }
 
 /**
- * Ancestry owns sign-in, person selection, and saving in its popup.
- * Keep the native form as a fallback for blocked popups and other origins.
+ * Ancestry path. Faithful port of a-source.html / a-source.js: a real form that
+ * natively POSTs the capture to Ancestry's savetoancestry endpoint. (The legacy
+ * version relied on ng-submit not calling preventDefault; here the native form
+ * submit is explicit and unambiguous.)
  */
 export function ASource() {
   const capture = useCapture();
@@ -41,28 +40,6 @@ export function ASource() {
   const [mediaUrl, setMediaUrl] = useState(DEFAULT_MEDIA);
   const [citation, setCitation] = useState(() => citationFor(capture, style));
   const [notes, setNotes] = useState(capture.notes);
-
-  const activeSave = useRef<AncestrySave | null>(null);
-  const [saveStatus, setSaveStatus] = useState<AncestrySaveStatus | null>(null);
-
-  useEffect(() => () => activeSave.current?.dispose(), []);
-
-  function submit(event: FormEvent<HTMLFormElement>): void {
-    activeSave.current?.dispose();
-    activeSave.current = null;
-    setSaveStatus(null);
-    const submitter = (event.nativeEvent as SubmitEvent).submitter;
-    const sameTab = submitter instanceof HTMLElement && submitter.dataset.ancestryFallback === 'true';
-    if (!sameTab) {
-      const form = new FormData(event.currentTarget);
-      const payload = Object.fromEntries(
-        ANCESTRY_FIELDS.map((name) => [name, String(form.get(name) ?? '')]),
-      ) as AncestryPayload;
-      activeSave.current = startAncestrySave(payload, setSaveStatus);
-      if (activeSave.current) event.preventDefault();
-    }
-    track('ancestry_submitted', undefined, { beacon: true });
-  }
 
   useEffect(() => {
     track('ancestry_form_viewed');
@@ -81,7 +58,8 @@ export function ASource() {
       <form
         action={ANCESTRY_ACTION}
         method="POST"
-        onSubmit={submit}
+        // The native POST leaves the page, so send this one immediately.
+        onSubmit={() => track('ancestry_submitted', undefined, { beacon: true })}
       >
         <div className="field">
           <label className="field-label" htmlFor="a-title">
@@ -156,20 +134,6 @@ export function ASource() {
         <input type="hidden" name="sourcePublisherName" value={capture.domain} />
         <input type="hidden" name="sourcePublishedDate" value="" />
         <input type="hidden" name="sourcePublishedLocation" value="" />
-
-        {saveStatus && (
-          <div role="status">
-            <p>{saveStatus === 'saved' ? 'Ancestry confirmed that your source was saved.'
-              : saveStatus === 'error' ? 'Ancestry could not complete the save. Try again or continue in this tab.'
-              : saveStatus === 'closed' ? 'The Ancestry window was closed. You can try again.'
-              : 'Continue in the Ancestry window to sign in and choose a person. If it does not open, continue in this tab.'}</p>
-            {saveStatus !== 'saved' && (
-              <button type="submit" data-ancestry-fallback="true">
-                Continue in this tab
-              </button>
-            )}
-          </div>
-        )}
 
         <div className="form-footer">
           <BackButton
