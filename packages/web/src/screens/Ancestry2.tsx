@@ -1,218 +1,190 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
-import { formatCitation, type CitationStyle } from '@recordseek/core';
-import { companionRequest, type Ancestry2Context, type Ancestry2Journal, type Ancestry2Status } from '../ancestry2/browser-transport.mjs';
+import { companionRequest, type Ancestry2Status } from '../ancestry2/browser-transport.mjs';
+import { useAncestry2Flow } from '../ancestry2/flow';
 import { useCapture } from '../capture/CaptureContext';
 import { track } from '../analytics';
-import { clearLastService, usePersistedCitationStyle } from '../prefs';
+import { clearLastService } from '../prefs';
 import { BackButton } from '../components/BackButton';
+import { ForwardButton } from '../components/ForwardButton';
+import { Modal } from '../components/Modal';
+import { SourceFields, useSourceFields } from '../components/SourceFields';
+import { toSourceUrl } from './Source';
+import { Loading } from './Loading';
 
-const LAST_JOB_KEY = 'recordseek-ancestry2-last-job';
+type Connection = 'checking' | 'missing' | 'outdated' | 'signin' | 'ready';
 
-interface SavedJob {
-  jobId: string;
-}
+/** How often to look for a finished Ancestry sign-in while the sign-in dialog is up. */
+const SIGN_IN_POLL_MS = 4000;
 
-function citationFor(
-  capture: ReturnType<typeof useCapture>,
-  title: string,
-  url: string,
-  style: CitationStyle,
-): string {
-  return formatCitation(
-    {
-      sourceType: 'website',
-      title,
-      publisher: capture.publisher,
-      url,
-      accessedDate: capture.accessedDate,
-    },
-    style,
-  );
-}
-
-function isHttpUrl(value: string): boolean {
-  try {
-    const parsed = new URL(value);
-    return value.length <= 8000 && ['http:', 'https:'].includes(parsed.protocol) && !parsed.username && !parsed.password;
-  } catch {
-    return false;
-  }
-}
-
-function ancestryPersonUrl(context: Ancestry2Context): string {
-  return `https://www.ancestry.com/family-tree/person/tree/${encodeURIComponent(context.treeId)}/person/${encodeURIComponent(context.personId)}/facts`;
-}
-
-function jobMessage(journal: Ancestry2Journal): string {
-  if (journal.state !== 'complete') return 'The save result is pending or unknown. Check Ancestry before starting another save.';
-  const result = journal.result;
-  if (result?.ok && result.verified && result.sourceId && result.citationId) {
-    return 'Save verified by Ancestry. Check the person before starting another save.';
-  }
-  return result?.message || 'The save was not verified. Check Ancestry before starting another save.';
-}
-
+/**
+ * ancestry2 — step 1 of the Ancestry2 flow, same as FamilySearch's: connect, then edit the
+ * source. Next goes to ancestry2-search, then ancestry2-attach and ancestry2-complete.
+ * Ancestry has no public API, so the RecordSeek Ancestry2 companion extension makes the
+ * calls from a www.ancestry.com tab with the user's own session. Signed out, we bring
+ * Ancestry's sign-in page to the front and continue once it succeeds.
+ */
 export function Ancestry2() {
   const capture = useCapture();
   const navigate = useNavigate();
-  const [style] = usePersistedCitationStyle();
-  const [title, setTitle] = useState(capture.title);
-  const [url, setUrl] = useState(capture.url);
-  const [detail, setDetail] = useState(() => citationFor(capture, capture.title, capture.url, style));
-  const [note, setNote] = useState(capture.notes);
-  const [status, setStatus] = useState<Ancestry2Status | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState('');
-  const [journal, setJournal] = useState<Ancestry2Journal | null>(null);
-  const [lastJob, setLastJob] = useState<SavedJob | null>(() => {
-    try {
-      const raw = sessionStorage.getItem(LAST_JOB_KEY);
-      return raw ? (JSON.parse(raw) as SavedJob) : null;
-    } catch {
-      return null;
-    }
-  });
-
-  const context = status?.connected ? status.context : undefined;
-  const canSave = Boolean(context && title.trim() && detail.trim() && isHttpUrl(url) && !busy && !lastJob);
+  const [flow, update] = useAncestry2Flow();
+  const { values, style, onChange, setStyle } = useSourceFields(capture);
+  const [connection, setConnection] = useState<Connection>(flow.account ? 'ready' : 'checking');
+  const signInOpened = useRef(false);
+  const inFlight = useRef(false);
   const zipUrl = `${import.meta.env.BASE_URL}ancestry2-companion.zip`;
 
-  const personHref = useMemo(
-    () => (context && journal?.result ? ancestryPersonUrl(context) : null),
-    [context, journal],
-  );
-
   useEffect(() => {
-    void checkConnection();
-    // Connection status is deliberately refreshed only by an explicit check after this.
+    track('ancestry2_viewed');
+  }, []);
+
+  // Coming back with "Modify Source": restore what was edited, citation included.
+  const restored = useRef(false);
+  useEffect(() => {
+    if (restored.current || !flow.source) return;
+    restored.current = true;
+    onChange(flow.source);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function checkConnection(): Promise<void> {
-    if (busy) return;
-    setBusy(true);
-    setMessage('');
+  async function check(): Promise<void> {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    let status: Ancestry2Status;
     try {
-      const next = await companionRequest<Ancestry2Status>('status');
-      setStatus(next);
-      if (!next.connected) setMessage(next.message || 'Open a signed-in Ancestry person tab, click the companion toolbar action, then check again.');
-    } catch (error) {
-      setStatus({ connected: false });
-      setMessage(error instanceof Error ? error.message : 'Could not check the Ancestry companion.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function checkLastSave(): Promise<void> {
-    if (!lastJob || busy) return;
-    setBusy(true);
-    setMessage('');
-    try {
-      const next = await companionRequest<Ancestry2Journal>('job', { jobId: lastJob.jobId });
-      setJournal(next);
-      setMessage(jobMessage(next));
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Could not check the previous save. Check Ancestry before trying again.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function save(): Promise<void> {
-    if (!context || !title.trim() || !detail.trim() || !isHttpUrl(url) || busy || lastJob) return;
-    const requestId = crypto.randomUUID();
-    try {
-      sessionStorage.setItem(LAST_JOB_KEY, JSON.stringify({ jobId: requestId }));
+      status = await companionRequest<Ancestry2Status>('status');
     } catch {
-      setMessage('This browser cannot save the last-job record, so no write was sent. Enable session storage and try again.');
+      setConnection('missing');
+      return;
+    } finally {
+      inFlight.current = false;
+    }
+    if (!status.version) {
+      setConnection('outdated');
       return;
     }
-    setLastJob({ jobId: requestId });
-    setBusy(true);
-    setMessage('Saving to the displayed Ancestry person…');
-    try {
-      const next = await companionRequest<Ancestry2Journal>(
-        'save',
-        { target: { treeId: context.treeId, personId: context.personId }, source: { title: title.trim(), note }, citation: { detail, url } },
-        { requestId },
-      );
-      setJournal(next);
-      setMessage(jobMessage(next));
-      track('ancestry2_save_requested');
-    } catch (error) {
-      setJournal({ state: 'pending' });
-      setMessage(error instanceof Error ? error.message : 'Save outcome unknown. Check Ancestry before trying again.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function acknowledge(): void {
-    try {
-      sessionStorage.removeItem(LAST_JOB_KEY);
-    } catch {
-      setMessage('This browser cannot clear the last-job record. Enable session storage before starting a new save.');
+    if (!status.signedIn || !status.userId) {
+      update({ account: null });
+      setConnection('signin');
       return;
     }
-    setLastJob(null);
-    setJournal(null);
-    setMessage('Ready for a new save. Confirm the displayed Ancestry person first.');
+    const account = { userId: status.userId, trees: status.trees ?? [], recentTreeId: status.recentTreeId ?? '' };
+    const treeId = account.trees.some((t) => t.id === flow.treeId) ? flow.treeId : account.recentTreeId;
+    update({ account, treeId });
+    setConnection('ready');
   }
+
+  // Always confirm the session on entry; a remembered account shows the form meanwhile.
+  useEffect(() => {
+    void check();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function openSignIn(): void {
+    track('ancestry2_login_started');
+    companionRequest('signin').catch(() => setConnection('missing'));
+  }
+
+  // Signed out: open Ancestry's sign-in once, then keep checking until it succeeds.
+  useEffect(() => {
+    if (connection !== 'signin') return;
+    if (!signInOpened.current) {
+      signInOpened.current = true;
+      openSignIn();
+    }
+    const timer = setInterval(() => void check(), SIGN_IN_POLL_MS);
+    const onFocus = () => void check();
+    window.addEventListener('focus', onFocus);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('focus', onFocus);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connection]);
+
+  function back(): void {
+    clearLastService();
+    navigate('/');
+  }
+
+  const sourceUrl = toSourceUrl(values.url);
+  const ready =
+    connection === 'ready' && values.title.trim() !== '' && sourceUrl !== null && values.citation.trim() !== '';
+
+  function next(event: FormEvent): void {
+    event.preventDefault();
+    if (!ready || !sourceUrl) return;
+    update({ source: { ...values, url: sourceUrl }, selected: null, saved: null });
+    navigate('/ancestry2-search');
+  }
+
+  if (connection === 'checking') return <Loading status="Connecting to Ancestry…" />;
 
   return (
     <main>
-      <h3>Save to Ancestry2 <small>with the Chrome companion</small></h3>
-      <p>
-        Install the separate Chrome companion: <a href={zipUrl} download>download the ZIP</a>, unzip it, then open Chrome Extensions,
-        enable Developer mode, and choose Load unpacked. On the signed-in Ancestry person tab, click the companion toolbar action, then return here and reload this page.
-      </p>
-      <p>This saves only to the person currently displayed by the companion. Chrome is required.</p>
-      <p>
-        <button type="button" onClick={() => void checkConnection()} disabled={busy}>Check connection</button>
-        {context ? <span role="status"> Connected to {context.personName || 'the displayed person'}.</span> : null}
-      </p>
-      {context && <p>Tree {context.treeId} · Person {context.personId}</p>}
-
-      <div className="field">
-        <label className="field-label" htmlFor="ancestry2-title">Source Title</label>
-        <input id="ancestry2-title" maxLength={1000} value={title} onChange={(e) => setTitle(e.target.value)} required />
+      <div className="attach-header">
+        <h2 className="attach-title">Attach a Source</h2>
       </div>
-      <div className="field">
-        <label className="field-label" htmlFor="ancestry2-url">Source <span className="field-hint">(URL)</span></label>
-        <input id="ancestry2-url" maxLength={8000} value={url} onChange={(e) => setUrl(e.target.value)} required />
-        {!isHttpUrl(url) && <p role="alert">Enter an http(s) source URL before saving.</p>}
-      </div>
-      <div className="field">
-        <label className="field-label" htmlFor="ancestry2-detail">Where the Record Is Found <span className="field-hint">(Citation)</span></label>
-        <textarea id="ancestry2-detail" maxLength={50000} value={detail} onChange={(e) => setDetail(e.target.value)} rows={3} />
-      </div>
-      <div className="field">
-        <label className="field-label" htmlFor="ancestry2-note">Describe the Record <span className="field-hint">(Notes)</span></label>
-        <textarea id="ancestry2-note" maxLength={50000} value={note} onChange={(e) => setNote(e.target.value)} rows={3} />
-      </div>
-
-      {message && <p role="status">{message}</p>}
-      {journal?.result && (journal.result.sourceId || journal.result.citationId) && (
-        <p>
-          {journal.result.sourceId ? `Source ID: ${journal.result.sourceId}` : 'Source ID was not returned.'}
-          {' '}
-          {journal.result.citationId ? `Citation ID: ${journal.result.citationId}` : 'Citation ID was not returned.'}
-        </p>
-      )}
-      {personHref && <p><a href={personHref} target="_blank" rel="noopener noreferrer">Open this person in Ancestry</a></p>}
-      {lastJob ? (
+      <form onSubmit={next}>
+        <SourceFields idPrefix="ancestry2" values={values} style={style} onChange={onChange} onStyleChange={setStyle} />
         <div className="form-footer">
-          <button type="button" onClick={() => void checkLastSave()} disabled={busy}>Check last save</button>
-          <button type="button" onClick={acknowledge} disabled={busy}>I checked Ancestry; start a new save</button>
+          <BackButton onClick={back} />
+          <div className="footer-right">
+            <ForwardButton type="submit" disabled={!ready}>
+              Next
+            </ForwardButton>
+          </div>
         </div>
-      ) : (
-        <button type="button" className="primary" onClick={() => void save()} disabled={!canSave}>Save to displayed person</button>
+      </form>
+
+      {(connection === 'missing' || connection === 'outdated') && (
+        <Modal
+          title={connection === 'missing' ? 'Install the Ancestry2 companion' : 'Update the Ancestry2 companion'}
+          onClose={back}
+        >
+          <p>
+            Ancestry doesn’t offer an API, so RecordSeek saves through a small Chrome companion that uses your own
+            Ancestry sign-in.
+          </p>
+          <ol>
+            <li>
+              <a href={zipUrl} download>
+                Download the companion
+              </a>{' '}
+              and unzip it.
+            </li>
+            <li>
+              In Chrome, open Extensions, turn on Developer mode and choose Load unpacked
+              {connection === 'outdated' ? ' (or press Reload on the existing companion)' : ''}.
+            </li>
+            <li>Reload this page.</li>
+          </ol>
+          <div className="modal-actions">
+            <BackButton onClick={back} />
+            <button type="button" className="primary" onClick={() => window.location.reload()}>
+              Check Again
+            </button>
+          </div>
+        </Modal>
       )}
-      <div className="form-footer">
-        <BackButton onClick={() => { clearLastService(); navigate('/'); }} />
-      </div>
+
+      {connection === 'signin' && (
+        <Modal title="Sign in to Ancestry" onClose={back}>
+          <p>
+            We opened Ancestry’s sign-in page in another tab. Sign in there, then come back. This page continues on its
+            own.
+          </p>
+          <p className="field-hint" role="status">
+            Waiting for Ancestry sign-in…
+          </p>
+          <div className="modal-actions">
+            <BackButton onClick={back} />
+            <button type="button" className="primary" onClick={openSignIn}>
+              Open Sign-in Again
+            </button>
+          </div>
+        </Modal>
+      )}
     </main>
   );
 }

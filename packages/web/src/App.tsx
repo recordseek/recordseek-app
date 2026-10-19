@@ -10,6 +10,9 @@ import { Support } from './screens/Support';
 import { Loading } from './screens/Loading';
 import { ASource } from './screens/ASource';
 import { Ancestry2 } from './screens/Ancestry2';
+import { Ancestry2Search } from './screens/Ancestry2Search';
+import { Ancestry2Attach } from './screens/Ancestry2Attach';
+import { Ancestry2Complete } from './screens/Ancestry2Complete';
 import { FsSearch } from './screens/FsSearch';
 import { FsResults } from './screens/FsResults';
 import { FsAttach } from './screens/FsAttach';
@@ -55,6 +58,9 @@ export function App() {
             <Route path="/loading" element={<Loading />} />
             <Route path="/a-source" element={<ASource />} />
             <Route path="/ancestry2" element={<DevOnly><Ancestry2 /></DevOnly>} />
+            <Route path="/ancestry2-search" element={<DevOnly><Ancestry2Search /></DevOnly>} />
+            <Route path="/ancestry2-attach" element={<DevOnly><Ancestry2Attach /></DevOnly>} />
+            <Route path="/ancestry2-complete" element={<DevOnly><Ancestry2Complete /></DevOnly>} />
             <Route path="/citation" element={<JustCitation />} />
             <Route path="/fs-search" element={<FsSearch />} />
             <Route path="/fs-results" element={<FsResults />} />
