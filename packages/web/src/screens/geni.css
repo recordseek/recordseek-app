@@ -17,6 +17,11 @@
 
 .geni-quick button {
   margin: 0;
+  /* Fill the row: each button grows to share the space; wraps to a new,
+     equally-stretched row once they no longer fit at this min width. */
+  flex: 1 1 auto;
+  min-width: 130px;
+  text-align: center;
 }
 
 .geni-family {
