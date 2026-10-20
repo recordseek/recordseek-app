@@ -151,17 +151,39 @@ describe('deriveSourceMetadata (fixes the legacy title/publisher mis-split)', ()
     });
   });
 
-  it('maps a known site and preserves a word-internal hyphen in the kept title', () => {
+  it('maps a known site and strips the trailing life-span from the title', () => {
     expect(
       deriveSourceMetadata({
         url: 'https://www.findagrave.com/memorial/123/john-smith',
         title: 'John Smith (1820-1880) - Find a Grave Memorial',
       }),
     ).toEqual({
-      title: 'John Smith (1820-1880)',
+      title: 'John Smith',
       publisher: 'Find a Grave',
       domain: 'Findagrave.com',
     });
+  });
+
+  it('strips a trailing FamilySearch PID and life-span from a tree-person title', () => {
+    expect(
+      deriveSourceMetadata({
+        url: 'https://www.familysearch.org/tree/person/details/K2XX-ABC',
+        title: 'Pranas Paukstys (1890–1970) • K2XX-ABC • FamilySearch.org',
+      }),
+    ).toEqual({
+      title: 'Pranas Paukstys',
+      publisher: 'FamilySearch',
+      domain: 'Familysearch.org',
+    });
+  });
+
+  it('keeps a numeric record id that is not a FamilySearch PID', () => {
+    expect(
+      deriveSourceMetadata({
+        url: 'https://www.ancestry.com/discoveryui-content/view/123',
+        title: 'Birth Register 1234-5678 - Ancestry.com',
+      }).title,
+    ).toBe('Birth Register 1234-5678');
   });
 
   it('returns empty fields for empty input', () => {

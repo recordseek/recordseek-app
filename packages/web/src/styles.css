@@ -681,6 +681,35 @@ fieldset.form-grid:disabled {
   margin: 14px 0 0;
 }
 
+/* The Person ID shortcut on fs-search — a prominent, clearly-labeled box so it
+   isn't mistaken for a minor field (restores the legacy "Search by Person ID
+   Number" treatment: full width, centered, uppercase). */
+.pid-search {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--input-border);
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  background: #f7fbfa;
+}
+
+.pid-search .field-label {
+  margin-bottom: 6px;
+}
+
+.pid-input {
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+.pid-input::placeholder {
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 400;
+}
+
 .btn-save-later {
   border-color: var(--info);
   background: var(--info);

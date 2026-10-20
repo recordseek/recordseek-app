@@ -70,12 +70,14 @@ export function FsSearch() {
     <main>
       <h1>Search for an existing person</h1>
       <form onSubmit={submit}>
-        <div className="field">
+        <div className="field pid-search">
           <label className="field-label" htmlFor="pid-input">
-            Already know their Person ID? <span className="field-hint">(e.g. LZ12-345)</span>
+            Search by Person ID Number{' '}
+            <span className="field-hint">(e.g. LZ12-345, or paste a FamilySearch person link)</span>
           </label>
           <input
             id="pid-input"
+            className="pid-input"
             placeholder="Person ID"
             value={s.pid}
             aria-invalid={pidInvalid || undefined}

@@ -15,15 +15,7 @@
 
 import { extractDomain } from './url-normalize';
 
-export type SourceType =
-  | 'website'
-  | 'database'
-  | 'census'
-  | 'vitalRecord'
-  | 'church'
-  | 'book'
-  | 'gravestone'
-  | 'image';
+export type SourceType = 'website' | 'database' | 'census' | 'vitalRecord' | 'church' | 'book' | 'gravestone' | 'image';
 
 /** Normalized record that drives every formatter (research spec C1). */
 export interface CitationRecord {
@@ -171,9 +163,7 @@ function formatNgsq(r: CitationRecord): string {
 // ---------------------------------------------------------------------------
 
 function eeOnline(r: CitationRecord): string {
-  return clean(r.accessedDate)
-    ? joinParts([clean(r.url), `accessed ${clean(r.accessedDate)}`], ' : ')
-    : clean(r.url);
+  return clean(r.accessedDate) ? joinParts([clean(r.url), `accessed ${clean(r.accessedDate)}`], ' : ') : clean(r.url);
 }
 
 function formatEeGeneric(r: CitationRecord): string {
@@ -209,10 +199,7 @@ function formatEeCensus(r: CitationRecord): string {
 }
 
 function formatEeGravestone(r: CitationRecord): string {
-  const head = joinParts(
-    [clean(r.person) ? `${clean(r.person)} memorial` : clean(r.title), clean(r.place)],
-    ', ',
-  );
+  const head = joinParts([clean(r.person) ? `${clean(r.person)} memorial` : clean(r.title), clean(r.place)], ', ');
   const credit = clean(r.publisher) || clean(r.repository);
   const online = eeOnline(r);
   const tail = credit ? `${credit} (${online})` : online ? `(${online})` : '';
@@ -302,6 +289,36 @@ function publisherFromDomain(url: string): string {
 /** Strong, space-aware separators only — a word-internal hyphen never splits. */
 const TITLE_SEPARATOR = /\s+[|•·–—]\s+|\s+-\s+|\s+;\s+/;
 
+/** A segment that is only a FamilySearch person id, e.g. "K2XX-ABC" or "(LZ12-3456)". */
+function isPidSegment(segment: string): boolean {
+  const s = segment.trim().replace(/^\(|\)$/g, '');
+  return /^[A-Z0-9]{4}-[A-Z0-9]{3,4}$/i.test(s) && /[A-Z]/i.test(s);
+}
+
+/** A segment that is only a life-span / year parenthetical, e.g. "(1890–1970)" or "(b. 1890)". */
+function isLifespanSegment(segment: string): boolean {
+  return /^\(\s*(?:b\.?|c\.?|circa|abt\.?|about)?\s*\d{3,4}\s*(?:[–—-]\s*\d{0,4})?\s*\)$/i.test(segment.trim());
+}
+
+/**
+ * Drop a life-span parenthetical or a dangling FamilySearch PID left on the end
+ * of a kept title — e.g. "Pranas Paukstys (1890–1970) — K2XX-ABC" → "Pranas
+ * Paukstys". A PID is only stripped when it contains a letter (so a numeric
+ * record id like "1234-5678" is never mistaken for one).
+ */
+function stripTrailingNoise(text: string): string {
+  let t = text.trim();
+  for (let i = 0; i < 4; i += 1) {
+    const before = t;
+    t = t.replace(/\s*\(\s*(?:b\.?|c\.?|circa|abt\.?|about)?\s*\d{3,4}\s*(?:[–—-]\s*\d{0,4})?\s*\)\s*$/i, '').trim();
+    t = t
+      .replace(/(?:^|[\s—–])\(?([A-Z0-9]{4}-[A-Z0-9]{3,4})\)?\s*$/i, (m, id: string) => (/[A-Z]/i.test(id) ? '' : m))
+      .trim();
+    if (t === before) break;
+  }
+  return t;
+}
+
 function cleanTitle(rawTitle: string, url: string, publisher: string): string {
   let title = (rawTitle ?? '').replace(/"/g, "'").trim();
   if (url && title.includes(url)) {
@@ -309,23 +326,32 @@ function cleanTitle(rawTitle: string, url: string, publisher: string): string {
   }
   if (!title) return '';
 
-  const segments = title.split(TITLE_SEPARATOR).map((s) => s.trim()).filter(Boolean);
-  if (segments.length <= 1) return title;
-
   const domainLabel = registrableLabel(hostOf(url)).toLowerCase();
   const pub = publisher.toLowerCase();
   const isSiteName = (segment: string): boolean => {
     const s = segment.toLowerCase();
     return (pub.length > 0 && s.includes(pub)) || (domainLabel.length > 0 && s.includes(domainLabel));
   };
+  const isNoise = (segment: string): boolean =>
+    isSiteName(segment) || isPidSegment(segment) || isLifespanSegment(segment);
 
-  // Strip trailing "— Site Name" segments only; keep the original string if
-  // nothing site-like trails (so e.g. "Wave • … • Invoice Datafutures-24"
-  // stays intact while "John Smith - Ancestry.com" loses its suffix).
-  let end = segments.length;
-  while (end > 1 && isSiteName(segments[end - 1] ?? '')) end -= 1;
-  if (end === segments.length) return title;
-  return segments.slice(0, end).join(' — ');
+  // Strip trailing "— Site Name", PID and life-span-only segments; keep the
+  // original string if nothing noisy trails (so e.g. "Wave • … • Invoice
+  // Datafutures-24" stays intact while "John Smith - Ancestry.com" loses its
+  // suffix).
+  const segments = title
+    .split(TITLE_SEPARATOR)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (segments.length > 1) {
+    let end = segments.length;
+    while (end > 1 && isNoise(segments[end - 1] ?? '')) end -= 1;
+    if (end < segments.length) title = segments.slice(0, end).join(' — ');
+  }
+
+  // A life-span or PID can also trail the kept title inline (no separator), as
+  // on a FamilySearch tree-person page: drop it too.
+  return stripTrailingNoise(title) || title;
 }
 
 export interface SourceMetadata {
