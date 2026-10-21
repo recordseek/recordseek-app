@@ -1,10 +1,9 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router';
+import { sourceBoxUrl, sourceViewUrl } from '@recordseek/core';
 import { useSession } from '../session/SessionContext';
 import { track } from '../analytics';
 import { NewsletterInvite } from '../components/NewsletterInvite';
-
-const SOURCE_BOX_URL = 'https://www.familysearch.org/search/sourcebox';
 
 /**
  * fs-complete — terminal confirmation. Renders one of three states from
@@ -18,6 +17,8 @@ export function FsComplete() {
   const navigate = useNavigate();
   const complete = state.complete;
   const title = state.draft?.title ?? '';
+  // Prefer a direct link to the source just created; fall back to the Source Box.
+  const sourceLink = state.createdSourceId ? sourceViewUrl(state.createdSourceId) : sourceBoxUrl();
 
   // Only the success states count; the error state has no completion to report.
   useEffect(() => {
@@ -40,8 +41,8 @@ export function FsComplete() {
         <h3>Congratulations! Your source was created and added to your FamilySearch source box.</h3>
         {title && <p>“{title}”</p>}
         <p>
-          <a href={SOURCE_BOX_URL} target="_blank" rel="noreferrer">
-            View your source box on FamilySearch
+          <a href={sourceLink} target="_blank" rel="noreferrer">
+            {state.createdSourceId ? 'View this source on FamilySearch' : 'View your source box on FamilySearch'}
           </a>
         </p>
         <button type="button" onClick={attachAnother}>

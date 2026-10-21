@@ -36,6 +36,18 @@ describe('FsComplete', () => {
     expect(await screen.findByText(/SEARCH attach=none/)).toBeInTheDocument();
   });
 
+  it('links straight to the created source, not the generic source box', () => {
+    renderComplete({
+      complete: 'noAttachment',
+      draft: { url: '', title: 'A Record', citation: '', notes: '' },
+      createdSourceId: 'WNH2-4YT',
+    });
+    expect(screen.getByRole('link', { name: 'View this source on FamilySearch' })).toHaveAttribute(
+      'href',
+      'https://www.familysearch.org/en/tree/sources/viewedit/WNH2-4YT',
+    );
+  });
+
   it('shows the attached-to-person success and reuses the source on re-attach', async () => {
     renderComplete({
       complete: { pid: 'P1', name: 'John Smith', url: 'http://fs/P1', justification: '' },

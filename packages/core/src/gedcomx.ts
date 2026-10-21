@@ -48,6 +48,17 @@ export function personDetailUrl(pid: string, apiHost: string = PROD_API): string
   return `${apiHost.replace('api.', 'www.')}/tree/person/details/${pid}`;
 }
 
+/** The FamilySearch web page for a single source description (view/edit). */
+export function sourceViewUrl(id: string, apiHost: string = PROD_API): string {
+  if (!id) return '';
+  return `${apiHost.replace('api.', 'www.')}/en/tree/sources/viewedit/${id}`;
+}
+
+/** The FamilySearch web Source Box (the current URL; the old /search/sourcebox 404s). */
+export function sourceBoxUrl(apiHost: string = PROD_API): string {
+  return `${apiHost.replace('api.', 'www.')}/en/tree/sources/sourceBox/`;
+}
+
 function normalizeGender(raw: unknown): string {
   const g = str(raw);
   if (/female/i.test(g)) return 'Female';
