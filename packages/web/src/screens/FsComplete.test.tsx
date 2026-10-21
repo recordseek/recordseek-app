@@ -36,7 +36,7 @@ describe('FsComplete', () => {
     expect(await screen.findByText(/SEARCH attach=none/)).toBeInTheDocument();
   });
 
-  it('links straight to the created source, not the generic source box', () => {
+  it('offers both the created source and the source box on save-only', () => {
     renderComplete({
       complete: 'noAttachment',
       draft: { url: '', title: 'A Record', citation: '', notes: '' },
@@ -45,6 +45,10 @@ describe('FsComplete', () => {
     expect(screen.getByRole('link', { name: 'View this source on FamilySearch' })).toHaveAttribute(
       'href',
       'https://www.familysearch.org/en/tree/sources/viewedit/WNH2-4YT',
+    );
+    expect(screen.getByRole('link', { name: 'View your source box on FamilySearch' })).toHaveAttribute(
+      'href',
+      'https://www.familysearch.org/en/tree/sources/sourceBox/',
     );
   });
 

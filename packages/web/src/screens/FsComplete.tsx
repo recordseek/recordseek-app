@@ -17,8 +17,6 @@ export function FsComplete() {
   const navigate = useNavigate();
   const complete = state.complete;
   const title = state.draft?.title ?? '';
-  // Prefer a direct link to the source just created; fall back to the Source Box.
-  const sourceLink = state.createdSourceId ? sourceViewUrl(state.createdSourceId) : sourceBoxUrl();
 
   // Only the success states count; the error state has no completion to report.
   useEffect(() => {
@@ -40,9 +38,16 @@ export function FsComplete() {
       <main className="saved">
         <h3>Congratulations! Your source was created and added to your FamilySearch source box.</h3>
         {title && <p>“{title}”</p>}
+        {state.createdSourceId && (
+          <p>
+            <a href={sourceViewUrl(state.createdSourceId)} target="_blank" rel="noreferrer">
+              View this source on FamilySearch
+            </a>
+          </p>
+        )}
         <p>
-          <a href={sourceLink} target="_blank" rel="noreferrer">
-            {state.createdSourceId ? 'View this source on FamilySearch' : 'View your source box on FamilySearch'}
+          <a href={sourceBoxUrl()} target="_blank" rel="noreferrer">
+            View your source box on FamilySearch
           </a>
         </p>
         <button type="button" onClick={attachAnother}>
