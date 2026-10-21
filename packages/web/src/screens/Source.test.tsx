@@ -45,19 +45,6 @@ function renderSource() {
 }
 
 describe('Source', () => {
-  it('remembers the "Save to Source Box" choice', async () => {
-    localStorage.clear();
-    const { unmount } = renderSource();
-    const box = screen.getByLabelText('Save to Source Box') as HTMLInputElement;
-    expect(box.checked).toBe(false);
-    await userEvent.click(box);
-    expect(box.checked).toBe(true);
-    unmount();
-    renderSource();
-    expect((screen.getByLabelText('Save to Source Box') as HTMLInputElement).checked).toBe(true);
-    localStorage.clear();
-  });
-
   it('offers every citation style', () => {
     renderSource();
     expect(screen.getAllByRole('option')).toHaveLength(CITATION_STYLES.length);

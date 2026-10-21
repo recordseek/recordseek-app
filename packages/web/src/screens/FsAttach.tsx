@@ -5,7 +5,6 @@ import { useCapture } from '../capture/CaptureContext';
 import { BackButton } from '../components/BackButton';
 import { ForwardButton } from '../components/ForwardButton';
 import { TagEventsButton } from '../components/TagEventsButton';
-import { SourceBoxCheckbox } from '../components/SourceBoxCheckbox';
 
 /**
  * fs-attach — confirm the target person, optionally tag which events the source
@@ -50,7 +49,6 @@ export function FsAttach() {
       <div className="form-footer">
         <BackButton onClick={() => navigate(state.search.pid ? '/fs-search' : '/fs-results')} />
         <div className="footer-right">
-          <SourceBoxCheckbox />
           <ForwardButton onClick={() => navigate('/fs-create')}>Create &amp; Attach</ForwardButton>
         </div>
       </div>

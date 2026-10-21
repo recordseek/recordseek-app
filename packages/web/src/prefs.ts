@@ -4,7 +4,6 @@ import { CITATION_STYLES, DEFAULT_CITATION_STYLE, type CitationStyle } from '@re
 // Legacy localStorage/cookie keys, kept for continuity.
 const CITATION_STYLE_KEY = 'recordseek_source_format';
 const LAST_SERVICE_KEY = 'recordseek-last-service';
-const SOURCE_BOX_KEY = 'recordseek-save-to-sourcebox';
 
 export type Service = 'FamilySearch' | 'Ancestry' | 'Ancestry2' | 'Citation' | 'Zotero' | 'Geni';
 
@@ -56,22 +55,4 @@ export function saveLastService(service: Service): void {
 }
 export function clearLastService(): void {
   remove(LAST_SERVICE_KEY);
-}
-
-/**
- * Whether to file new FamilySearch sources in the RecordSeek source-box folder
- * when attaching. Off unless the user ticks it (customers were surprised to find
- * sources filed automatically). Save-only sources are always filed.
- */
-export function getSaveToSourceBox(): boolean {
-  return read(SOURCE_BOX_KEY) === 'true';
-}
-
-export function usePersistedSaveToSourceBox(): [boolean, (save: boolean) => void] {
-  const [save, setSaveState] = useState<boolean>(getSaveToSourceBox);
-  const setSave = useCallback((next: boolean) => {
-    setSaveState(next);
-    write(SOURCE_BOX_KEY, String(next));
-  }, []);
-  return [save, setSave];
 }

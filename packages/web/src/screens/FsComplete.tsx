@@ -64,6 +64,13 @@ export function FsComplete() {
             View Profile on FamilySearch
           </a>
         </p>
+        {state.createdSourceId && (
+          <p>
+            <a href={sourceViewUrl(state.createdSourceId)} target="_blank" rel="noreferrer">
+              View this source on FamilySearch
+            </a>
+          </p>
+        )}
         <button type="button" onClick={attachAnother}>
           Attach to Another Person
         </button>

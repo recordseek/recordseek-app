@@ -8,7 +8,6 @@ import { describeFsError, reportFsError } from '../fsErrors';
 import { reportError } from '../sentry';
 import { track } from '../analytics';
 import { BackButton } from '../components/BackButton';
-import { getSaveToSourceBox } from '../prefs';
 
 const ATTACH_MSG = 'Source created by RecordSeek.com';
 
@@ -22,7 +21,6 @@ const TAG_LABEL: Record<EventTag, string> = {
 };
 
 export interface FsCreateClient {
-  apiHost: string;
   descriptionUrl(id: string): string;
   createSourceDescription(draft: {
     about?: string;
@@ -31,50 +29,11 @@ export interface FsCreateClient {
     text?: string;
     changeMessage?: string;
   }): Promise<string | null>;
-  getCurrentUser(): Promise<{ id?: string } | null>;
-  // FS collection shapes are loosely typed; read defensively.
-  getUserCollections(userId: string): Promise<Array<Record<string, unknown>>>;
-  createCollection(collection: { title: string }): Promise<{ headers: Headers }>;
-  addDescriptionToCollection(collectionUrl: string, descriptionId: string): Promise<unknown>;
   createPersonSourceRef(
     personId: string,
     ref: { descriptionUrl: string; tags?: string[]; changeMessage?: string },
   ): Promise<unknown>;
   createPerson(person: unknown): Promise<string | null>;
-}
-
-/**
- * The folder's descriptions endpoint. FamilySearch's self link carries a query
- * (`…/collections/MMCC-W11?flag=fsh`), so appending to the raw href produced
- * `?flag=fsh/descriptions`: a POST to the folder itself, which 400s with
- * "A single user-defined collection must be provided" (RECORDSEEK-F0/F1).
- */
-export function collectionDescriptionsUrl(collectionUrl: string): string {
-  const base = collectionUrl.split(/[?#]/)[0]!.replace(/\/+$/, '');
-  return `${base}/descriptions`;
-}
-
-/** File the source description into the user's "RecordSeek" folder. */
-async function fileInRecordSeekFolder(client: FsCreateClient, descriptionId: string): Promise<void> {
-  const user = await client.getCurrentUser();
-  const userId = user?.id;
-  if (!userId) {
-    throw new Error('FamilySearch did not return the signed-in user.');
-  }
-  const collections = await client.getUserCollections(userId);
-  const folder = collections.find((c) => c.title === 'RecordSeek');
-  let collectionUrl: string | null = null;
-  if (folder) {
-    const links = folder.links as { self?: { href?: string } } | undefined;
-    collectionUrl = links?.self?.href ?? `${client.apiHost}/platform/sources/collections/${String(folder.id)}`;
-  } else {
-    const res = await client.createCollection({ title: 'RecordSeek' });
-    collectionUrl = res.headers.get('location');
-  }
-  if (!collectionUrl) {
-    throw new Error('FamilySearch did not return the RecordSeek folder.');
-  }
-  await client.addDescriptionToCollection(collectionDescriptionsUrl(collectionUrl), descriptionId);
 }
 
 function statusOf(err: unknown): unknown {
@@ -121,16 +80,13 @@ export function FsCreate({
     // newly created person are also kept in the session, for a re-login round trip.
     let step = 'create_source';
     let descriptionId = state.createdSourceId;
-    let filed = false;
     // A real pid means an existing person was picked; a newPerson draft left from
     // visiting fs-addperson must not override that (empty person, FS 400).
     const needsNewPerson = Boolean(state.newPerson && !state.attach?.pid);
     let attachTarget: AttachTarget | null = needsNewPerson ? null : state.attach;
     let createdPerson: AttachTarget | null = null;
 
-    // Save-only always files: the source box is the only place to find it later.
     const saveOnly = state.complete === 'noAttachment' || (!state.attach && !state.newPerson);
-    const filing = saveOnly || getSaveToSourceBox();
 
     async function pipeline(): Promise<void> {
       step = 'create_source';
@@ -148,25 +104,14 @@ export function FsCreate({
         }
         descriptionId = id;
         setCreatedSourceId(id);
-        track('fs_source_created', { source_box: filing });
+        track('fs_source_created');
       }
 
-      step = 'file_source_box';
-      if (filing && !filed) {
-        setStatus('Filing in your RecordSeek source box…');
-        if (saveOnly) {
-          await fileInRecordSeekFolder(client, descriptionId);
-        } else {
-          // A convenience when attaching; never block the attach on it.
-          try {
-            await fileInRecordSeekFolder(client, descriptionId);
-          } catch (err) {
-            if (isFsAuthError(err)) throw err;
-            reportFsError(err, { screen: 'fs-create', step });
-          }
-        }
-        filed = true;
-      }
+      // A freshly created source description already lands in the user's source
+      // box under Home (Unorganized) — where they look for it — so there is no
+      // folder-filing step. (The legacy app only moved a source into a folder
+      // when the user explicitly picked one; filing every source into a hidden
+      // "RecordSeek" folder is what made them seem to vanish.)
 
       if (saveOnly) {
         setComplete('noAttachment');
@@ -214,11 +159,7 @@ export function FsCreate({
     function savedSoFar(): string | null {
       const parts: string[] = [];
       if (descriptionId) {
-        parts.push(
-          filed
-            ? 'Your source was saved to FamilySearch and filed in your RecordSeek source box.'
-            : 'Your source was saved to FamilySearch.',
-        );
+        parts.push('Your source was saved to your FamilySearch source box.');
       }
       if (createdPerson) {
         parts.push(`${createdPerson.name} was added to the Family Tree (ID ${createdPerson.pid}).`);

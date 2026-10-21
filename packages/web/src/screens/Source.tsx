@@ -10,7 +10,6 @@ import { reportError } from '../sentry';
 import { BackButton } from '../components/BackButton';
 import { ForwardButton } from '../components/ForwardButton';
 import { TagEventsButton } from '../components/TagEventsButton';
-import { SourceBoxCheckbox } from '../components/SourceBoxCheckbox';
 
 /** The URL as FamilySearch will accept it (encoded, absolute http/https), or null. */
 export function toSourceUrl(value: string): string | null {
@@ -129,7 +128,11 @@ export function Source() {
           </label>
           <span className="format-inline">
             <span className="field-hint">Format</span>
-            <select aria-label="Citation format" value={style} onChange={(e) => changeStyle(e.target.value as CitationStyle)}>
+            <select
+              aria-label="Citation format"
+              value={style}
+              onChange={(e) => changeStyle(e.target.value as CitationStyle)}
+            >
               {CITATION_STYLES.map((s) => (
                 <option key={s} value={s}>
                   {CITATION_STYLE_LABELS[s]}
@@ -155,8 +158,8 @@ export function Source() {
       </div>
 
       <p className="field-hint save-later-hint">
-        Not sure who it belongs to yet? <strong>Save Now, Attach Later</strong> files it in your FamilySearch
-        Source Box. Attach it any time from a person&apos;s Sources section on FamilySearch.
+        Not sure who it belongs to yet? <strong>Save Now, Attach Later</strong> files it in your FamilySearch Source
+        Box. Attach it any time from a person&apos;s Sources section on FamilySearch.
       </p>
 
       <div className="form-footer">
@@ -167,7 +170,6 @@ export function Source() {
           }}
         />
         <div className="footer-right">
-          <SourceBoxCheckbox />
           <button type="button" className="btn-sm btn-save-later" onClick={saveWithoutAttaching} disabled={!ready}>
             Save Now, Attach Later
           </button>

@@ -2,27 +2,16 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router';
 import { SessionProvider, useSession, type SessionState } from '../session/SessionContext';
-import { FsCreate, collectionDescriptionsUrl, type FsCreateClient } from './FsCreate';
+import { FsCreate, type FsCreateClient } from './FsCreate';
 
 function makeClient(overrides: Partial<FsCreateClient> = {}) {
   const calls: {
     personSourceRef: Array<{ pid: string; ref: { descriptionUrl: string; tags?: string[]; changeMessage?: string } }>;
     createPerson: unknown[];
-    filed: string[];
-  } = { personSourceRef: [], createPerson: [], filed: [] };
+  } = { personSourceRef: [], createPerson: [] };
   const client: FsCreateClient = {
-    apiHost: 'https://api.familysearch.org',
     descriptionUrl: (id) => `https://api.familysearch.org/platform/sources/descriptions/${id}`,
     createSourceDescription: async () => 'SD-1',
-    getCurrentUser: async () => ({ id: 'U1' }),
-    getUserCollections: async () => [],
-    createCollection: async () => ({
-      headers: new Headers({ location: 'https://api.familysearch.org/platform/sources/collections/C1' }),
-    }),
-    addDescriptionToCollection: async (_url, descriptionId) => {
-      calls.filed.push(descriptionId);
-      return {};
-    },
     createPersonSourceRef: async (pid, ref) => {
       calls.personSourceRef.push({ pid, ref });
       return {};
@@ -77,37 +66,13 @@ describe('FsCreate', () => {
     expect(calls.personSourceRef[0]!.ref.changeMessage).toBe('census match');
   });
 
-  it('does not file an attached source in the RecordSeek folder by default', async () => {
+  it('creates and attaches without moving the source into a folder', async () => {
+    // A created source description already lands in the source box under Home
+    // (Unorganized); the pipeline no longer moves it into a hidden folder.
     const { client, calls } = makeClient();
     renderCreate(client, { draft: DRAFT, attach: ATTACH, tags: TAGS });
     expect(await screen.findByText('DONE John Smith')).toBeInTheDocument();
-    expect(calls.filed).toEqual([]);
     expect(calls.personSourceRef).toHaveLength(1);
-  });
-
-  it('files the source in the RecordSeek folder when the user opted in', async () => {
-    localStorage.setItem('recordseek-save-to-sourcebox', 'true');
-    const { client, calls } = makeClient();
-    renderCreate(client, { draft: DRAFT, attach: ATTACH, tags: TAGS });
-    expect(await screen.findByText('DONE John Smith')).toBeInTheDocument();
-    expect(calls.filed).toEqual(['SD-1']);
-  });
-
-  it('skips the source box when the user opted out, but still attaches', async () => {
-    localStorage.setItem('recordseek-save-to-sourcebox', 'false');
-    const { client, calls } = makeClient();
-    renderCreate(client, { draft: DRAFT, attach: ATTACH, tags: TAGS });
-    expect(await screen.findByText('DONE John Smith')).toBeInTheDocument();
-    expect(calls.filed).toEqual([]);
-    expect(calls.personSourceRef).toHaveLength(1);
-  });
-
-  it('still files a save-only source even when opted out', async () => {
-    localStorage.setItem('recordseek-save-to-sourcebox', 'false');
-    const { client, calls } = makeClient();
-    renderCreate(client, { draft: DRAFT, attach: null, complete: 'noAttachment' });
-    expect(await screen.findByText('DONE noAttachment')).toBeInTheDocument();
-    expect(calls.filed).toEqual(['SD-1']);
   });
 
   it('saves without attaching when complete is noAttachment', async () => {
@@ -202,7 +167,6 @@ describe('FsCreate', () => {
   });
 
   it('after a failed retry, says what was saved and offers Go Back', async () => {
-    localStorage.setItem('recordseek-save-to-sourcebox', 'true');
     let attachCalls = 0;
     const { client } = makeClient({
       createPersonSourceRef: async () => {
@@ -213,7 +177,7 @@ describe('FsCreate', () => {
     renderCreate(client, { draft: DRAFT, attach: ATTACH, tags: TAGS });
     expect(await screen.findByRole('alert')).toHaveTextContent('FamilySearch is having trouble');
     expect(attachCalls).toBe(2);
-    expect(screen.getByText(/Your source was saved to FamilySearch and filed/)).toBeInTheDocument();
+    expect(screen.getByText(/Your source was saved to your FamilySearch source box/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Go Back/ }));
     expect(await screen.findByText('ATTACH SCREEN')).toBeInTheDocument();
   });
@@ -244,31 +208,6 @@ describe('FsCreate', () => {
     });
     expect(await screen.findByText('DONE Jane Doe')).toBeInTheDocument();
     expect(calls.createPerson).toHaveLength(1);
-  });
-
-  it('files into an existing folder whose link carries a query string', async () => {
-    const posted: string[] = [];
-    const { client } = makeClient({
-      getUserCollections: async () => [
-        {
-          id: 'MMCC-W11',
-          title: 'RecordSeek',
-          links: { self: { href: 'https://api.familysearch.org/platform/sources/collections/MMCC-W11?flag=fsh' } },
-        },
-      ],
-      addDescriptionToCollection: async (url) => {
-        posted.push(url);
-        return {};
-      },
-    });
-    renderCreate(client, { draft: DRAFT, attach: null, complete: 'noAttachment' });
-    expect(await screen.findByText('DONE noAttachment')).toBeInTheDocument();
-    expect(posted).toEqual(['https://api.familysearch.org/platform/sources/collections/MMCC-W11/descriptions']);
-  });
-
-  it('builds the descriptions URL from a plain or trailing-slash folder URL', () => {
-    expect(collectionDescriptionsUrl('https://x/collections/C1')).toBe('https://x/collections/C1/descriptions');
-    expect(collectionDescriptionsUrl('https://x/collections/C1/')).toBe('https://x/collections/C1/descriptions');
   });
 
   it('redirects to fs-source when there is no draft', async () => {
