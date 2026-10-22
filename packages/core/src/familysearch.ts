@@ -95,6 +95,22 @@ export function clampSourceTitle(title: string): string {
   return `${(space > MAX_SOURCE_TITLE * 0.6 ? cut.slice(0, space) : cut).trimEnd()}…`;
 }
 
+/**
+ * FamilySearch rejects an over-long `about` URI with the same bare 400 "Unable
+ * to create source" (RECORDSEEK-F2: 2.1–2.7 KB capture URLs). 2048 is the
+ * conventional URL ceiling. When a URL is too long — almost always a huge query
+ * string on a record link — drop the query (and hash) to keep a working link;
+ * only omit `about` entirely if even the origin+path is too long. The full
+ * original URL still rides along in the citation text, so nothing is lost.
+ */
+export const MAX_SOURCE_ABOUT = 2048;
+
+export function clampSourceAbout(url: string): string {
+  if (url.length <= MAX_SOURCE_ABOUT) return url;
+  const trimmed = url.split(/[?#]/)[0] ?? '';
+  return trimmed.length <= MAX_SOURCE_ABOUT ? trimmed : '';
+}
+
 export class FsApiError extends Error {
   readonly status: number;
   readonly body: string;
@@ -381,7 +397,10 @@ export class FamilySearchClient {
   /** Create a source description; returns its new entity id. */
   async createSourceDescription(draft: SourceDescriptionDraft): Promise<string | null> {
     const description: Record<string, unknown> = {};
-    if (draft.about) description.about = draft.about;
+    if (draft.about) {
+      const about = clampSourceAbout(draft.about);
+      if (about) description.about = about;
+    }
     if (draft.citation) description.citations = [{ value: draft.citation }];
     if (draft.title) description.titles = [{ value: clampSourceTitle(draft.title) }];
     if (draft.text) description.notes = [{ text: draft.text }];

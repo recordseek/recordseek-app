@@ -7,6 +7,8 @@ import {
   resolveRedirectUri,
   generateCodeVerifier,
   deriveCodeChallenge,
+  clampSourceAbout,
+  MAX_SOURCE_ABOUT,
 } from './familysearch';
 
 interface MockReply {
@@ -145,7 +147,10 @@ describe('Sentry-bug fixes', () => {
 
 describe('fs-js-lite transport behavior', () => {
   it('posts the token request to the ident host with redirect_uri and a form body', async () => {
-    const { fn, calls } = mockFetch(() => ({ body: '{"access_token":"t"}', headers: { 'content-type': 'application/json' } }));
+    const { fn, calls } = mockFetch(() => ({
+      body: '{"access_token":"t"}',
+      headers: { 'content-type': 'application/json' },
+    }));
     const client = new FamilySearchClient(baseConfig({ tokenStore: memoryTokenStore(null), fetch: fn }));
     await client.exchangeToken('c');
     expect(calls[0]!.url).toBe(
@@ -210,6 +215,30 @@ describe('resources', () => {
     expect(sent.endsWith('word…')).toBe(true);
   });
 
+  it('drops the query string from an over-long about URL so FamilySearch accepts it', async () => {
+    const { fn, calls } = mockFetch(() => ({ status: 201, headers: { 'x-entity-id': 'SD-1' }, body: '{}' }));
+    const client = new FamilySearchClient(baseConfig({ fetch: fn }));
+    const base = 'https://example.com/record/12345';
+    const longUrl = `${base}?${'q=' + 'x'.repeat(MAX_SOURCE_ABOUT)}`;
+    await client.createSourceDescription({ about: longUrl });
+    const sent = JSON.parse(String(calls[0]!.init.body)).sourceDescriptions[0];
+    expect(sent.about).toBe(base);
+  });
+
+  it('omits about entirely when even the origin and path are too long', async () => {
+    const { fn, calls } = mockFetch(() => ({ status: 201, headers: { 'x-entity-id': 'SD-1' }, body: '{}' }));
+    const client = new FamilySearchClient(baseConfig({ fetch: fn }));
+    const longPath = `https://example.com/${'a'.repeat(MAX_SOURCE_ABOUT)}`;
+    await client.createSourceDescription({ about: longPath, citation: 'cite' });
+    const sent = JSON.parse(String(calls[0]!.init.body)).sourceDescriptions[0];
+    expect('about' in sent).toBe(false);
+    expect(sent.citations).toEqual([{ value: 'cite' }]);
+  });
+
+  it('clampSourceAbout leaves a normal URL untouched', () => {
+    expect(clampSourceAbout('https://example.com/record?x=1')).toBe('https://example.com/record?x=1');
+  });
+
   it('falls back to the Location header for the new entity id', async () => {
     const { fn } = mockFetch(() => ({
       status: 201,
@@ -223,7 +252,10 @@ describe('resources', () => {
   it('files a description into a folder by id', async () => {
     const { fn, calls } = mockFetch(() => ({ status: 204, body: '' }));
     const client = new FamilySearchClient(baseConfig({ fetch: fn }));
-    await client.addDescriptionToCollection('https://api.familysearch.org/platform/sources/collections/C1/descriptions', 'SD-1');
+    await client.addDescriptionToCollection(
+      'https://api.familysearch.org/platform/sources/collections/C1/descriptions',
+      'SD-1',
+    );
     expect(calls[0]!.url).toBe('https://api.familysearch.org/platform/sources/collections/C1/descriptions');
     expect(JSON.parse(String(calls[0]!.init.body))).toEqual({ sourceDescriptions: [{ id: 'SD-1' }] });
   });
