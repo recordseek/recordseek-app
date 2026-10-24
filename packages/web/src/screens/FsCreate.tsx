@@ -201,6 +201,19 @@ export function FsCreate({
             );
             return;
           }
+          // FamilySearch refused the attach: the account can't edit this person
+          // (some people are protected, or living and not yours). Expected, not a
+          // bug — tell the user plainly, skip the retry, and don't report it.
+          if (step === 'attach_source' && statusOf(err) === 403) {
+            track('fs_action_failed', { step, status: 403 });
+            fail(
+              "FamilySearch wouldn't let you attach a source to this person. Your account may not have " +
+                'permission to edit them — some people are protected, or living and added by someone else. ' +
+                'Go back and choose a different person.',
+              '/fs-search',
+            );
+            return;
+          }
           if (attempt === 1) {
             track('fs_action_retried', { step });
             setStatus('That didn’t work. Trying again…');

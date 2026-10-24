@@ -146,6 +146,19 @@ describe('FsCreate', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('merged or deleted');
   });
 
+  it('explains an attach permission 403 and does not retry', async () => {
+    let attachCalls = 0;
+    const { client } = makeClient({
+      createPersonSourceRef: async () => {
+        attachCalls += 1;
+        throw Object.assign(new Error('FamilySearch API 403: Failure in upstream call'), { status: 403 });
+      },
+    });
+    renderCreate(client, { draft: DRAFT, attach: ATTACH, tags: TAGS });
+    expect(await screen.findByRole('alert')).toHaveTextContent(/permission to edit/i);
+    expect(attachCalls).toBe(1);
+  });
+
   it('retries a failed step once without re-creating the source', async () => {
     let createCalls = 0;
     let attachCalls = 0;
