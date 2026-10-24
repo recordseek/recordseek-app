@@ -5,6 +5,8 @@ import { useCapture } from '../capture/CaptureContext';
 import { BackButton } from '../components/BackButton';
 import { ForwardButton } from '../components/ForwardButton';
 import { TagEventsButton } from '../components/TagEventsButton';
+import { MarriageTagger } from '../components/MarriageTagger';
+import { isDevMode } from '../devFlag';
 
 /**
  * fs-attach — confirm the target person, optionally tag which events the source
@@ -39,6 +41,7 @@ export function FsAttach() {
         </h3>
         <TagEventsButton />
       </div>
+      {isDevMode() && <MarriageTagger pid={attach.pid} />}
       <p>Source: &quot;{capture.title}&quot;</p>
 
       <label>

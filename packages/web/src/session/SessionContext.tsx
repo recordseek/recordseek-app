@@ -25,9 +25,17 @@ export interface AttachTarget {
   name: string;
   url: string;
   justification: string;
+  /** Chosen couple-relationship id for a Marriage tag (set via the spouse picker). */
+  coupleId?: string;
+  /** Display name of the chosen spouse, for the completion summary. */
+  spouseName?: string;
 }
 
-export type EventTag = 'name' | 'gender' | 'birth' | 'christening' | 'death' | 'burial';
+// `marriage` is in the union (so it has a slot in `tags`) but intentionally NOT
+// in EVENT_TAGS: it's a couple fact, not a person vital, so it must stay out of
+// the shared person-tag checkboxes, the tag count, and the person source ref.
+// It gets its own dev-gated control on the attach screen.
+export type EventTag = 'name' | 'gender' | 'birth' | 'christening' | 'death' | 'burial' | 'marriage';
 export const EVENT_TAGS: readonly EventTag[] = ['name', 'gender', 'birth', 'christening', 'death', 'burial'];
 
 /** The source the wizard will write to FamilySearch (finalized on fs-source). */
@@ -86,7 +94,7 @@ export function emptySearch(): SearchCriteria {
 }
 
 function emptyTags(): Record<EventTag, boolean> {
-  return { name: false, gender: false, birth: false, christening: false, death: false, burial: false };
+  return { name: false, gender: false, birth: false, christening: false, death: false, burial: false, marriage: false };
 }
 
 export function emptyNewPerson(): NewPersonDraft {
@@ -119,6 +127,7 @@ type Action =
   | { type: 'selectPerson'; attach: AttachTarget }
   | { type: 'clearAttach' }
   | { type: 'setJustification'; value: string }
+  | { type: 'setCouple'; coupleId: string | null; spouseName?: string }
   | { type: 'toggleTag'; tag: EventTag }
   | { type: 'setComplete'; value: CompleteState }
   | { type: 'setDraft'; draft: SourceDraft }
@@ -146,6 +155,13 @@ function reducer(state: SessionState, action: Action): SessionState {
       return { ...state, attach: null };
     case 'setJustification':
       return { ...state, attach: state.attach ? { ...state.attach, justification: action.value } : state.attach };
+    case 'setCouple':
+      return {
+        ...state,
+        attach: state.attach
+          ? { ...state.attach, coupleId: action.coupleId ?? undefined, spouseName: action.spouseName }
+          : state.attach,
+      };
     case 'toggleTag':
       return { ...state, tags: { ...state.tags, [action.tag]: !state.tags[action.tag] } };
     case 'setComplete':
@@ -163,6 +179,7 @@ export interface SessionApi {
   selectPerson(attach: AttachTarget): void;
   clearAttach(): void;
   setJustification(value: string): void;
+  setCouple(coupleId: string | null, spouseName?: string): void;
   toggleTag(tag: EventTag): void;
   setComplete(value: CompleteState): void;
   setDraft(draft: SourceDraft): void;
@@ -217,6 +234,7 @@ export function SessionProvider({ children, initial }: { children: ReactNode; in
       selectPerson: (attach) => dispatch({ type: 'selectPerson', attach }),
       clearAttach: () => dispatch({ type: 'clearAttach' }),
       setJustification: (value) => dispatch({ type: 'setJustification', value }),
+      setCouple: (coupleId, spouseName) => dispatch({ type: 'setCouple', coupleId, spouseName }),
       toggleTag: (tag) => dispatch({ type: 'toggleTag', tag }),
       setComplete: (value) => dispatch({ type: 'setComplete', value }),
       setDraft: (draft) => dispatch({ type: 'setDraft', draft }),

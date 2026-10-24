@@ -18,6 +18,7 @@ const TAG_LABEL: Record<EventTag, string> = {
   christening: 'Christening',
   death: 'Death',
   burial: 'Burial',
+  marriage: 'Marriage',
 };
 
 export interface FsCreateClient {
@@ -31,6 +32,10 @@ export interface FsCreateClient {
   }): Promise<string | null>;
   createPersonSourceRef(
     personId: string,
+    ref: { descriptionUrl: string; tags?: string[]; changeMessage?: string },
+  ): Promise<unknown>;
+  createCoupleSourceRef(
+    coupleId: string,
     ref: { descriptionUrl: string; tags?: string[]; changeMessage?: string },
   ): Promise<unknown>;
   createPerson(person: unknown): Promise<string | null>;
@@ -152,6 +157,26 @@ export function FsCreate({
         changeMessage: attachTarget.justification || 'Attached by RecordSeek',
       });
       track('fs_source_attached');
+
+      // Optional Marriage tag: attaches the source to the chosen couple
+      // relationship. The spouse was resolved on the attach screen (coupleId).
+      // It's optional, so a failure here never fails a successful person attach.
+      if (state.tags.marriage && attachTarget.coupleId) {
+        step = 'attach_marriage';
+        setStatus('Attaching the marriage source…');
+        try {
+          await client.createCoupleSourceRef(attachTarget.coupleId, {
+            descriptionUrl: client.descriptionUrl(descriptionId),
+            tags: ['http://gedcomx.org/Marriage'],
+            changeMessage: attachTarget.justification || 'Attached by RecordSeek',
+          });
+          track('fs_marriage_attached');
+        } catch (marriageErr) {
+          track('fs_action_failed', { step, reason: 'marriage' });
+          reportFsError(marriageErr, { screen: 'fs-create', step });
+        }
+      }
+
       setComplete({ ...attachTarget });
       navigate('/fs-complete', { replace: true });
     }

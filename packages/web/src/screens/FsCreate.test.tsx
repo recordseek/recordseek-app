@@ -7,13 +7,18 @@ import { FsCreate, type FsCreateClient } from './FsCreate';
 function makeClient(overrides: Partial<FsCreateClient> = {}) {
   const calls: {
     personSourceRef: Array<{ pid: string; ref: { descriptionUrl: string; tags?: string[]; changeMessage?: string } }>;
+    coupleSourceRef: Array<{ coupleId: string; ref: { descriptionUrl: string; tags?: string[]; changeMessage?: string } }>;
     createPerson: unknown[];
-  } = { personSourceRef: [], createPerson: [] };
+  } = { personSourceRef: [], coupleSourceRef: [], createPerson: [] };
   const client: FsCreateClient = {
     descriptionUrl: (id) => `https://api.familysearch.org/platform/sources/descriptions/${id}`,
     createSourceDescription: async () => 'SD-1',
     createPersonSourceRef: async (pid, ref) => {
       calls.personSourceRef.push({ pid, ref });
+      return {};
+    },
+    createCoupleSourceRef: async (coupleId, ref) => {
+      calls.coupleSourceRef.push({ coupleId, ref });
       return {};
     },
     createPerson: async (person) => {
@@ -48,7 +53,7 @@ function renderCreate(client: FsCreateClient, initial: Partial<SessionState>) {
 
 const DRAFT = { url: 'https://x.com/record', title: 'A Record', citation: 'A citation.', notes: 'notes' };
 const ATTACH = { pid: 'P1', name: 'John Smith', url: 'http://fs/P1', justification: 'census match' };
-const TAGS = { name: false, gender: false, birth: true, christening: false, death: false, burial: false };
+const TAGS = { name: false, gender: false, birth: true, christening: false, death: false, burial: false, marriage: false };
 
 describe('FsCreate', () => {
   afterEach(() => localStorage.clear());
@@ -64,6 +69,42 @@ describe('FsCreate', () => {
     );
     expect(calls.personSourceRef[0]!.ref.tags).toEqual(['http://gedcomx.org/Birth']);
     expect(calls.personSourceRef[0]!.ref.changeMessage).toBe('census match');
+  });
+
+  it('attaches a Marriage source to the chosen couple relationship', async () => {
+    const { client, calls } = makeClient();
+    renderCreate(client, {
+      draft: DRAFT,
+      attach: { ...ATTACH, coupleId: 'CR-9', spouseName: 'Jane Smith' },
+      tags: { ...TAGS, marriage: true },
+    });
+    expect(await screen.findByText('DONE John Smith')).toBeInTheDocument();
+    expect(calls.personSourceRef).toHaveLength(1);
+    expect(calls.coupleSourceRef).toHaveLength(1);
+    expect(calls.coupleSourceRef[0]!.coupleId).toBe('CR-9');
+    expect(calls.coupleSourceRef[0]!.ref.tags).toEqual(['http://gedcomx.org/Marriage']);
+  });
+
+  it('skips the Marriage attach when no couple was chosen', async () => {
+    const { client, calls } = makeClient();
+    renderCreate(client, { draft: DRAFT, attach: ATTACH, tags: { ...TAGS, marriage: true } });
+    expect(await screen.findByText('DONE John Smith')).toBeInTheDocument();
+    expect(calls.coupleSourceRef).toHaveLength(0);
+  });
+
+  it('still completes when the optional Marriage attach fails', async () => {
+    const { client, calls } = makeClient({
+      createCoupleSourceRef: async () => {
+        throw Object.assign(new Error('FamilySearch API 403'), { status: 403 });
+      },
+    });
+    renderCreate(client, {
+      draft: DRAFT,
+      attach: { ...ATTACH, coupleId: 'CR-9' },
+      tags: { ...TAGS, marriage: true },
+    });
+    expect(await screen.findByText('DONE John Smith')).toBeInTheDocument();
+    expect(calls.personSourceRef).toHaveLength(1);
   });
 
   it('creates and attaches without moving the source into a folder', async () => {

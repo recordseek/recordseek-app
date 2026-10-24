@@ -82,6 +82,14 @@ export interface PersonSourceRef {
   tags?: string[];
 }
 
+/** A couple (spouse) relationship the person is part of. */
+export interface Spouse {
+  /** the couple-relationship id (crid), used to attach a marriage source ref */
+  coupleId: string;
+  spouseId: string;
+  spouseName: string;
+}
+
 /**
  * FamilySearch rejects long source titles with a bare 400 "Unable to create
  * source" (RECORDSEEK-EV: 282-char page titles). Cap them, on a word boundary.
@@ -434,8 +442,8 @@ export class FamilySearchClient {
     });
   }
 
-  /** Attach a source reference to a person in the tree. */
-  async createPersonSourceRef(personId: string, ref: PersonSourceRef): Promise<RawResponse> {
+  /** The GEDCOM-X source object shared by person and couple source references. */
+  private buildSourceRef(ref: PersonSourceRef): Record<string, unknown> {
     const source: Record<string, unknown> = {
       description: ref.descriptionUrl,
     };
@@ -452,9 +460,60 @@ export class FamilySearchClient {
       }
       source.attribution = attribution;
     }
+    return source;
+  }
+
+  /** Attach a source reference to a person in the tree. */
+  async createPersonSourceRef(personId: string, ref: PersonSourceRef): Promise<RawResponse> {
     return this.request('POST', `/platform/tree/persons/${personId}`, {
-      body: { persons: [{ sources: [source] }] },
+      body: { persons: [{ sources: [this.buildSourceRef(ref)] }] },
     });
+  }
+
+  /**
+   * Attach a source reference to a couple (marriage) relationship. Used to tag a
+   * source with http://gedcomx.org/Marriage, which is a couple fact, not a
+   * person fact — so it can't go on a person source ref.
+   */
+  async createCoupleSourceRef(coupleId: string, ref: PersonSourceRef): Promise<RawResponse> {
+    return this.request('POST', `/platform/tree/couple-relationships/${coupleId}/source-references`, {
+      body: { relationships: [{ id: coupleId, sources: [this.buildSourceRef(ref)] }] },
+    });
+  }
+
+  /**
+   * The couple (spouse) relationships a person is part of. FamilySearch's
+   * /spouses collection may also list co-parents who share no couple
+   * relationship, so we keep only entries with a real Couple relationship id.
+   * Returns [] on a 204 (no relationships).
+   */
+  async getPersonSpouses(personId: string): Promise<Spouse[]> {
+    const res = await this.request('GET', `/platform/tree/persons/${personId}/spouses`, {
+      accept: 'application/x-gedcomx-v1+json',
+    });
+    const data = (res.data ?? {}) as {
+      relationships?: Array<{
+        id?: string;
+        type?: string;
+        person1?: { resourceId?: string };
+        person2?: { resourceId?: string };
+      }>;
+      persons?: Array<{ id?: string; display?: { name?: string } }>;
+    };
+    const nameById = new Map<string, string>();
+    for (const p of data.persons ?? []) {
+      if (p.id) nameById.set(p.id, p.display?.name ?? '');
+    }
+    const spouses: Spouse[] = [];
+    for (const rel of data.relationships ?? []) {
+      if (!rel.id || !/Couple$/.test(rel.type ?? '')) continue;
+      const p1 = rel.person1?.resourceId;
+      const p2 = rel.person2?.resourceId;
+      const spouseId = p1 === personId ? p2 : p1;
+      if (!spouseId) continue;
+      spouses.push({ coupleId: rel.id, spouseId, spouseName: nameById.get(spouseId) ?? '' });
+    }
+    return spouses;
   }
 
   /** Read a single tree person (GEDCOM-X). */

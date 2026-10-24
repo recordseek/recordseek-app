@@ -278,6 +278,50 @@ describe('resources', () => {
     expect(body.persons[0].sources[0].attribution.changeMessage).toBe('Source created by RecordSeek.com');
   });
 
+  it('attaches a couple source reference to the couple-relationship endpoint', async () => {
+    const { fn, calls } = mockFetch(() => ({ status: 201, body: '{}' }));
+    const client = new FamilySearchClient(baseConfig({ fetch: fn }));
+    await client.createCoupleSourceRef('CR-9', {
+      descriptionUrl: 'https://api.familysearch.org/platform/sources/descriptions/SD-123',
+      tags: ['http://gedcomx.org/Marriage'],
+      changeMessage: 'Attached by RecordSeek',
+    });
+    expect(calls[0]!.url).toBe('https://api.familysearch.org/platform/tree/couple-relationships/CR-9/source-references');
+    const body = JSON.parse(String(calls[0]!.init.body));
+    expect(body.relationships[0].id).toBe('CR-9');
+    expect(body.relationships[0].sources[0].description).toBe(
+      'https://api.familysearch.org/platform/sources/descriptions/SD-123',
+    );
+    expect(body.relationships[0].sources[0].tags).toEqual([{ resource: 'http://gedcomx.org/Marriage' }]);
+  });
+
+  it('reads a person’s couple relationships, keeping only Couple types', async () => {
+    const { fn, calls } = mockFetch(() => ({
+      body: JSON.stringify({
+        persons: [
+          { id: 'P1', display: { name: 'John Smith' } },
+          { id: 'P2', display: { name: 'Jane Smith' } },
+          { id: 'P3', display: { name: 'Baby Smith' } },
+        ],
+        relationships: [
+          { id: 'CR-9', type: 'http://gedcomx.org/Couple', person1: { resourceId: 'P1' }, person2: { resourceId: 'P2' } },
+          // a co-parent with no couple relationship: must be dropped
+          { type: 'http://gedcomx.org/ParentChild', person1: { resourceId: 'P1' }, person2: { resourceId: 'P3' } },
+        ],
+      }),
+    }));
+    const client = new FamilySearchClient(baseConfig({ fetch: fn }));
+    const spouses = await client.getPersonSpouses('P1');
+    expect(calls[0]!.url).toBe('https://api.familysearch.org/platform/tree/persons/P1/spouses');
+    expect(spouses).toEqual([{ coupleId: 'CR-9', spouseId: 'P2', spouseName: 'Jane Smith' }]);
+  });
+
+  it('returns no spouses on a 204', async () => {
+    const { fn } = mockFetch(() => ({ status: 204, body: '' }));
+    const client = new FamilySearchClient(baseConfig({ fetch: fn }));
+    expect(await client.getPersonSpouses('P1')).toEqual([]);
+  });
+
   it('clears the local token on logout even when the request 401s', async () => {
     const store = memoryTokenStore('valid-token');
     const { fn } = mockFetch(() => ({ status: 401, body: '' }));

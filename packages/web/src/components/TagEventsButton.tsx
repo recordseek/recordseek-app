@@ -8,6 +8,7 @@ export const TAG_LABELS: Record<EventTag, string> = {
   christening: 'Christening',
   death: 'Death',
   burial: 'Burial',
+  marriage: 'Marriage',
 };
 
 const MOBILE_QUERY = '(max-width: 768px)';
