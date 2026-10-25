@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, useLocation } from 'react-router';
@@ -18,6 +18,8 @@ function renderAt(path: string) {
     </MemoryRouter>,
   );
 }
+
+afterEach(() => sessionStorage.clear());
 
 describe('Header breadcrumb', () => {
   it('shows the FamilySearch logo throughout the FS flow', () => {
@@ -76,5 +78,13 @@ describe('Header menu', () => {
     renderAt('/');
     await userEvent.click(screen.getByRole('button', { name: 'Donate' }));
     expect(screen.getByText('PATH:/donate')).toBeInTheDocument();
+  });
+
+  it('hides Donate inside the native app (App Store guideline 3.1.1)', () => {
+    sessionStorage.setItem('rs_app', '1'); // marks the native-app wrapper context
+    renderAt('/');
+    expect(screen.queryByRole('button', { name: 'Donate' })).toBeNull();
+    const nav = screen.getByRole('navigation', { name: 'RecordSeek' });
+    expect([...nav.children].map((el) => el.textContent)).toEqual(['About', 'Help']);
   });
 });

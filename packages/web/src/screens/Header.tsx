@@ -5,6 +5,7 @@ import { Modal } from '../components/Modal';
 import { FeedbackDialog } from '../components/FeedbackBox';
 import { AUTH_PROVIDERS, providerForPath, type AuthProvider } from '../auth/providers';
 import { track } from '../analytics';
+import { isNativeApp } from '../appFlag';
 
 const WEBSITE_URL = 'https://recordseek.com/';
 
@@ -147,10 +148,14 @@ export function Header() {
           <MenuIcon name="about" />
           About
         </a>
-        <button type="button" onClick={() => navigate('/donate')}>
-          <MenuIcon name="donate" />
-          Donate
-        </button>
+        {/* Donate (PayPal) is hidden inside the native app for App Store
+            guideline 3.1.1; it stays available on the website. */}
+        {!isNativeApp() && (
+          <button type="button" onClick={() => navigate('/donate')}>
+            <MenuIcon name="donate" />
+            Donate
+          </button>
+        )}
         <button
           type="button"
           onClick={() => {

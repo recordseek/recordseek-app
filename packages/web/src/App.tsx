@@ -30,6 +30,7 @@ import { GeniAttach } from './screens/GeniAttach';
 import { GeniComplete } from './screens/GeniComplete';
 import { GeniFlowProvider } from './session/GeniContext';
 import { isDevMode } from './devFlag';
+import { isNativeApp } from './appFlag';
 import { Header } from './screens/Header';
 import { Announcement } from './components/Announcement';
 import { OAuthGate } from './auth/OAuthGate';
@@ -54,7 +55,9 @@ export function App() {
             <Route path="/auth" element={<AuthCheck />} />
             <Route path="/about" element={<About />} />
             <Route path="/support" element={<Support />} />
-            <Route path="/donate" element={<Donate />} />
+            {/* Donations use PayPal, which App Store guideline 3.1.1 forbids
+                inside the app, so the route is unavailable in the native app. */}
+            <Route path="/donate" element={isNativeApp() ? <Navigate to="/" replace /> : <Donate />} />
             <Route path="/loading" element={<Loading />} />
             <Route path="/a-source" element={<ASource />} />
             <Route path="/ancestry2" element={<DevOnly><Ancestry2 /></DevOnly>} />
