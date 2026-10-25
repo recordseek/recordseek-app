@@ -23,8 +23,10 @@ function Harness() {
       <span data-testid="tagcount">{s.tagCount}</span>
       <span data-testid="attach">{s.state.attach?.name ?? 'none'}</span>
       <span data-testid="justification">{s.state.attach?.justification ?? ''}</span>
+      <span data-testid="marriage">{String(s.state.tags.marriage)}</span>
       <button onClick={() => s.updateSearch({ givenName: 'John' })}>set-given</button>
       <button onClick={() => s.toggleTag('birth')}>toggle-birth</button>
+      <button onClick={() => s.toggleTag('marriage')}>toggle-marriage</button>
       <button onClick={() => s.selectPerson({ pid: 'P1', name: 'John Smith', url: 'http://x', justification: '' })}>
         select
       </button>
@@ -55,6 +57,19 @@ describe('SessionProvider', () => {
 
     await userEvent.click(screen.getByText('reset'));
     expect(screen.getByTestId('given').textContent).toBe('');
+  });
+
+  it('clears the Marriage tag when a new person is selected (no stale couple write)', async () => {
+    render(
+      <SessionProvider>
+        <Harness />
+      </SessionProvider>,
+    );
+    await userEvent.click(screen.getByText('toggle-marriage'));
+    expect(screen.getByTestId('marriage').textContent).toBe('true');
+    // Picking a (new) attach target must reset Marriage — it's couple-specific.
+    await userEvent.click(screen.getByText('select'));
+    expect(screen.getByTestId('marriage').textContent).toBe('false');
   });
 
   it('persists to sessionStorage and restores on remount (survives a reload)', async () => {

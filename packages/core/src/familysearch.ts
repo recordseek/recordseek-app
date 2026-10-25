@@ -476,8 +476,13 @@ export class FamilySearchClient {
    * person fact — so it can't go on a person source ref.
    */
   async createCoupleSourceRef(coupleId: string, ref: PersonSourceRef): Promise<RawResponse> {
-    return this.request('POST', `/platform/tree/couple-relationships/${coupleId}/source-references`, {
-      body: { relationships: [{ id: coupleId, sources: [this.buildSourceRef(ref)] }] },
+    // Mirror the person source-ref write, which posts the source onto the entity
+    // itself (POST /persons/{id} with {persons:[{sources}]}) rather than the
+    // dedicated /source-references sub-resource. The sub-resource returned a 400
+    // ("CreateTfEntityReference") in production, so we post onto the couple
+    // relationship entity the same way the working person path does.
+    return this.request('POST', `/platform/tree/couple-relationships/${coupleId}`, {
+      body: { relationships: [{ sources: [this.buildSourceRef(ref)] }] },
     });
   }
 

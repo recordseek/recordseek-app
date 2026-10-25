@@ -286,9 +286,8 @@ describe('resources', () => {
       tags: ['http://gedcomx.org/Marriage'],
       changeMessage: 'Attached by RecordSeek',
     });
-    expect(calls[0]!.url).toBe('https://api.familysearch.org/platform/tree/couple-relationships/CR-9/source-references');
+    expect(calls[0]!.url).toBe('https://api.familysearch.org/platform/tree/couple-relationships/CR-9');
     const body = JSON.parse(String(calls[0]!.init.body));
-    expect(body.relationships[0].id).toBe('CR-9');
     expect(body.relationships[0].sources[0].description).toBe(
       'https://api.familysearch.org/platform/sources/descriptions/SD-123',
     );

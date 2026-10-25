@@ -150,7 +150,10 @@ function reducer(state: SessionState, action: Action): SessionState {
     case 'resetSearch':
       return { ...state, search: emptySearch() };
     case 'selectPerson':
-      return { ...state, attach: action.attach };
+      // Marriage is tied to a specific couple, so it must not carry over from a
+      // previously tagged person: reset it whenever the attach target changes.
+      // (The other event tags describe the source itself and stay sticky.)
+      return { ...state, attach: action.attach, tags: { ...state.tags, marriage: false } };
     case 'clearAttach':
       return { ...state, attach: null };
     case 'setJustification':
