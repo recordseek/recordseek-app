@@ -38,9 +38,8 @@ export function FsAttach() {
             {attach.name}
           </a>
         </h3>
-        <TagEventsButton />
+        <TagEventsButton extra={<MarriageTagger pid={attach.pid} />} />
       </div>
-      <MarriageTagger pid={attach.pid} />
       <p>Source: &quot;{capture.title}&quot;</p>
 
       <label>

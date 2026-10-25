@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useSession, EVENT_TAGS, type EventTag } from '../session/SessionContext';
 
 export const TAG_LABELS: Record<EventTag, string> = {
@@ -35,19 +35,21 @@ function useIsMobile(): boolean {
  * checkboxes write straight to the shared session tags, so the choice is the
  * same whether tagged on fs-source or fs-attach.
  */
-export function TagEventsButton() {
+export function TagEventsButton({ extra }: { extra?: ReactNode } = {}) {
   const { state, toggleTag, tagCount } = useSession();
-  return <TagEventsPicker selected={state.tags} onToggle={toggleTag} count={tagCount} />;
+  return <TagEventsPicker selected={state.tags} onToggle={toggleTag} count={tagCount} extra={extra} />;
 }
 
 interface PickerProps {
   selected: Record<EventTag, boolean>;
   onToggle: (tag: EventTag) => void;
   count: number;
+  /** Extra controls rendered inside the modal, below the event grid (FamilySearch Marriage). */
+  extra?: ReactNode;
 }
 
 /** Presentational tag control: the same pill and modal, driven by props (used by FamilySearch via session state and by Zotero via local state). */
-export function TagEventsPicker({ selected, onToggle, count }: PickerProps) {
+export function TagEventsPicker({ selected, onToggle, count, extra }: PickerProps) {
   const [open, setOpen] = useState(false);
   const isMobile = useIsMobile();
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -85,6 +87,7 @@ export function TagEventsPicker({ selected, onToggle, count }: PickerProps) {
           </label>
         ))}
       </div>
+      {extra}
       <button type="button" className="tag-modal-close" onClick={() => setOpen(false)}>
         Close
       </button>

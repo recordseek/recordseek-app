@@ -403,6 +403,48 @@ label:has(> input[type='radio']) {
   margin: 0;
 }
 
+/* Marriage lives below the person vitals: it attaches to the couple, not the
+   person, so it sits apart with a divider and reveals the spouse choice inline. */
+.marriage-tagger {
+  margin: 0 0 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border, #d9d9d9);
+}
+
+.marriage-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-weight: 600;
+}
+
+.marriage-note {
+  margin: 8px 0 0;
+  font-size: 0.85rem;
+  color: var(--muted, #666);
+}
+
+.spouse-picker {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border, #d9d9d9);
+  border-radius: 6px;
+}
+
+.spouse-picker legend {
+  padding: 0 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.spouse-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0;
+}
+
 .tag-modal-close {
   display: block;
   width: calc(100% + 44px);

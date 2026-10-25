@@ -51,6 +51,15 @@ describe('FsAttach', () => {
     expect(await screen.findByText(/CREATE just=census match tags=1/)).toBeInTheDocument();
   });
 
+  it('offers Marriage inside the tag popover, alongside the person vitals', async () => {
+    renderAttach(withAttach);
+    // Marriage is not loose on the page; it lives in the popover with the vitals.
+    expect(screen.queryByLabelText('Marriage')).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: /Tag this Source to Events/ }));
+    expect(screen.getByLabelText('Birth')).toBeInTheDocument();
+    expect(screen.getByLabelText('Marriage')).toBeInTheDocument();
+  });
+
   it('redirects away when there is no selected person (no crash)', async () => {
     renderAttach({});
     expect(await screen.findByText('RESULTS')).toBeInTheDocument();
