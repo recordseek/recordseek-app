@@ -11,6 +11,13 @@ import { BackButton } from '../components/BackButton';
 
 const ATTACH_MSG = 'Source created by RecordSeek.com';
 
+// The couple source-reference write returns a 400 ("CreateTfEntityReference")
+// from FamilySearch on both the sub-resource and the entity endpoint, so the
+// correct payload is still unverified. Disable the live write until it's
+// confirmed against the FS beta sandbox — the Marriage checkbox stays visible
+// but performs no couple write, so prod stops erroring (RECORDSEEK-EX).
+const MARRIAGE_WRITE_ENABLED = false;
+
 const TAG_LABEL: Record<EventTag, string> = {
   name: 'Name',
   gender: 'Gender',
@@ -161,7 +168,7 @@ export function FsCreate({
       // Optional Marriage tag: attaches the source to the chosen couple
       // relationship. The spouse was resolved on the attach screen (coupleId).
       // It's optional, so a failure here never fails a successful person attach.
-      if (state.tags.marriage && attachTarget.coupleId) {
+      if (MARRIAGE_WRITE_ENABLED && state.tags.marriage && attachTarget.coupleId) {
         step = 'attach_marriage';
         setStatus('Attaching the marriage source…');
         try {

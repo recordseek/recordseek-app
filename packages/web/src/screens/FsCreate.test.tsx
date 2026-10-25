@@ -71,7 +71,11 @@ describe('FsCreate', () => {
     expect(calls.personSourceRef[0]!.ref.changeMessage).toBe('census match');
   });
 
-  it('attaches a Marriage source to the chosen couple relationship', async () => {
+  // The couple source-reference write is temporarily disabled (MARRIAGE_WRITE_ENABLED
+  // = false) pending FS beta-sandbox verification of the payload. Until then the
+  // person source still attaches and no couple write fires, even when Marriage is
+  // selected. Flip this test back to expecting a coupleSourceRef call on re-enable.
+  it('does not write the Marriage couple source while the write is disabled', async () => {
     const { client, calls } = makeClient();
     renderCreate(client, {
       draft: DRAFT,
@@ -80,9 +84,7 @@ describe('FsCreate', () => {
     });
     expect(await screen.findByText('DONE John Smith')).toBeInTheDocument();
     expect(calls.personSourceRef).toHaveLength(1);
-    expect(calls.coupleSourceRef).toHaveLength(1);
-    expect(calls.coupleSourceRef[0]!.coupleId).toBe('CR-9');
-    expect(calls.coupleSourceRef[0]!.ref.tags).toEqual(['http://gedcomx.org/Marriage']);
+    expect(calls.coupleSourceRef).toHaveLength(0);
   });
 
   it('skips the Marriage attach when no couple was chosen', async () => {
