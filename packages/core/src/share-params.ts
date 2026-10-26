@@ -66,8 +66,15 @@ export const PERSON_KEYS = [
 export type PersonKey = (typeof PERSON_KEYS)[number];
 export type PersonParams = Partial<Record<PersonKey, string>>;
 
-/** Our own control params (hidden-feature switch): never part of the captured url. */
-const CONTROL_KEYS = ['dev'] as const;
+/**
+ * Our own control params — never part of the captured url. `dev` is the
+ * hidden-feature switch; `app` marks the native-app/Safari-extension context
+ * (so the web app can hide the PayPal donation link for App Store 3.1.1). Both
+ * must be excluded from the fold below, or they leak onto the saved source link
+ * (e.g. `…/ark:/61903/1:1:XXXX?app=ios`), which FamilySearch then fails to
+ * resolve: "Failure in upstream call: Unable to create source".
+ */
+const CONTROL_KEYS = ['dev', 'app'] as const;
 
 const DEFAULT_KEYS: readonly string[] = [...CONTROL_KEYS, ...BASE_KEYS, ...PERSON_KEYS, ...ATTRIBUTION_KEYS];
 

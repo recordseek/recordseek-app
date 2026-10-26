@@ -108,6 +108,15 @@ describe('attribution params', () => {
     expect(p.rs_host).toBe('example.com');
     expect(p.rs_partner).toBe('acme');
   });
+
+  it('does not fold control params (dev, app) onto the source url', () => {
+    // Regression: the native-app `app` marker leaked onto the saved source
+    // link, breaking FamilySearch source creation. It must stay off the url.
+    const p = parseShareParams('https://recordseek.com/share/?app=ios&url=https%3A%2F%2Fx.com%2Fr&dev=1');
+    expect(p.url).toBe('https://x.com/r');
+    expect(p.app).toBe('ios');
+    expect(p.dev).toBe('1');
+  });
 });
 
 describe('person params', () => {
