@@ -48,5 +48,15 @@ export default defineConfig(({ mode }) => ({
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
     css: false,
+    coverage: {
+      // Floor enforced under --coverage (the release gate's `test:coverage`).
+      // Ratchet UP as coverage improves; never lower. Excluded: main.tsx (the
+      // app bootstrap) and the .mjs companion bridge, which runs in the Ancestry
+      // companion extension — not jsdom — and is mocked in every test.
+      provider: 'v8',
+      include: ['src/**'],
+      exclude: ['src/**/*.test.{ts,tsx}', 'src/**/*.d.ts', 'src/main.tsx', 'src/**/*.mjs'],
+      thresholds: { statements: 81, branches: 75, functions: 79, lines: 83 },
+    },
   },
 }));

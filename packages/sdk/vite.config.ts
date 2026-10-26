@@ -68,6 +68,15 @@ export default defineConfig(({ mode }) => {
     test: {
       environment: 'jsdom',
       include: ['src/**/*.test.ts'],
+      coverage: {
+        // Floor enforced under --coverage (the release gate's `test:coverage`).
+        // Ratchet UP as coverage improves; never lower. index.ts is the bare
+        // re-export entry point.
+        provider: 'v8',
+        include: ['src/**'],
+        exclude: ['src/**/*.test.ts', 'src/**/*.d.ts', 'src/index.ts'],
+        thresholds: { statements: 72, branches: 70, functions: 72, lines: 74 },
+      },
     },
   };
 });
