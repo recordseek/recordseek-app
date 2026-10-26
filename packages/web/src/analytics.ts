@@ -288,14 +288,25 @@ export function setCaptureAttribution(attr: CaptureAttribution | null): void {
  * and version (`ev`); the native apps send an `app=` marker.
  */
 export type CaptureClientType =
+  // One per browser the extension ships for (recordseek-extensions/src/vendor/*);
+  // each vendor's browser.js reports its own `name`, which maps to `<name>_extension`.
   | 'chrome_extension'
-  | 'firefox_extension'
   | 'edge_extension'
+  | 'firefox_extension'
   | 'opera_extension'
   | 'safari_extension'
+  | 'brave_extension'
+  | 'vivaldi_extension'
+  | 'yandex_extension'
+  | 'arc_extension'
+  | 'whale_extension'
+  | 'samsung_extension'
+  | 'orion_extension'
+  | 'chromium_extension'
   | 'ios_app'
   | 'bookmarklet'
   | 'sdk'
+  // A browser extension whose name we do not yet recognize.
   | 'extension';
 
 const CLIENT_PROPS = ['capture_client', 'capture_client_version'] as const;

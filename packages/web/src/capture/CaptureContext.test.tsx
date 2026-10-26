@@ -65,9 +65,14 @@ describe('detectEntry', () => {
 
 describe('detectClient', () => {
   const u = 'url=https%3A%2F%2Fx.com%2Fa';
-  it('names the browser extension and its version from e/ev', () => {
+  it('names the browser extension and its version from e/ev, across every vendor', () => {
     expect(detectClient(`https://recordseek.com/share/?${u}&e=chrome&ev=2.4.0`)).toEqual({ type: 'chrome_extension', version: '2.4.0' });
     expect(detectClient(`https://recordseek.com/share/?${u}&e=firefox&ev=2.4.0`)).toEqual({ type: 'firefox_extension', version: '2.4.0' });
+    // The non-Chrome/Firefox vendors must each get their own type, not a generic one.
+    for (const v of ['edge', 'opera', 'brave', 'vivaldi', 'yandex', 'arc', 'whale', 'samsung', 'orion', 'chromium']) {
+      expect(detectClient(`https://recordseek.com/share/?${u}&e=${v}&ev=1.1`)).toEqual({ type: `${v}_extension`, version: '1.1' });
+    }
+    // An unknown browser name still registers as a (generic) extension.
     expect(detectClient(`https://recordseek.com/share/?${u}&e=weirdbrowser&ev=9`)).toEqual({ type: 'extension', version: '9' });
   });
 

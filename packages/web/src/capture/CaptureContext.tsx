@@ -89,13 +89,24 @@ export function detectEntry(href: string): CaptureEntry {
   return params.e || params.ev ? 'extension' : 'bookmarklet';
 }
 
-const CLIENT_BY_BROWSER: Record<string, CaptureClientType> = {
-  chrome: 'chrome_extension',
-  firefox: 'firefox_extension',
-  edge: 'edge_extension',
-  opera: 'opera_extension',
-  safari: 'safari_extension',
-};
+// Every browser the extension ships for (recordseek-extensions/src/vendor/*).
+// Each vendor's browser.js reports its own `name`, mapped here to a distinct
+// `<name>_extension` client type; an unlisted browser is a generic 'extension'.
+const EXTENSION_BROWSERS = new Set([
+  'chrome',
+  'edge',
+  'firefox',
+  'opera',
+  'safari',
+  'brave',
+  'vivaldi',
+  'yandex',
+  'arc',
+  'whale',
+  'samsung',
+  'orion',
+  'chromium',
+]);
 
 /**
  * The specific client that produced the capture and its own version, from the
@@ -116,7 +127,7 @@ export function detectClient(href: string): { type: CaptureClientType | ''; vers
   // The Safari extension (shipped as the Mac App Store app) sends app=safari.
   if (app === 'safari') return { type: 'safari_extension', version };
   const browser = str(params.e).toLowerCase();
-  if (browser && CLIENT_BY_BROWSER[browser]) return { type: CLIENT_BY_BROWSER[browser], version };
+  if (browser && EXTENSION_BROWSERS.has(browser)) return { type: `${browser}_extension` as CaptureClientType, version };
   if (browser || params.ev) return { type: 'extension', version };
   return { type: 'bookmarklet', version: '' };
 }
