@@ -11,7 +11,9 @@
     "dev": "pnpm --filter @recordseek/web dev",
     "test": "pnpm -r --if-present test",
     "typecheck": "pnpm -r --if-present typecheck",
-    "build": "pnpm -r --if-present build"
+    "lint": "pnpm -r --if-present lint",
+    "build": "pnpm -r --if-present build",
+    "gate": "pnpm -r --if-present typecheck && pnpm -r --if-present lint && pnpm -r --if-present test"
   },
   "devDependencies": {
     "typescript": "^7.0.2"
