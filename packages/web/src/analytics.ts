@@ -5,6 +5,22 @@ const DEFAULT_POSTHOG_KEY = 'phc_AzZzdRdxntXqHxNiJ4nM9duEnprenXt8XnKA2NKEoeFG';
 
 type Props = Record<string, unknown>;
 
+/**
+ * Which deployment served this page, from the hostname: `production`
+ * (recordseek.com), `stage` (the GitHub Pages preview) or `development`
+ * (localhost / *.local). Registered on every event so we can always tell which
+ * environment an entry came from. Pure (takes the hostname) so it is testable.
+ */
+export function deployEnv(hostname = typeof window !== 'undefined' ? window.location.hostname : ''): string {
+  const h = hostname.toLowerCase();
+  if (h === 'recordseek.com' || h === 'www.recordseek.com') return 'production';
+  if (h.endsWith('.github.io')) return 'stage';
+  if (h === 'localhost' || h === '127.0.0.1' || h === '[::1]' || h.endsWith('.local') || h.endsWith('.localhost') || h.endsWith('.test')) {
+    return 'development';
+  }
+  return h || 'unknown';
+}
+
 /** Event shape we touch in before_send (a subset of posthog-js's CaptureResult). */
 export interface AnalyticsEvent {
   properties?: Props;
@@ -123,6 +139,7 @@ export function initAnalytics(): void {
     });
     posthog.register({
       app: 'share',
+      env: deployEnv(),
       ...(typeof env.VITE_RELEASE === 'string' && env.VITE_RELEASE ? { app_version: env.VITE_RELEASE } : {}),
     });
     initialized = true;
@@ -256,6 +273,69 @@ export function setCaptureAttribution(attr: CaptureAttribution | null): void {
   if (!initialized) return;
   try {
     const { register, unregister } = planAttribution(attr);
+    for (const key of unregister) posthog.unregister(key);
+    if (Object.keys(register).length > 0) posthog.register(register);
+  } catch {
+    // ignore
+  }
+}
+
+/**
+ * The client that produced a capture: a specific browser extension, a native
+ * app, the bookmarklet or the partner SDK. Registered (with its version) as a
+ * super property so every event — not just `capture_opened` — says which
+ * extension/app/version it came from. The extension sends its browser name (`e`)
+ * and version (`ev`); the native apps send an `app=` marker.
+ */
+export type CaptureClientType =
+  | 'chrome_extension'
+  | 'firefox_extension'
+  | 'edge_extension'
+  | 'opera_extension'
+  | 'safari_extension'
+  | 'ios_app'
+  | 'bookmarklet'
+  | 'sdk'
+  | 'extension';
+
+const CLIENT_PROPS = ['capture_client', 'capture_client_version'] as const;
+const CLIENT_VERSION_RE = /^[A-Za-z0-9][\w.+-]{0,31}$/;
+
+/** A client version from the extension/app (`ev`): short and version-ish; else ''. */
+export function sanitizeClientVersion(raw: unknown): string {
+  return typeof raw === 'string' && CLIENT_VERSION_RE.test(raw) ? raw : '';
+}
+
+export interface CaptureClient {
+  type?: CaptureClientType | '';
+  version?: string;
+}
+
+/**
+ * Which client super properties to set and which to clear. Without a type there
+ * is nothing to attribute, so both keys clear (a later capture from a different
+ * client must not inherit the previous one's type or version).
+ */
+export function planClient(client: CaptureClient | null): { register: Props; unregister: string[] } {
+  const register: Props = {};
+  if (client?.type) {
+    register.capture_client = client.type;
+    const version = sanitizeClientVersion(client.version);
+    if (version) register.capture_client_version = version;
+  }
+  return { register, unregister: CLIENT_PROPS.filter((k) => !(k in register)) };
+}
+
+/**
+ * Attribute this browser's events to the client that produced the capture.
+ * Super properties persist (localStorage), so they survive the FamilySearch
+ * OAuth round-trip; call this only for a load that carries a capture. No-op
+ * until initAnalytics() has run.
+ */
+export function setCaptureClient(client: CaptureClient | null): void {
+  if (!initialized) return;
+  try {
+    const { register, unregister } = planClient(client);
     for (const key of unregister) posthog.unregister(key);
     if (Object.keys(register).length > 0) posthog.register(register);
   } catch {

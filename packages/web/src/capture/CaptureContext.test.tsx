@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { CaptureProvider, useCapture, buildCapture, detectEntry } from './CaptureContext';
+import { CaptureProvider, useCapture, buildCapture, detectEntry, detectClient } from './CaptureContext';
 
 function Probe() {
   const c = useCapture();
@@ -60,5 +60,27 @@ describe('detectEntry', () => {
     expect(detectEntry(`https://recordseek.com/share/?${u}`)).toBe('bookmarklet');
     expect(detectEntry(`https://recordseek.com/share/?rs_src=sdk`)).toBe('unknown');
     expect(detectEntry(`https://recordseek.com/share/?${u}&rs_src=other`)).toBe('bookmarklet');
+  });
+});
+
+describe('detectClient', () => {
+  const u = 'url=https%3A%2F%2Fx.com%2Fa';
+  it('names the browser extension and its version from e/ev', () => {
+    expect(detectClient(`https://recordseek.com/share/?${u}&e=chrome&ev=2.4.0`)).toEqual({ type: 'chrome_extension', version: '2.4.0' });
+    expect(detectClient(`https://recordseek.com/share/?${u}&e=firefox&ev=2.4.0`)).toEqual({ type: 'firefox_extension', version: '2.4.0' });
+    expect(detectClient(`https://recordseek.com/share/?${u}&e=weirdbrowser&ev=9`)).toEqual({ type: 'extension', version: '9' });
+  });
+
+  it('names the native apps from the app= marker', () => {
+    // The Safari extension ships as the Mac App Store app and sends app=safari + its version.
+    expect(detectClient(`https://recordseek.com/share/?${u}&app=safari&e=safari&ev=1.2.0`)).toEqual({ type: 'safari_extension', version: '1.2.0' });
+    // iOS sends app=ios with no version yet.
+    expect(detectClient(`https://recordseek.com/share/?${u}&app=ios`)).toEqual({ type: 'ios_app', version: '' });
+  });
+
+  it('classifies sdk and bookmarklet, and empty without a capture', () => {
+    expect(detectClient(`https://recordseek.com/share/?${u}&rs_src=sdk&e=chrome&ev=1`)).toEqual({ type: 'sdk', version: '' });
+    expect(detectClient(`https://recordseek.com/share/?${u}`)).toEqual({ type: 'bookmarklet', version: '' });
+    expect(detectClient(`https://recordseek.com/share/?rs_src=sdk`)).toEqual({ type: '', version: '' });
   });
 });

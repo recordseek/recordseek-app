@@ -11,6 +11,10 @@ import {
   sanitizeSdkVersion,
   planAttribution,
   setCaptureAttribution,
+  deployEnv,
+  sanitizeClientVersion,
+  planClient,
+  setCaptureClient,
 } from './analytics';
 
 describe('analytics sanitizer', () => {
@@ -138,5 +142,54 @@ describe('capture attribution', () => {
 
   it('is a no-op before analytics is initialized', () => {
     expect(() => setCaptureAttribution({ entry: 'sdk', host: 'example.com' })).not.toThrow();
+  });
+});
+
+describe('deployEnv', () => {
+  it('maps hostnames to an environment', () => {
+    expect(deployEnv('recordseek.com')).toBe('production');
+    expect(deployEnv('www.recordseek.com')).toBe('production');
+    expect(deployEnv('recordseek.github.io')).toBe('stage');
+    expect(deployEnv('localhost')).toBe('development');
+    expect(deployEnv('127.0.0.1')).toBe('development');
+    expect(deployEnv('mybox.local')).toBe('development');
+  });
+
+  it('falls back to the bare host, then unknown', () => {
+    expect(deployEnv('example.org')).toBe('example.org');
+    expect(deployEnv('')).toBe('unknown');
+  });
+});
+
+describe('capture client (version + type)', () => {
+  it('accepts a short version-ish string only', () => {
+    expect(sanitizeClientVersion('3.2.1')).toBe('3.2.1');
+    expect(sanitizeClientVersion('1.0.0-beta+5')).toBe('1.0.0-beta+5');
+    expect(sanitizeClientVersion('a space')).toBe('');
+    expect(sanitizeClientVersion('<x>')).toBe('');
+    expect(sanitizeClientVersion('v'.repeat(40))).toBe('');
+    expect(sanitizeClientVersion(42)).toBe('');
+  });
+
+  it('registers the client type and version, clearing a missing version', () => {
+    expect(planClient({ type: 'chrome_extension', version: '2.4.0' })).toEqual({
+      register: { capture_client: 'chrome_extension', capture_client_version: '2.4.0' },
+      unregister: [],
+    });
+    // A client with no (or junk) version clears the version key so a prior one does not linger.
+    expect(planClient({ type: 'ios_app', version: 'bad ver' })).toEqual({
+      register: { capture_client: 'ios_app' },
+      unregister: ['capture_client_version'],
+    });
+  });
+
+  it('clears both keys when there is no client', () => {
+    const both = ['capture_client', 'capture_client_version'];
+    expect(planClient({ type: '' })).toEqual({ register: {}, unregister: both });
+    expect(planClient(null)).toEqual({ register: {}, unregister: both });
+  });
+
+  it('is a no-op before analytics is initialized', () => {
+    expect(() => setCaptureClient({ type: 'safari_extension', version: '1.0.0' })).not.toThrow();
   });
 });

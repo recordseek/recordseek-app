@@ -1,5 +1,13 @@
 import { createContext, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react';
-import { track, setCaptureAttribution, sanitizeHost, sanitizePartner, sanitizeSdkVersion } from '../analytics';
+import {
+  track,
+  setCaptureAttribution,
+  setCaptureClient,
+  sanitizeHost,
+  sanitizePartner,
+  sanitizeSdkVersion,
+  type CaptureClientType,
+} from '../analytics';
 import { parseShareParams, extractPersonParams, deriveSourceMetadata, normalizeUrl, type PersonParams } from '@recordseek/core';
 
 /** The normalized capture, derived once from the share URL via core. */
@@ -81,6 +89,38 @@ export function detectEntry(href: string): CaptureEntry {
   return params.e || params.ev ? 'extension' : 'bookmarklet';
 }
 
+const CLIENT_BY_BROWSER: Record<string, CaptureClientType> = {
+  chrome: 'chrome_extension',
+  firefox: 'firefox_extension',
+  edge: 'edge_extension',
+  opera: 'opera_extension',
+  safari: 'safari_extension',
+};
+
+/**
+ * The specific client that produced the capture and its own version, from the
+ * `app=` marker (native apps), the browser name `e` and version `ev` (the
+ * extension). Returns an empty type when there is no capture to attribute.
+ */
+export function detectClient(href: string): { type: CaptureClientType | ''; version: string } {
+  const params = parseShareParams(href);
+  if (typeof params.url !== 'string' || !params.url) {
+    return { type: '', version: '' };
+  }
+  const version = str(params.ev);
+  if (str(params.rs_src) === 'sdk') {
+    return { type: 'sdk', version: '' };
+  }
+  const app = str(params.app);
+  if (app === 'ios') return { type: 'ios_app', version };
+  // The Safari extension (shipped as the Mac App Store app) sends app=safari.
+  if (app === 'safari') return { type: 'safari_extension', version };
+  const browser = str(params.e).toLowerCase();
+  if (browser && CLIENT_BY_BROWSER[browser]) return { type: CLIENT_BY_BROWSER[browser], version };
+  if (browser || params.ev) return { type: 'extension', version };
+  return { type: 'bookmarklet', version: '' };
+}
+
 /** Bare hostname (no `www.`) of the captured page; the only part of it analytics may see. */
 export function sourceDomain(url: string): string {
   try {
@@ -110,14 +150,17 @@ export function CaptureProvider({
     const params = parseShareParams(href);
     if (typeof params.url !== 'string' || !params.url) return;
     const entry = detectEntry(href);
+    const client = detectClient(href);
     const host = sanitizeHost(str(params.rs_host));
     const partner = sanitizePartner(str(params.rs_partner));
     // Only a load that carries a capture (`url`) updates attribution, so the
     // OAuth return (no capture params) keeps the stored super properties.
     setCaptureAttribution({ entry, host, partner, sdkVersion: sanitizeSdkVersion(str(params.rs_v)) });
+    setCaptureClient(client);
     track('capture_opened', {
       source_domain: sourceDomain(capture.url),
       entry,
+      ...(client.type ? { client: client.type } : {}),
       ...(entry === 'sdk' && host ? { referrer_host: host } : {}),
       ...(entry === 'sdk' && partner ? { referrer_partner: partner } : {}),
       has_citation: Boolean(params.citation),
