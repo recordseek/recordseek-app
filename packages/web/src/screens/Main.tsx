@@ -95,7 +95,12 @@ function useGridColumns(ref: RefObject<HTMLDivElement | null>): number {
     const el = ref.current;
     if (!el) return;
     const measure = () =>
-      setColumns(getComputedStyle(el).gridTemplateColumns.split(' ').filter((c) => c && c !== 'none').length);
+      // Collapsed auto-fit tracks report as 0px; only tracks that hold a tile count as columns.
+      setColumns(
+        getComputedStyle(el)
+          .gridTemplateColumns.split(' ')
+          .filter((c) => c && c !== 'none' && c !== '0px').length,
+      );
     measure();
     if (typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver(measure);
