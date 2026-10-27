@@ -6,6 +6,7 @@ import { BackButton } from '../components/BackButton';
 import { ForwardButton } from '../components/ForwardButton';
 import { TagEventsButton } from '../components/TagEventsButton';
 import { MarriageTagger } from '../components/MarriageTagger';
+import { MARRIAGE_WRITE_ENABLED } from '../fsFeatures';
 
 /**
  * fs-attach — confirm the target person, optionally tag which events the source
@@ -38,7 +39,7 @@ export function FsAttach() {
             {attach.name}
           </a>
         </h3>
-        <TagEventsButton extra={<MarriageTagger pid={attach.pid} />} />
+        <TagEventsButton extra={MARRIAGE_WRITE_ENABLED ? <MarriageTagger pid={attach.pid} /> : undefined} />
       </div>
       <p>Source: &quot;{capture.title}&quot;</p>
 

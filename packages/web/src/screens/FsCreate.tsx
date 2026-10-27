@@ -7,16 +7,10 @@ import { beginFsLogin, isFsAuthError } from '../fsAuth';
 import { describeFsError, reportFsError } from '../fsErrors';
 import { reportError } from '../sentry';
 import { track } from '../analytics';
+import { MARRIAGE_WRITE_ENABLED } from '../fsFeatures';
 import { BackButton } from '../components/BackButton';
 
 const ATTACH_MSG = 'Source created by RecordSeek.com';
-
-// The couple source-reference write returns a 400 ("CreateTfEntityReference")
-// from FamilySearch on both the sub-resource and the entity endpoint, so the
-// correct payload is still unverified. Disable the live write until it's
-// confirmed against the FS beta sandbox — the Marriage checkbox stays visible
-// but performs no couple write, so prod stops erroring (RECORDSEEK-EX).
-const MARRIAGE_WRITE_ENABLED = false;
 
 const TAG_LABEL: Record<EventTag, string> = {
   name: 'Name',

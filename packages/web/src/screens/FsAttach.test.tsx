@@ -51,13 +51,14 @@ describe('FsAttach', () => {
     expect(await screen.findByText(/CREATE just=census match tags=1/)).toBeInTheDocument();
   });
 
-  it('offers Marriage inside the tag popover, alongside the person vitals', async () => {
+  it('does not show the Marriage checkbox while the couple write is disabled', async () => {
+    // MARRIAGE_WRITE_ENABLED is false (couple source-ref 400s, RECORDSEEK-EX),
+    // so the no-op checkbox is hidden — even inside the popover with the vitals.
     renderAttach(withAttach);
-    // Marriage is not loose on the page; it lives in the popover with the vitals.
     expect(screen.queryByLabelText('Marriage')).toBeNull();
     await userEvent.click(screen.getByRole('button', { name: /Tag this Source to Events/ }));
     expect(screen.getByLabelText('Birth')).toBeInTheDocument();
-    expect(screen.getByLabelText('Marriage')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Marriage')).toBeNull();
   });
 
   it('redirects away when there is no selected person (no crash)', async () => {
