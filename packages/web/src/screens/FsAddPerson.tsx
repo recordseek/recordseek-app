@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect } from 'react';
 import { useNavigate } from 'react-router';
+import { hasPersonName } from '@recordseek/core';
 import { useSession, emptyNewPerson } from '../session/SessionContext';
 import { BackButton } from '../components/BackButton';
 import { ForwardButton } from '../components/ForwardButton';
@@ -21,9 +22,13 @@ export function FsAddPerson() {
   }, [state.newPerson, setNewPerson]);
 
   const p = state.newPerson ?? emptyNewPerson();
+  // FamilySearch can't create a person without a name (opaque 400), so a name
+  // is required before moving on (RECORDSEEK-EZ).
+  const named = hasPersonName(p);
 
   function next(event: FormEvent): void {
     event.preventDefault();
+    if (!named) return;
     navigate('/fs-addattach');
   }
 
@@ -75,9 +80,12 @@ export function FsAddPerson() {
           <input value={p.deathPlace} disabled={p.living} onChange={(e) => setNewPerson({ deathPlace: e.target.value })} />
         </label>
 
+        {!named && <p className="field-hint">Enter at least a given name or last name to continue.</p>}
         <div className="form-footer">
           <BackButton onClick={() => navigate('/fs-search')} />
-          <ForwardButton type="submit">Next</ForwardButton>
+          <ForwardButton type="submit" disabled={!named}>
+            Next
+          </ForwardButton>
         </div>
       </form>
     </main>

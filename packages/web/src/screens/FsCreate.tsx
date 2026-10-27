@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { buildGedcomxPerson, personDetailUrl } from '@recordseek/core';
+import { buildGedcomxPerson, hasPersonName, personDetailUrl } from '@recordseek/core';
 import { useSession, EVENT_TAGS, type EventTag, type AttachTarget } from '../session/SessionContext';
 import { createFsClient } from '../auth/fsClient';
 import { beginFsLogin, isFsAuthError } from '../fsAuth';
@@ -95,6 +95,14 @@ export function FsCreate({
     // A real pid means an existing person was picked; a newPerson draft left from
     // visiting fs-addperson must not override that (empty person, FS 400).
     const needsNewPerson = Boolean(state.newPerson && !state.attach?.pid);
+    // FamilySearch 400s on a nameless person ("Unable to create TF person",
+    // RECORDSEEK-EZ). The add-person screens block this, but guard here too so
+    // a stale session can never POST an empty person — send them back to fill
+    // in a name instead.
+    if (needsNewPerson && state.newPerson && !hasPersonName(state.newPerson)) {
+      navigate('/fs-addperson', { replace: true });
+      return;
+    }
     let attachTarget: AttachTarget | null = needsNewPerson ? null : state.attach;
     let createdPerson: AttachTarget | null = null;
 
@@ -263,6 +271,17 @@ export function FsCreate({
                   titleLength: d.title.trim().length,
                   citationLength: d.citation.trim().length,
                   notesLength: d.notes.trim().length,
+                }
+              : {}),
+            // Shape only (no names/dates/places) so a person-create 400 can be
+            // told apart from an attach 400 — e.g. a missing name (RECORDSEEK-EZ).
+            ...(step === 'create_person' && state.newPerson
+              ? {
+                  hasName: hasPersonName(state.newPerson),
+                  gender: state.newPerson.gender,
+                  living: state.newPerson.living,
+                  hasBirth: Boolean(state.newPerson.birthDate || state.newPerson.birthPlace),
+                  hasDeath: Boolean(state.newPerson.deathDate || state.newPerson.deathPlace),
                 }
               : {}),
           });

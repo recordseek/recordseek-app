@@ -152,6 +152,16 @@ const GENDER_URI: Record<string, string> = {
   Unknown: 'http://gedcomx.org/Unknown',
 };
 
+/**
+ * A FamilySearch tree person must have at least one non-empty name part.
+ * Creating one without a name fails with an opaque 400 ("Failure in upstream
+ * call: Unable to create TF person" — RECORDSEEK-EZ), so callers must check
+ * this before `createPerson`.
+ */
+export function hasPersonName(v: PersonVitals): boolean {
+  return [v.givenName, v.surname].filter(Boolean).join(' ').trim().length > 0;
+}
+
 /** Assemble a minimal GEDCOM-X person (Standard name template) for createPerson. */
 export function buildGedcomxPerson(v: PersonVitals): Record<string, unknown> {
   const fullText = [v.givenName, v.surname].filter(Boolean).join(' ').trim();

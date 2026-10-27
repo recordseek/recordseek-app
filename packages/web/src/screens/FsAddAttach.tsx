@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
+import { hasPersonName } from '@recordseek/core';
 import { useSession } from '../session/SessionContext';
 import { useCapture } from '../capture/CaptureContext';
 import { BackButton } from '../components/BackButton';
@@ -28,9 +29,16 @@ export function FsAddAttach() {
     return null;
   }
 
-  const name = [np.givenName, np.surname].filter(Boolean).join(' ').trim() || '(unnamed)';
+  // FamilySearch rejects a nameless person with an opaque 400, so block the
+  // create until there's a name to send (RECORDSEEK-EZ).
+  const named = hasPersonName(np);
+  const name = named ? [np.givenName, np.surname].filter(Boolean).join(' ').trim() : '(unnamed)';
 
   function createAndAttach(): void {
+    if (!named) {
+      navigate('/fs-addperson');
+      return;
+    }
     selectPerson({ pid: '', name, url: '', justification });
     navigate('/fs-create');
   }
@@ -59,9 +67,16 @@ export function FsAddAttach() {
         <textarea value={justification} onChange={(e) => setJustification(e.target.value)} rows={4} />
       </label>
 
+      {!named && (
+        <p className="field-hint" role="alert">
+          Add a given name or last name before creating this person.
+        </p>
+      )}
       <div className="form-footer">
         <BackButton onClick={() => navigate('/fs-addperson')}>Modify Person Data</BackButton>
-        <ForwardButton onClick={createAndAttach}>Create &amp; Attach</ForwardButton>
+        <ForwardButton onClick={createAndAttach} disabled={!named}>
+          Create &amp; Attach
+        </ForwardButton>
       </div>
     </main>
   );

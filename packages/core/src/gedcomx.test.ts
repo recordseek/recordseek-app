@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseSearchResults, parsePerson, personDetailUrl, buildGedcomxPerson } from './gedcomx';
+import { parseSearchResults, parsePerson, personDetailUrl, buildGedcomxPerson, hasPersonName } from './gedcomx';
 
 const FEED = {
   entries: [
@@ -102,6 +102,18 @@ describe('buildGedcomxPerson', () => {
     const person = buildGedcomxPerson({ givenName: 'Jane', surname: 'Doe', gender: 'Female', living: true, deathDate: '2000' });
     expect(person.facts).toBeUndefined();
     expect(person.gender).toEqual({ type: 'http://gedcomx.org/Female' });
+  });
+});
+
+describe('hasPersonName', () => {
+  const base = { gender: 'Unknown', living: false };
+  it('is true when a given name or surname is present', () => {
+    expect(hasPersonName({ ...base, givenName: 'Jane', surname: '' })).toBe(true);
+    expect(hasPersonName({ ...base, givenName: '', surname: 'Doe' })).toBe(true);
+  });
+  it('is false when the name is empty or whitespace only', () => {
+    expect(hasPersonName({ ...base, givenName: '', surname: '' })).toBe(false);
+    expect(hasPersonName({ ...base, givenName: '   ', surname: '' })).toBe(false);
   });
 });
 

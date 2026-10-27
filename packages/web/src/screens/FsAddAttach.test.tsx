@@ -56,4 +56,10 @@ describe('FsAddAttach', () => {
     renderAddAttach({});
     expect(await screen.findByText('ADDPERSON')).toBeInTheDocument();
   });
+
+  it('disables Create & Attach for a nameless person (FS 400 guard)', async () => {
+    renderAddAttach({ newPerson: { ...NP, givenName: '', surname: '' } });
+    expect(screen.getByText(/\(unnamed\)/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Create & Attach/ })).toBeDisabled();
+  });
 });

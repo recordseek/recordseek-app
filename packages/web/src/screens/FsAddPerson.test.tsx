@@ -37,6 +37,13 @@ describe('FsAddPerson', () => {
     expect(await screen.findByText(/NP Jane Doe/)).toBeInTheDocument();
   });
 
+  it('disables Next until a name is entered', async () => {
+    renderAddPerson();
+    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
+    await userEvent.type(screen.getByLabelText('Given Name(s)'), 'Jane');
+    expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled();
+  });
+
   it('disables death fields for a living person', async () => {
     renderAddPerson();
     expect(screen.getByLabelText('Date of Death')).toBeEnabled();
