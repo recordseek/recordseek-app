@@ -37,8 +37,35 @@ export function describeFsError(err: unknown): string {
   return err instanceof Error && err.message ? err.message : 'Something went wrong.';
 }
 
+/**
+ * FamilySearch's own detail for a failed API call, as flat, bounded fields for
+ * Sentry. Every recent tree-write bug (RECORDSEEK-EZ/EX/F0/EV/F2) surfaced as
+ * the same opaque `FsApiError` message, so the status plus FS's parsed
+ * `errors[0]` (code/label/message) is what lets one 400 be told from another
+ * without guesswork. Messages are capped and no request body is included.
+ */
+export function fsErrorContext(err: unknown): Record<string, unknown> {
+  if (!(err instanceof FsApiError)) return {};
+  const ctx: Record<string, unknown> = { fsStatus: err.status };
+  try {
+    const parsed = JSON.parse(err.body) as {
+      errors?: Array<{ code?: unknown; label?: unknown; message?: unknown }>;
+    };
+    const first = parsed?.errors?.[0];
+    if (first) {
+      if (first.code != null) ctx.fsCode = first.code;
+      if (typeof first.label === 'string') ctx.fsLabel = first.label.slice(0, 120);
+      if (typeof first.message === 'string') ctx.fsMessage = first.message.slice(0, 200);
+    }
+  } catch {
+    // Body wasn't JSON; a short snippet of it still helps triage.
+    if (err.body) ctx.fsBodySnippet = err.body.slice(0, 200);
+  }
+  return ctx;
+}
+
 /** Report only failures that may be our bug: not sign-in expiry, not outages. */
 export function reportFsError(err: unknown, context?: Record<string, unknown>): void {
   if (isFsAuthError(err) || isTransientFsError(err)) return;
-  reportError(err, context);
+  reportError(err, { ...fsErrorContext(err), ...context });
 }
