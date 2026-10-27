@@ -17,5 +17,10 @@
   },
   "devDependencies": {
     "typescript": "^7.0.2"
+  },
+  "pnpm": {
+    "overrides": {
+      "undici@<8.12.2": ">=8.12.2"
+    }
   }
 }
