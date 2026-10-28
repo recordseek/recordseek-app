@@ -119,6 +119,63 @@ export function clampSourceAbout(url: string): string {
   return trimmed.length <= MAX_SOURCE_ABOUT ? trimmed : '';
 }
 
+/**
+ * Characters the WHATWG URL serializer leaves raw (so `location.href` can carry
+ * them) but RFC 3986 forbids outside the host. A strict server-side URI parser
+ * rejects them, so they are percent-encoded before a fallback retry.
+ */
+const RFC3986_UNSAFE = /[\s"<>\\^`{|}\[\]]/g;
+
+function strictUri(url: string): URL | null {
+  try {
+    const u = new URL(url);
+    return u.protocol === 'http:' || u.protocol === 'https:' ? u : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Rung of the `about` fallback ladder that a source was finally created with. */
+export type SourceAboutRung = 'encoded' | 'path' | 'origin' | 'none';
+
+/**
+ * Simpler `about` values to retry with, in order, after FamilySearch rejects a
+ * source with a 400. FamilySearch checks (categorizes) the `about` URI
+ * server-side, and a URI it cannot handle fails the whole create with the
+ * opaque "Failure in upstream call: Unable to create source" (RECORDSEEK-EV:
+ * 1.3 KB and 2.0 KB record links, under any fixed length cap we could guess).
+ * Each rung keeps as much of the link as possible: strictly encoded, then
+ * without its query and fragment, then just the site, then no link at all. The
+ * title, citation and notes are never dropped. Duplicates are skipped.
+ */
+export function sourceAboutFallbacks(url: string): Array<{ rung: SourceAboutRung; about: string }> {
+  const sent = clampSourceAbout(url);
+  const out: Array<{ rung: SourceAboutRung; about: string }> = [];
+  const seen = new Set([sent]);
+  const push = (rung: SourceAboutRung, about: string) => {
+    if (seen.has(about)) return;
+    seen.add(about);
+    out.push({ rung, about });
+  };
+  const u = strictUri(url);
+  if (u) {
+    const enc = (part: string) => part.replace(RFC3986_UNSAFE, (c) => encodeURIComponent(c));
+    const base = `${u.protocol}//${u.host}`;
+    const encoded = clampSourceAbout(`${base}${enc(u.pathname)}${enc(u.search)}${enc(u.hash)}`);
+    if (encoded) push('encoded', encoded);
+    const path = `${base}${enc(u.pathname)}`;
+    if (path.length <= MAX_SOURCE_ABOUT) push('path', path);
+    push('origin', `${base}/`);
+  }
+  push('none', '');
+  return out;
+}
+
+export interface CreateSourceOptions {
+  /** Called when the source was only accepted with a simplified `about`. */
+  onAboutFallback?: (info: { rung: SourceAboutRung; attempts: number; status: number }) => void;
+}
+
 export class FsApiError extends Error {
   readonly status: number;
   readonly body: string;
@@ -402,13 +459,40 @@ export class FamilySearchClient {
     return res.data?.collections ?? [];
   }
 
-  /** Create a source description; returns its new entity id. */
-  async createSourceDescription(draft: SourceDescriptionDraft): Promise<string | null> {
-    const description: Record<string, unknown> = {};
-    if (draft.about) {
-      const about = clampSourceAbout(draft.about);
-      if (about) description.about = about;
+  /**
+   * Create a source description; returns its new entity id. If FamilySearch
+   * rejects it with a 400 and it carries a link, it is retried with simpler
+   * links (see {@link sourceAboutFallbacks}) so the user's source still saves.
+   */
+  async createSourceDescription(
+    draft: SourceDescriptionDraft,
+    options: CreateSourceOptions = {},
+  ): Promise<string | null> {
+    const first = draft.about ? clampSourceAbout(draft.about) : '';
+    try {
+      return await this.postSourceDescription(draft, first);
+    } catch (err) {
+      if (!(err instanceof FsApiError) || err.status !== 400 || !draft.about) throw err;
+      let attempts = 1;
+      let lastError: FsApiError = err;
+      for (const { rung, about } of sourceAboutFallbacks(draft.about)) {
+        attempts++;
+        try {
+          const id = await this.postSourceDescription(draft, about);
+          options.onAboutFallback?.({ rung, attempts, status: lastError.status });
+          return id;
+        } catch (retryErr) {
+          if (!(retryErr instanceof FsApiError) || retryErr.status !== 400) throw retryErr;
+          lastError = retryErr;
+        }
+      }
+      throw lastError;
     }
+  }
+
+  private async postSourceDescription(draft: SourceDescriptionDraft, about: string): Promise<string | null> {
+    const description: Record<string, unknown> = {};
+    if (about) description.about = about;
     if (draft.citation) description.citations = [{ value: draft.citation }];
     if (draft.title) description.titles = [{ value: clampSourceTitle(draft.title) }];
     if (draft.text) description.notes = [{ text: draft.text }];

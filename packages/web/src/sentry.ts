@@ -91,4 +91,9 @@ export function reportError(err: unknown, context?: Record<string, unknown>): vo
   Sentry.captureException(err, context ? { extra: context } : undefined);
 }
 
+/** Report something that went wrong but was recovered from, as a warning. */
+export function reportWarning(message: string, context?: Record<string, unknown>): void {
+  Sentry.captureMessage(message, { level: 'warning', ...(context ? { extra: context } : {}) });
+}
+
 export const ErrorBoundary = Sentry.ErrorBoundary;

@@ -1,8 +1,12 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router';
 import { SessionProvider, useSession, type SessionState } from '../session/SessionContext';
-import { FsCreate, type FsCreateClient } from './FsCreate';
+import { FsApiError } from '@recordseek/core';
+import { FsCreate, aboutShape, type FsCreateClient } from './FsCreate';
+
+const sentry = vi.hoisted(() => ({ reportError: vi.fn(), reportWarning: vi.fn() }));
+vi.mock('../sentry', () => sentry);
 
 function makeClient(overrides: Partial<FsCreateClient> = {}) {
   const calls: {
@@ -167,6 +171,50 @@ describe('FsCreate', () => {
     expect(await screen.findByText('DONE John Smith')).toBeInTheDocument();
     expect(calls.createPerson).toHaveLength(0);
     expect(calls.personSourceRef[0]!.pid).toBe('P1');
+  });
+
+  it('reports a warning, not an error, when the source saved only with a simpler link', async () => {
+    sentry.reportWarning.mockClear();
+    sentry.reportError.mockClear();
+    const { client } = makeClient({
+      createSourceDescription: async (_draft, options) => {
+        options?.onAboutFallback?.({ rung: 'path', attempts: 3, status: 400 });
+        return 'SD-1';
+      },
+    });
+    renderCreate(client, { draft: { ...DRAFT, url: 'https://x.com/record?id=1' }, attach: ATTACH, tags: TAGS });
+    expect(await screen.findByText('DONE John Smith')).toBeInTheDocument();
+    expect(sentry.reportError).not.toHaveBeenCalled();
+    expect(sentry.reportWarning).toHaveBeenCalledTimes(1);
+    const extra = sentry.reportWarning.mock.calls[0]![1];
+    expect(extra).toMatchObject({ rung: 'path', attempts: 3, urlHost: 'x.com', urlQueryLength: 5 });
+    expect(JSON.stringify(extra)).not.toContain('record');
+  });
+
+  it('does not repeat the link ladder after a create_source 400', async () => {
+    let createCalls = 0;
+    const { client } = makeClient({
+      createSourceDescription: async () => {
+        createCalls += 1;
+        throw new FsApiError(400, '{}', 'FamilySearch API 400: Failure in upstream call: Unable to create source');
+      },
+    });
+    renderCreate(client, { draft: DRAFT, attach: ATTACH });
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(createCalls).toBe(1);
+  });
+
+  it('aboutShape describes a link without its path or query', () => {
+    expect(aboutShape(' https://www.example.org/a/b?q=secret#h ')).toEqual({
+      urlScheme: 'https',
+      urlLength: 38,
+      urlUnsafeChars: false,
+      urlHost: 'www.example.org',
+      urlPathLength: 4,
+      urlQueryLength: 9,
+      urlHashLength: 2,
+    });
+    expect(aboutShape('not a url')).toMatchObject({ urlParses: false, urlUnsafeChars: true });
   });
 
   it('surfaces the real error when source creation fails', async () => {

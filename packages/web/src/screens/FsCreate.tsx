@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { buildGedcomxPerson, hasPersonName, personDetailUrl } from '@recordseek/core';
+import { buildGedcomxPerson, hasPersonName, personDetailUrl, type CreateSourceOptions } from '@recordseek/core';
 import { useSession, EVENT_TAGS, type EventTag, type AttachTarget } from '../session/SessionContext';
 import { createFsClient } from '../auth/fsClient';
 import { beginFsLogin, isFsAuthError } from '../fsAuth';
 import { describeFsError, reportFsError } from '../fsErrors';
-import { reportError } from '../sentry';
+import { reportError, reportWarning } from '../sentry';
 import { track } from '../analytics';
 import { MARRIAGE_WRITE_ENABLED } from '../fsFeatures';
 import { BackButton } from '../components/BackButton';
@@ -30,7 +30,7 @@ export interface FsCreateClient {
     title?: string;
     text?: string;
     changeMessage?: string;
-  }): Promise<string | null>;
+  }, options?: CreateSourceOptions): Promise<string | null>;
   createPersonSourceRef(
     personId: string,
     ref: { descriptionUrl: string; tags?: string[]; changeMessage?: string },
@@ -40,6 +40,30 @@ export interface FsCreateClient {
     ref: { descriptionUrl: string; tags?: string[]; changeMessage?: string },
   ): Promise<unknown>;
   createPerson(person: unknown): Promise<string | null>;
+}
+
+/**
+ * Shape of the captured link (no path, query or content) for diagnosing a
+ * FamilySearch 400 on the source `about`. The site is kept: it tells which
+ * record sites FamilySearch cannot categorize.
+ */
+export function aboutShape(url: string): Record<string, unknown> {
+  const raw = url.trim();
+  const shape: Record<string, unknown> = {
+    urlScheme: (raw.split(':')[0] ?? '').slice(0, 10),
+    urlLength: raw.length,
+    urlUnsafeChars: /[\s"<>\\^`{|}\[\]]/.test(raw),
+  };
+  try {
+    const u = new URL(raw);
+    shape.urlHost = u.hostname.slice(0, 100);
+    shape.urlPathLength = u.pathname.length;
+    shape.urlQueryLength = u.search.length;
+    shape.urlHashLength = u.hash.length;
+  } catch {
+    shape.urlParses = false;
+  }
+  return shape;
 }
 
 function statusOf(err: unknown): unknown {
@@ -112,6 +136,23 @@ export function FsCreate({
           title: d.title.trim(),
           text: d.notes.trim(),
           changeMessage: ATTACH_MSG,
+        }, {
+          // Saved, but only with a simpler link: worth knowing which, so the
+          // real FamilySearch rule can be learned (RECORDSEEK-EV).
+          onAboutFallback: ({ rung, attempts, status }) => {
+            track('fs_source_about_fallback', { rung, attempts });
+            reportWarning('FamilySearch accepted the source only with a simplified link', {
+              screen: 'fs-create',
+              step: 'create_source',
+              rung,
+              attempts,
+              fsStatus: status,
+              ...aboutShape(d.url),
+              titleLength: d.title.trim().length,
+              citationLength: d.citation.trim().length,
+              notesLength: d.notes.trim().length,
+            });
+          },
         });
         if (!id) {
           throw new Error('FamilySearch did not return a source id.');
@@ -248,7 +289,10 @@ export function FsCreate({
             );
             return;
           }
-          if (attempt === 1) {
+          // A create_source 400 was already retried with simpler links inside
+          // createSourceDescription; repeating that whole ladder can't help.
+          const exhausted = step === 'create_source' && statusOf(err) === 400;
+          if (attempt === 1 && !exhausted) {
             track('fs_action_retried', { step });
             setStatus('That didn’t work. Trying again…');
             await wait(retryDelayMs);
@@ -260,8 +304,7 @@ export function FsCreate({
             step,
             ...(step === 'create_source'
               ? {
-                  urlScheme: (d.url.trim().split(':')[0] ?? '').slice(0, 10),
-                  urlLength: d.url.trim().length,
+                  ...aboutShape(d.url),
                   titleLength: d.title.trim().length,
                   citationLength: d.citation.trim().length,
                   notesLength: d.notes.trim().length,
