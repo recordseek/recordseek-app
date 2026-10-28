@@ -140,7 +140,7 @@ function strictUri(url: string): URL | null {
 }
 
 /** Rung of the `about` fallback ladder that a source was finally created with. */
-export type SourceAboutRung = 'encoded' | 'path' | 'origin';
+export type SourceAboutRung = 'encoded' | 'fragment' | 'path' | 'origin';
 
 /**
  * Simpler `about` values to retry with, in order, after FamilySearch rejects a
@@ -151,7 +151,11 @@ export type SourceAboutRung = 'encoded' | 'path' | 'origin';
  * FamilySearch's docs say the URI "indicates the type of source" (a records
  * URI resolves to a persona), so that lookup is the "upstream call". Each rung
  * keeps as much of the link as possible: strictly encoded, then without its
- * query and fragment, then just the site. `about` is the one required field of
+ * query and fragment, then just the site. A link with a `#fragment` first
+ * loses only the fragment (rung `fragment`, query kept): FamilySearch rejects
+ * `#` in OAuth callbacks, and a fragment is client-side only, so it may refuse
+ * one on a source too. It is kept on the first try because some record sites
+ * route by it (`/app/#/record/123`). `about` is the one required field of
  * a create, so it is never dropped; title, citation and notes always ride
  * along. Duplicates are skipped.
  */
@@ -168,8 +172,9 @@ export function sourceAboutFallbacks(url: string): Array<{ rung: SourceAboutRung
   if (u) {
     const enc = (part: string) => part.replace(RFC3986_UNSAFE, (c) => encodeURIComponent(c));
     const base = `${u.protocol}//${u.host}`;
-    const encoded = clampSourceAbout(`${base}${enc(u.pathname)}${enc(u.search)}${enc(u.hash)}`);
-    if (encoded) push('encoded', encoded);
+    // Strictly encoded, minus the fragment when there is one.
+    const strict = clampSourceAbout(`${base}${enc(u.pathname)}${enc(u.search)}`);
+    if (strict) push(u.hash ? 'fragment' : 'encoded', strict);
     const path = `${base}${enc(u.pathname)}`;
     if (path.length <= MAX_SOURCE_ABOUT) push('path', path);
     push('origin', `${base}/`);

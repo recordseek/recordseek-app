@@ -320,6 +320,18 @@ describe('resources', () => {
     for (const c of calls) expect(JSON.parse(String(c.init.body)).sourceDescriptions[0].about).toBeTruthy();
   });
 
+  it('first drops only a #fragment, keeping the query, when a link with one is refused', () => {
+    expect(sourceAboutFallbacks('https://books.example/b?id=AB#v=onepage&q&f=false')).toEqual([
+      { rung: 'fragment', about: 'https://books.example/b?id=AB' },
+      { rung: 'path', about: 'https://books.example/b' },
+      { rung: 'origin', about: 'https://books.example/' },
+    ]);
+    expect(sourceAboutFallbacks('https://site.example/app/#/record/123')[0]).toEqual({
+      rung: 'fragment',
+      about: 'https://site.example/app/',
+    });
+  });
+
   it('sourceAboutFallbacks skips duplicates and non-web links', () => {
     expect(sourceAboutFallbacks('https://a.example/')).toEqual([]);
     expect(sourceAboutFallbacks('https://a.example/p')).toEqual([{ rung: 'origin', about: 'https://a.example/' }]);
