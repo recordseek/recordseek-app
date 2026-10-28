@@ -10,6 +10,7 @@ import {
   clampSourceAbout,
   MAX_SOURCE_ABOUT,
   sourceAboutFallbacks,
+  citationWithLink,
 } from './familysearch';
 
 interface MockReply {
@@ -271,7 +272,52 @@ describe('resources', () => {
     expect(sentAbouts[1]).toContain('%7B%22a%22:1%7D%7Cb'); // then strictly encoded
     expect(sentAbouts[2]).toBe('https://records.example.com/view/123');
     expect(sentAbouts).toHaveLength(3);
-    expect(fallbacks).toEqual([{ rung: 'path', attempts: 3, status: 400 }]);
+    expect(fallbacks).toEqual([{ rung: 'path', attempts: 3, status: 400, citationSimplified: false }]);
+  });
+
+  it('simplifies the link inside the citation along with about (RECORDSEEK-F8)', async () => {
+    // FamilySearch refused a 1.4 KB signed S3 link on every about rung because
+    // the citation still carried it. Accept only once the citation is clean.
+    const url = `https://webcem.s3.us-east-1.amazonaws.com/docs/record.pdf?X-Amz-Signature=${'a'.repeat(1300)}`;
+    const citation = `"Burial record," Cemetery, online <${url}>, accessed 28 Oct 2026.`;
+    const bodies: Array<{ about?: string; citations?: Array<{ value: string }> }> = [];
+    const { fn } = mockFetch((_url, init) => {
+      const sd = JSON.parse(String(init.body)).sourceDescriptions[0];
+      bodies.push(sd);
+      return sd.citations[0].value.includes('X-Amz-Signature')
+        ? { status: 400, body: upstream400 }
+        : { status: 201, headers: { 'x-entity-id': 'SD-8' }, body: '{}' };
+    });
+    const client = new FamilySearchClient(baseConfig({ fetch: fn }));
+    const fallbacks: unknown[] = [];
+    const id = await client.createSourceDescription(
+      { about: url, title: 'T', citation },
+      { onAboutFallback: (info) => fallbacks.push(info) },
+    );
+    expect(id).toBe('SD-8');
+    expect(bodies).toHaveLength(2);
+    expect(bodies[0]!.citations).toEqual([{ value: citation }]); // first try is unchanged
+    const path = 'https://webcem.s3.us-east-1.amazonaws.com/docs/record.pdf';
+    expect(bodies[1]!.about).toBe(path);
+    expect(bodies[1]!.citations).toEqual([
+      { value: `"Burial record," Cemetery, online <${path}>, accessed 28 Oct 2026.` },
+    ]);
+    expect(fallbacks).toEqual([{ rung: 'path', attempts: 2, status: 400, citationSimplified: true }]);
+  });
+
+  it('citationWithLink swaps only the captured link, keeping trailing punctuation', () => {
+    const url = 'https://a.example/rec?id=9&sig=xyz';
+    expect(citationWithLink(`See ${url}.`, url, 'https://a.example/rec')).toBe('See https://a.example/rec.');
+    // A different page on the same site is left alone.
+    expect(citationWithLink('See https://a.example/other?x=1.', url, 'https://a.example/rec')).toBe(
+      'See https://a.example/other?x=1.',
+    );
+    // A citation link that differs only in its query still matches the page.
+    expect(citationWithLink('At https://a.example/rec?id=9, p. 2', url, 'https://a.example/')).toBe(
+      'At https://a.example/, p. 2',
+    );
+    expect(citationWithLink('No link here.', url, 'https://a.example/')).toBe('No link here.');
+    expect(citationWithLink('urn:x', 'urn:x', 'urn:y')).toBe('urn:x');
   });
 
   it('keeps title and citation on every retry, ending with just the site link', async () => {

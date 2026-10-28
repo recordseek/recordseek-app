@@ -182,9 +182,37 @@ export function sourceAboutFallbacks(url: string): Array<{ rung: SourceAboutRung
   return out;
 }
 
+/**
+ * The citation with the captured link swapped for a simplified one. Generated
+ * citations embed the full page URL, so a huge link (e.g. a 1.4 KB signed S3
+ * URL) rides along in the citation even after `about` is simplified — and
+ * FamilySearch kept refusing those sources on every `about` rung, down to the
+ * bare site (RECORDSEEK-F8). Any URL in the citation with the same host and
+ * path as `url` is replaced by `about`; trailing punctuation is kept.
+ */
+export function citationWithLink(citation: string, url: string, about: string): string {
+  const target = strictUri(url);
+  if (!target) return citation;
+  const key = `${target.host}${target.pathname}`;
+  return citation.replace(/https?:\/\/[^\s<>"]+/g, (match) => {
+    const trail = /[.,;:)\]]+$/.exec(match)?.[0] ?? '';
+    const u = strictUri(trail ? match.slice(0, -trail.length) : match);
+    return u && `${u.host}${u.pathname}` === key ? `${about}${trail}` : match;
+  });
+}
+
 export interface CreateSourceOptions {
-  /** Called when the source was only accepted with a simplified `about`. */
-  onAboutFallback?: (info: { rung: SourceAboutRung; attempts: number; status: number }) => void;
+  /**
+   * Called when the source was only accepted with a simplified `about`.
+   * `citationSimplified` says whether the citation's copy of the link was
+   * simplified with it.
+   */
+  onAboutFallback?: (info: {
+    rung: SourceAboutRung;
+    attempts: number;
+    status: number;
+    citationSimplified: boolean;
+  }) => void;
 }
 
 export class FsApiError extends Error {
@@ -474,6 +502,8 @@ export class FamilySearchClient {
    * Create a source description; returns its new entity id. If FamilySearch
    * rejects it with a 400 and it carries a link, it is retried with simpler
    * links (see {@link sourceAboutFallbacks}) so the user's source still saves.
+   * Each retry simplifies the link inside the citation too
+   * ({@link citationWithLink}).
    */
   async createSourceDescription(
     draft: SourceDescriptionDraft,
@@ -488,9 +518,15 @@ export class FamilySearchClient {
       let lastError: FsApiError = err;
       for (const { rung, about } of sourceAboutFallbacks(draft.about)) {
         attempts++;
+        const citation = draft.citation ? citationWithLink(draft.citation, draft.about, about) : draft.citation;
         try {
-          const id = await this.postSourceDescription(draft, about);
-          options.onAboutFallback?.({ rung, attempts, status: lastError.status });
+          const id = await this.postSourceDescription(draft, about, citation);
+          options.onAboutFallback?.({
+            rung,
+            attempts,
+            status: lastError.status,
+            citationSimplified: citation !== draft.citation,
+          });
           return id;
         } catch (retryErr) {
           if (!(retryErr instanceof FsApiError) || retryErr.status !== 400) throw retryErr;
@@ -501,14 +537,18 @@ export class FamilySearchClient {
     }
   }
 
-  private async postSourceDescription(draft: SourceDescriptionDraft, about: string): Promise<string | null> {
+  private async postSourceDescription(
+    draft: SourceDescriptionDraft,
+    about: string,
+    citation: string | undefined = draft.citation,
+  ): Promise<string | null> {
     const description: Record<string, unknown> = {};
     if (about) description.about = about;
     // FamilySearch: "Title. The name of the source, always required." A page with
     // no title ("A title for the source must be supplied", RECORDSEEK-EV) gets
     // the site's name instead of a failed save.
     const title = draft.title?.trim() || (about ? extractDomain(about) : '') || 'Web page';
-    if (draft.citation) description.citations = [{ value: draft.citation }];
+    if (citation) description.citations = [{ value: citation }];
     description.titles = [{ value: clampSourceTitle(title) }];
     if (draft.text) description.notes = [{ text: draft.text }];
     if (draft.changeMessage) {

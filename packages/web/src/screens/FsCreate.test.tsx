@@ -178,7 +178,7 @@ describe('FsCreate', () => {
     sentry.reportError.mockClear();
     const { client } = makeClient({
       createSourceDescription: async (_draft, options) => {
-        options?.onAboutFallback?.({ rung: 'path', attempts: 3, status: 400 });
+        options?.onAboutFallback?.({ rung: 'path', attempts: 3, status: 400, citationSimplified: true });
         return 'SD-1';
       },
     });
@@ -187,7 +187,7 @@ describe('FsCreate', () => {
     expect(sentry.reportError).not.toHaveBeenCalled();
     expect(sentry.reportWarning).toHaveBeenCalledTimes(1);
     const extra = sentry.reportWarning.mock.calls[0]![1];
-    expect(extra).toMatchObject({ rung: 'path', attempts: 3, urlHost: 'x.com', urlQueryLength: 5 });
+    expect(extra).toMatchObject({ rung: 'path', attempts: 3, citationSimplified: true, urlHost: 'x.com', urlQueryLength: 5 });
     expect(JSON.stringify(extra)).not.toContain('record');
   });
 

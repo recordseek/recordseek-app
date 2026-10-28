@@ -139,13 +139,14 @@ export function FsCreate({
         }, {
           // Saved, but only with a simpler link: worth knowing which, so the
           // real FamilySearch rule can be learned (RECORDSEEK-EV).
-          onAboutFallback: ({ rung, attempts, status }) => {
-            track('fs_source_about_fallback', { rung, attempts });
+          onAboutFallback: ({ rung, attempts, status, citationSimplified }) => {
+            track('fs_source_about_fallback', { rung, attempts, citationSimplified });
             reportWarning('FamilySearch accepted the source only with a simplified link', {
               screen: 'fs-create',
               step: 'create_source',
               rung,
               attempts,
+              citationSimplified,
               fsStatus: status,
               ...aboutShape(d.url),
               titleLength: d.title.trim().length,
