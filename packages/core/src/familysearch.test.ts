@@ -226,14 +226,23 @@ describe('resources', () => {
     expect(sent.about).toBe(base);
   });
 
-  it('omits about entirely when even the origin and path are too long', async () => {
+  it('falls back to the site, never omitting the required about, when even the path is too long', async () => {
     const { fn, calls } = mockFetch(() => ({ status: 201, headers: { 'x-entity-id': 'SD-1' }, body: '{}' }));
     const client = new FamilySearchClient(baseConfig({ fetch: fn }));
     const longPath = `https://example.com/${'a'.repeat(MAX_SOURCE_ABOUT)}`;
     await client.createSourceDescription({ about: longPath, citation: 'cite' });
     const sent = JSON.parse(String(calls[0]!.init.body)).sourceDescriptions[0];
-    expect('about' in sent).toBe(false);
+    expect(sent.about).toBe('https://example.com/');
     expect(sent.citations).toEqual([{ value: 'cite' }]);
+  });
+
+  it('always sends a title, using the site name when the page had none', async () => {
+    const { fn, calls } = mockFetch(() => ({ status: 201, headers: { 'x-entity-id': 'SD-1' }, body: '{}' }));
+    const client = new FamilySearchClient(baseConfig({ fetch: fn }));
+    await client.createSourceDescription({ about: 'https://www.findagrave.com/memorial/1', title: '  ' });
+    await client.createSourceDescription({ about: 'urn:x', title: '' });
+    expect(JSON.parse(String(calls[0]!.init.body)).sourceDescriptions[0].titles).toEqual([{ value: 'Findagrave.com' }]);
+    expect(JSON.parse(String(calls[1]!.init.body)).sourceDescriptions[0].titles).toEqual([{ value: 'Web page' }]);
   });
 
   const upstream400 = JSON.stringify({
@@ -265,17 +274,17 @@ describe('resources', () => {
     expect(fallbacks).toEqual([{ rung: 'path', attempts: 3, status: 400 }]);
   });
 
-  it('keeps title and citation on every retry and finally saves without a link', async () => {
+  it('keeps title and citation on every retry, ending with just the site link', async () => {
     const bodies: Array<Record<string, unknown>> = [];
     const { fn } = mockFetch((_url, init) => {
       const sd = JSON.parse(String(init.body)).sourceDescriptions[0];
       bodies.push(sd);
-      return 'about' in sd ? { status: 400, body: upstream400 } : { status: 201, headers: { 'x-entity-id': 'SD-2' }, body: '{}' };
+      return sd.about !== 'https://a.example/' ? { status: 400, body: upstream400 } : { status: 201, headers: { 'x-entity-id': 'SD-2' }, body: '{}' };
     });
     const client = new FamilySearchClient(baseConfig({ fetch: fn }));
     const id = await client.createSourceDescription({ about: 'https://a.example/p?x=1', title: 'T', citation: 'C', text: 'N' });
     expect(id).toBe('SD-2');
-    expect(bodies.map((b) => b.about)).toEqual(['https://a.example/p?x=1', 'https://a.example/p', 'https://a.example/', undefined]);
+    expect(bodies.map((b) => b.about)).toEqual(['https://a.example/p?x=1', 'https://a.example/p', 'https://a.example/']);
     for (const b of bodies) {
       expect(b.titles).toEqual([{ value: 'T' }]);
       expect(b.citations).toEqual([{ value: 'C' }]);
@@ -303,20 +312,18 @@ describe('resources', () => {
     expect(calls400).toBe(1);
   });
 
-  it('throws the last 400 when even a link-free source is refused', async () => {
+  it('throws the last 400 when even the site link is refused, and never omits about', async () => {
     const { fn, calls } = mockFetch(() => ({ status: 400, body: upstream400 }));
     const client = new FamilySearchClient(baseConfig({ fetch: fn }));
     await expect(client.createSourceDescription({ about: 'https://a.example/p?x=1', title: 'T' })).rejects.toMatchObject({ status: 400 });
-    expect(calls).toHaveLength(4);
+    expect(calls).toHaveLength(3);
+    for (const c of calls) expect(JSON.parse(String(c.init.body)).sourceDescriptions[0].about).toBeTruthy();
   });
 
   it('sourceAboutFallbacks skips duplicates and non-web links', () => {
-    expect(sourceAboutFallbacks('https://a.example/')).toEqual([{ rung: 'none', about: '' }]);
-    expect(sourceAboutFallbacks('https://a.example/p')).toEqual([
-      { rung: 'origin', about: 'https://a.example/' },
-      { rung: 'none', about: '' },
-    ]);
-    expect(sourceAboutFallbacks('urn:isbn:123')).toEqual([{ rung: 'none', about: '' }]);
+    expect(sourceAboutFallbacks('https://a.example/')).toEqual([]);
+    expect(sourceAboutFallbacks('https://a.example/p')).toEqual([{ rung: 'origin', about: 'https://a.example/' }]);
+    expect(sourceAboutFallbacks('urn:isbn:123')).toEqual([]);
   });
 
   it('clampSourceAbout leaves a normal URL untouched', () => {

@@ -5,6 +5,8 @@ import {
   cleanAncestrySearchUrl,
   normalizeUrl,
   extractDomain,
+  stripTrackingParams,
+  isTrackingParam,
 } from './url-normalize';
 
 describe('stripBilliongravesHash', () => {
@@ -57,7 +59,39 @@ describe('cleanAncestrySearchUrl', () => {
   });
 });
 
+describe('stripTrackingParams', () => {
+  it('drops Google, Meta, Microsoft and campaign params, keeping the rest exactly', () => {
+    expect(
+      stripTrackingParams(
+        'https://www.findagrave.com/memorial/12345/john-smith?utm_source=google&utm_medium=cpc&gclid=Cj0KCQ&srsltid=AfmBOo&page=2&q=a%20b',
+      ),
+    ).toBe('https://www.findagrave.com/memorial/12345/john-smith?page=2&q=a%20b');
+    expect(stripTrackingParams('https://x.example/a?fbclid=IwAR1&msclkid=9&_gl=1*abc')).toBe('https://x.example/a');
+  });
+
+  it('keeps the fragment and leaves URLs without tracking untouched', () => {
+    expect(stripTrackingParams('https://x.example/a?UTM_Campaign=fall&id=7#p3')).toBe('https://x.example/a?id=7#p3');
+    const clean = 'https://www.familysearch.org/ark:/61903/1:1:ABCD-123?cid=fs_copy';
+    expect(stripTrackingParams(clean)).toBe(clean);
+    expect(stripTrackingParams('https://x.example/a')).toBe('https://x.example/a');
+  });
+
+  it('only matches whole param names', () => {
+    expect(isTrackingParam('utm_term')).toBe(true);
+    expect(isTrackingParam('gclid')).toBe(true);
+    expect(isTrackingParam('pid')).toBe(false);
+    expect(isTrackingParam('ref')).toBe(false);
+    expect(isTrackingParam('glcid')).toBe(false);
+  });
+});
+
 describe('normalizeUrl', () => {
+  it('removes tracking params from a captured URL', () => {
+    expect(normalizeUrl('https://newspapers.example/article/42?utm_source=newsletter&fbclid=x')).toBe(
+      'https://newspapers.example/article/42',
+    );
+  });
+
   it('returns empty string for falsy input', () => {
     expect(normalizeUrl('')).toBe('');
     expect(normalizeUrl(null)).toBe('');

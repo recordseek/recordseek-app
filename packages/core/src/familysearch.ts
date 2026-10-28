@@ -16,6 +16,7 @@
 /// <reference path="./fs-js-lite.d.ts" />
 import FamilySearch from 'fs-js-lite';
 import type { FsJsLiteClient, FsJsLiteRequest, FsJsLiteResponse } from 'fs-js-lite';
+import { extractDomain } from './url-normalize';
 
 export type FsEnvironment = 'production' | 'beta' | 'integration';
 
@@ -108,15 +109,18 @@ export function clampSourceTitle(title: string): string {
  * to create source" (RECORDSEEK-F2: 2.1–2.7 KB capture URLs). 2048 is the
  * conventional URL ceiling. When a URL is too long — almost always a huge query
  * string on a record link — drop the query (and hash) to keep a working link;
- * only omit `about` entirely if even the origin+path is too long. The full
- * original URL still rides along in the citation text, so nothing is lost.
+ * fall back to the site origin if even the origin+path is too long (`about` is
+ * the one required field of a create, so it is never omitted).
  */
 export const MAX_SOURCE_ABOUT = 2048;
 
 export function clampSourceAbout(url: string): string {
   if (url.length <= MAX_SOURCE_ABOUT) return url;
   const trimmed = url.split(/[?#]/)[0] ?? '';
-  return trimmed.length <= MAX_SOURCE_ABOUT ? trimmed : '';
+  if (trimmed.length <= MAX_SOURCE_ABOUT) return trimmed;
+  // `about` is required by the API, so fall back to the site rather than omit it.
+  const u = strictUri(url);
+  return u ? `${u.protocol}//${u.host}/` : '';
 }
 
 /**
@@ -136,7 +140,7 @@ function strictUri(url: string): URL | null {
 }
 
 /** Rung of the `about` fallback ladder that a source was finally created with. */
-export type SourceAboutRung = 'encoded' | 'path' | 'origin' | 'none';
+export type SourceAboutRung = 'encoded' | 'path' | 'origin';
 
 /**
  * Simpler `about` values to retry with, in order, after FamilySearch rejects a
@@ -144,9 +148,12 @@ export type SourceAboutRung = 'encoded' | 'path' | 'origin' | 'none';
  * server-side, and a URI it cannot handle fails the whole create with the
  * opaque "Failure in upstream call: Unable to create source" (RECORDSEEK-EV:
  * 1.3 KB and 2.0 KB record links, under any fixed length cap we could guess).
- * Each rung keeps as much of the link as possible: strictly encoded, then
- * without its query and fragment, then just the site, then no link at all. The
- * title, citation and notes are never dropped. Duplicates are skipped.
+ * FamilySearch's docs say the URI "indicates the type of source" (a records
+ * URI resolves to a persona), so that lookup is the "upstream call". Each rung
+ * keeps as much of the link as possible: strictly encoded, then without its
+ * query and fragment, then just the site. `about` is the one required field of
+ * a create, so it is never dropped; title, citation and notes always ride
+ * along. Duplicates are skipped.
  */
 export function sourceAboutFallbacks(url: string): Array<{ rung: SourceAboutRung; about: string }> {
   const sent = clampSourceAbout(url);
@@ -167,7 +174,6 @@ export function sourceAboutFallbacks(url: string): Array<{ rung: SourceAboutRung
     if (path.length <= MAX_SOURCE_ABOUT) push('path', path);
     push('origin', `${base}/`);
   }
-  push('none', '');
   return out;
 }
 
@@ -493,8 +499,12 @@ export class FamilySearchClient {
   private async postSourceDescription(draft: SourceDescriptionDraft, about: string): Promise<string | null> {
     const description: Record<string, unknown> = {};
     if (about) description.about = about;
+    // FamilySearch: "Title. The name of the source, always required." A page with
+    // no title ("A title for the source must be supplied", RECORDSEEK-EV) gets
+    // the site's name instead of a failed save.
+    const title = draft.title?.trim() || (about ? extractDomain(about) : '') || 'Web page';
     if (draft.citation) description.citations = [{ value: draft.citation }];
-    if (draft.title) description.titles = [{ value: clampSourceTitle(draft.title) }];
+    description.titles = [{ value: clampSourceTitle(title) }];
     if (draft.text) description.notes = [{ text: draft.text }];
     if (draft.changeMessage) {
       const attribution: Record<string, unknown> = { changeMessage: draft.changeMessage };

@@ -83,12 +83,62 @@ export function cleanAncestrySearchUrl(url: string): string {
   return qs ? `${base}?${qs}` : base;
 }
 
+/**
+ * Query params that only identify a click or campaign (Google, Microsoft,
+ * Meta, Mailchimp, HubSpot, TikTok, X, LinkedIn, Yandex, Marketo, ...). They
+ * never identify the record, they make links long and unique per visit, and
+ * they leak where the user came from into a public source citation.
+ */
+const TRACKING_PARAMS: ReadonlySet<string> = new Set([
+  'gclid', 'gclsrc', 'gbraid', 'wbraid', 'dclid', 'gad_source', 'gad_campaignid', 'srsltid', '_ga', '_gl', '_gac',
+  'fbclid', 'igshid', 'msclkid', 'yclid', 'ysclid', 'ttclid', 'twclid', 'li_fat_id', 'epik', 'rdt_cid', 'sccid',
+  'mc_cid', 'mc_eid', '_hsenc', '_hsmi', '__hstc', '__hssc', '__hsfp', 'hsctatracking', 'mkt_tok',
+  'oly_anon_id', 'oly_enc_id', 'vero_id', 'vero_conv', '_kx', 'wickedid', 'irclickid', 'cmpid', 's_kwcid', 'ef_id',
+]);
+
+/** True for a click/campaign tracking param name (case-insensitive; any `utm_*`). */
+export function isTrackingParam(name: string): boolean {
+  const key = name.toLowerCase();
+  return key.startsWith('utm_') || TRACKING_PARAMS.has(key);
+}
+
+/**
+ * Remove click/campaign tracking params from a URL's query, leaving every other
+ * param, their order and their exact encoding untouched (no re-serializing).
+ */
+export function stripTrackingParams(url: string): string {
+  const hashIdx = url.indexOf('#');
+  const beforeHash = hashIdx === -1 ? url : url.slice(0, hashIdx);
+  const hash = hashIdx === -1 ? '' : url.slice(hashIdx);
+  const qIdx = beforeHash.indexOf('?');
+  if (qIdx === -1) {
+    return url;
+  }
+  const kept = beforeHash
+    .slice(qIdx + 1)
+    .split('&')
+    .filter((pair) => {
+      if (!pair) return false;
+      const rawKey = pair.split('=')[0] ?? '';
+      let key = rawKey;
+      try {
+        key = decodeURIComponent(rawKey.replace(/\+/g, ' '));
+      } catch {
+        /* keep the raw key */
+      }
+      return !isTrackingParam(key.trim());
+    });
+  const base = beforeHash.slice(0, qIdx);
+  return `${kept.length > 0 ? `${base}?${kept.join('&')}` : base}${hash}`;
+}
+
 /** Full canonicalization pipeline applied to a captured source URL. */
 export function normalizeUrl(url: string | null | undefined): string {
   if (!url) {
     return '';
   }
-  let out = stripBilliongravesHash(url);
+  let out = stripTrackingParams(url);
+  out = stripBilliongravesHash(out);
   out = normalizeAncestryHost(out);
   out = cleanAncestrySearchUrl(out);
   return out;
