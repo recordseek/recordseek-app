@@ -6,11 +6,14 @@ import { Announcement } from './Announcement';
 describe('Announcement', () => {
   beforeEach(() => localStorage.clear());
 
-  it('shows the Chrome news and stays dismissed once closed', async () => {
+  it('shows the Edge news and stays dismissed once closed', async () => {
     const { unmount } = render(<Announcement />);
-    expect(screen.getByRole('status')).toHaveTextContent('RecordSeek is back on Chrome, Edge, Firefox and more!');
+    expect(screen.getByRole('status')).toHaveTextContent('RecordSeek is now on Microsoft Edge!');
     expect(screen.getByRole('status')).toHaveTextContent('Safari and mobile apps are coming soon');
-    expect(screen.getByRole('link', { name: 'See our new website' })).toHaveAttribute('href', 'https://recordseek.com/');
+    expect(screen.getByRole('link', { name: 'Microsoft Edge Add-ons' })).toHaveAttribute(
+      'href',
+      'https://microsoftedge.microsoft.com/addons/detail/recordseek/caandekadjbeifokbkmhfphjhopoobcp',
+    );
     await userEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
     unmount();

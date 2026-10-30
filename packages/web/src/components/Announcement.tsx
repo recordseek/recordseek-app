@@ -1,7 +1,9 @@
 import { useState } from 'react';
 
+const EDGE_ADDONS_URL = 'https://microsoftedge.microsoft.com/addons/detail/recordseek/caandekadjbeifokbkmhfphjhopoobcp';
+
 // Bump the key when the message changes so everyone sees the new one.
-const DISMISS_KEY = 'rs-announcement-browsers-back';
+const DISMISS_KEY = 'rs-announcement-edge-addons';
 
 function dismissed(): boolean {
   try {
@@ -28,11 +30,11 @@ export function Announcement() {
   return (
     <div className="announcement" role="status">
       <span>
-        <strong>RecordSeek is back on Chrome, Edge, Firefox and more!</strong> Safari and mobile apps are coming
-        soon.{' '}
-        <a href="https://recordseek.com/" target="_blank" rel="noreferrer">
-          See our new website
+        <strong>RecordSeek is now on Microsoft Edge!</strong> Get it from{' '}
+        <a href={EDGE_ADDONS_URL} target="_blank" rel="noreferrer">
+          Microsoft Edge Add-ons
         </a>
+        . Also available for Chrome and Firefox. Safari and mobile apps are coming soon.
       </span>
       <button type="button" className="announcement-close" aria-label="Dismiss" onClick={dismiss}>
         ×
